@@ -1,0 +1,49 @@
+name: Publier sur GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Décoder les icônes PNG (stockées en base64)
+        run: |
+          for f in icons/*.png.b64; do base64 -d "$f" > "${f%.b64}"; done
+          ls -l icons
+
+      - name: Enregistrer les PNG dans le dépôt (utile si Pages est servi depuis la branche main)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add icons/*.png
+          git diff --cached --quiet || (git commit -m "Ajoute les icônes PNG décodées [skip ci]" && git push)
+
+      - name: Configurer Pages
+        uses: actions/configure-pages@v5
+        with:
+          enablement: true
+        continue-on-error: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

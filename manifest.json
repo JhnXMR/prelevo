@@ -1,0 +1,19 @@
+{
+  "name": "Scan Finance – l'app qui traque tes abonnements",
+  "short_name": "Scan Finance",
+  "description": "Repère tes abonnements, détecte les hausses de prix et t'aide à résilier. Maquette avec données d'exemple.",
+  "lang": "fr",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5F7FB",
+  "theme_color": "#0B1B3F",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
