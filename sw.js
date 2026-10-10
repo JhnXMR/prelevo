@@ -1,18 +1,9 @@
-const CACHE = 'prelevo-v9-tarifs';
-const ASSETS = ['./', './index.html', './styles.css', './config.js', './app.js', './manifest.json',
-  './icons/icon-192.png', './icons/icon-512.png', './icons/icon.svg',
-  './icons/favicon.svg', './icons/favicon-32.png', './icons/apple-touch-icon-180.png'];
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
-});
-self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
-});
-self.addEventListener('fetch', e => {
-  if (e.request.method !== 'GET') return;
-  e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).then(res => {
-    const copy = res.clone();
-    caches.open(CACHE).then(c => c.put(e.request, copy));
-    return res;
-  }).catch(() => caches.match('./index.html'))));
-});
+/* Ancien service worker de la maquette quand elle était à la racine.
+   Il se désinstalle tout seul pour que la page de lancement s'affiche (la démo vit maintenant dans /app/). */
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', e => e.waitUntil((async () => {
+  const keys = await caches.keys();
+  await Promise.all(keys.filter(k => !k.startsWith('prelevo-app-')).map(k => caches.delete(k)));
+  await self.registration.unregister();
+  for (const c of await self.clients.matchAll({ type: 'window' })) c.navigate(c.url);
+})()));

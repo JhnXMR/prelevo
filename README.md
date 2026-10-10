@@ -1,29 +1,17 @@
-# Prelevo – maquette cliquable (PWA)
+# Prelevo – site de lancement + démo
 
-(Anciennement « Scan Finance » puis « Radar Finance ». Charte : logo radar, palette bleu / blanc / noir, police Inter.)
+En ligne (après publication) : https://jhnxmr.github.io/prelevo/
+- `/` : page de lancement / liste d'attente (index.html, landing.css, landing.js, config.js)
+- `/app/` : maquette cliquable de l'app (PWA). Démo : https://jhnxmr.github.io/prelevo/app/?demo=1
 
-Maquette statique, sans build. Toutes les données sont FICTIVES (« Données d'exemple »).
-Aucune banque n'est contactée : connexion, scan, paiement, chat et e-mail sont simulés.
+## Réglages (config.js à la racine)
+- `incentive` : texte de l'offre de lancement (« Les 500 premiers inscrits : 3 mois de Premium offerts »), `enabled:false` pour la masquer.
+- `waitlist` : où partent les inscriptions (`provider` : none | google-form | formspree | apps-script | json, `endpoint`, `field`).
+  Avec `none`, rien n'est envoyé : l'e-mail reste dans le navigateur du visiteur (aperçu uniquement, à ne pas publier tel quel).
+- `publisher`, `contactEmail` : affichés dans Mentions légales et Confidentialité.
 
-En ligne : https://jhnxmr.github.io/scan-finance-maquette/  (démo : https://jhnxmr.github.io/scan-finance-maquette/?demo=1)
-Les icônes PNG (et les logos) sont envoyés en un paquet base64 (icons/icons-png.tar.b64), décodé et enregistré par .github/workflows/pages.yml.
-GitHub Pages sert directement la branche main (racine).
-
-Lancer en local :  python3 -m http.server 8090   puis ouvrir http://localhost:8090/
-Paramètres utiles : ?demo=1 (déjà connecté), &plan=free ou &plan=premium (mode démo).
-Le mode Gratuit/Premium se change aussi dans Aide et réglages (icône ⚙︎ du tableau de bord).
-
-Renommer l'app : modifier `name` dans config.js (tout le texte de l'interface suit).
-Le nom apparaît aussi en dur dans manifest.json (name, short_name) et dans <title>/<meta> d'index.html :
-  sed -i 's/Prelevo/NouveauNom/g' manifest.json index.html config.js
-Après une modification, changer CACHE dans sw.js (ex. prelevo-v9) pour forcer la mise à jour hors ligne.
-
-Prix et essai : config.js (priceMonth, priceYear, trial).
-
-Écrans : #/onboarding, #/connect, #/scan, #/dashboard, #/abonnements (?f=up|small|eco), #/abo/<id>,
-#/resilier/<id>/<1-4> (Premium), #/alertes, #/premium, #/aide, #/chat, #/banques
-
-Identité visuelle stricte Bleu / Blanc / Noir : accent Bleu Radar #2A5BF6 (mode sombre : Bleu Signal #5B86FF),
-Noir Radar #0A0B0D, Blanc #FFFFFF + gris neutres. Succès/synchro OK = bleu ; alertes (hausse, double prélèvement) = noir + icône ;
-rouge sourd #C2372F réservé aux seules erreurs techniques (banque déconnectée). Variables CSS en tête de styles.css.
-Icônes : icons/icon.svg (app), favicon.svg, logo-mark.svg, logo-horizontal(-white).svg, PNG 192/512/maskable 512/apple-touch 180.
+## Divers
+- Aucun cookie, aucun traceur, police Inter auto-hébergée (assets/fonts).
+- Image de partage : assets/og.png (1200×630). Source : prelevo-brand/og-image.html.
+- `sw.js` à la racine : désinstalle l'ancien service worker de la maquette (quand elle était à la racine) pour que la page de lancement s'affiche. Ne pas supprimer avant quelques semaines.
+- Captures d'écran des fonctions : assets/shots/*.webp (issues de la maquette).

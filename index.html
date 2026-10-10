@@ -3,35 +3,156 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0A0B0D" media="(prefers-color-scheme: dark)">
-  <meta name="color-scheme" content="light dark">
-  <meta name="description" content="Prelevo – l'app qui traque tes abonnements. Maquette cliquable (données d'exemple).">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <meta name="apple-mobile-web-app-title" content="Prelevo">
-  <link rel="manifest" href="manifest.json">
-  <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
-  <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
-  <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png" sizes="180x180">
-  <link rel="stylesheet" href="styles.css">
-  <title>Prelevo – l'app qui traque tes abonnements</title>
+  <title>Prelevo – Tes abonnements, sous contrôle</title>
+  <meta name="description" content="Prelevo repère tes abonnements, t’alerte quand un prix augmente, débusque les petits prélèvements oubliés et t’aide à résilier. 3,99 €/mois, 1 mois offert. Rejoins la liste d’attente.">
+  <meta name="theme-color" content="#FFFFFF">
+  <meta name="color-scheme" content="light">
+  <link rel="canonical" href="https://jhnxmr.github.io/prelevo/">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:site_name" content="Prelevo">
+  <meta property="og:url" content="https://jhnxmr.github.io/prelevo/">
+  <meta property="og:title" content="Prelevo – Tes abonnements, sous contrôle">
+  <meta property="og:description" content="Hausses de prix, petits prélèvements oubliés, résiliation guidée. Rejoins la liste d’attente.">
+  <meta property="og:image" content="https://jhnxmr.github.io/prelevo/assets/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Prelevo – Tes abonnements, sous contrôle. 3,99 €/mois.">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Prelevo – Tes abonnements, sous contrôle">
+  <meta name="twitter:description" content="Hausses de prix, petits prélèvements oubliés, résiliation guidée. Rejoins la liste d’attente.">
+  <meta name="twitter:image" content="https://jhnxmr.github.io/prelevo/assets/og.png">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon-180.png">
+  <link rel="preload" href="assets/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="landing.css">
 </head>
 <body>
-  <div id="app" class="app"></div>
-  <nav id="tabbar" class="tabbar" hidden>
-    <a href="#/dashboard" data-tab="dashboard"><span class="ti"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9H4z"/></svg></span>Accueil</a>
-    <a href="#/abonnements" data-tab="abonnements"><span class="ti"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></span>Abonnements</a>
-    <a href="#/alertes" data-tab="alertes"><span class="ti"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span>Alertes<i id="alert-dot" class="dot"></i></a>
-    <a href="#/premium" data-tab="premium"><span class="ti"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span>Premium</a>
-  </nav>
-  <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="config.js"></script>
-  <script src="app.js"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
-    }
-  </script>
+<header class="nav wrap">
+  <a class="brand" href="./" aria-label="Prelevo, accueil"><img src="assets/logo-mark.svg" alt="" width="30" height="30"><span>Prelevo</span></a>
+  <nav class="nav-links"><a href="#fonctions">Fonctions</a><a href="#prix">Prix</a><a href="#faq">FAQ</a><a class="btn-sm" href="app/?demo=1">Voir la démo</a></nav>
+</header>
+
+<main>
+<section class="hero wrap">
+  <div class="hero-txt">
+    <p class="kicker"><span class="pulse"></span>Bientôt disponible · Liste d’attente ouverte</p>
+    <h1>Tes abonnements,<br><span class="blue">sous contrôle.</span></h1>
+    <p class="lead">Prelevo traque tes prélèvements récurrents : il t’alerte quand un prix augmente, débusque les petits prélèvements oubliés et t’aide à résilier en quelques minutes.</p>
+    <form class="wl" data-source="hero" novalidate>
+      <div class="wl-row">
+        <label class="sr" for="email-hero">Ton e-mail</label>
+        <input id="email-hero" type="email" name="email" placeholder="ton@email.fr" autocomplete="email" inputmode="email" required>
+        <button type="submit">Rejoindre la liste d’attente</button>
+      </div>
+      <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+      <label class="consent"><input type="checkbox" name="consent" required><span>J’accepte de recevoir des e-mails de Prelevo sur son lancement. Désinscription en 1 clic. <a href="#confidentialite">Confidentialité</a></span></label>
+      <p class="incentive" data-incentive>🎁 Les 500 premiers inscrits : 3 mois de Premium offerts</p>
+      <p class="wl-msg" role="status" aria-live="polite"></p>
+    </form>
+    <p class="demo-link"><a href="app/?demo=1">Voir la démo interactive →</a> <span>données d’exemple</span></p>
+  </div>
+  <div class="hero-phone"><div class="phone"><img src="assets/shots/dashboard.webp" alt="Tableau de bord Prelevo : reste à vivre, économies trouvées, solde sur 30 jours" width="320" height="692" fetchpriority="high"></div></div>
+</section>
+
+<section class="strip wrap" aria-label="En bref">
+  <div><b>Lecture seule</b><span>aucun mouvement d’argent possible</span></div>
+  <div><b>Zéro pub</b><span>zéro partenariat commercial</span></div>
+  <div><b>3,99 €/mois</b><span>ou gratuit pour commencer</span></div>
+  <div><b>Support humain</b><span>pas un robot</span></div>
+</section>
+
+<section id="fonctions" class="features wrap">
+  <h2 class="h2">Ce que Prelevo fait pour toi</h2>
+  <article class="feat">
+    <div class="feat-txt"><span class="num">01</span><h3>Tous tes abonnements, en un coup d’œil</h3><p>Connecte ta banque, Prelevo repère tout seul les prélèvements récurrents : streaming, mobile, box, assurances, salle de sport… avec le total par mois et par an.</p></div>
+    <div class="phone sm"><img src="assets/shots/abonnements.webp" alt="Liste des abonnements détectés avec le total mensuel" width="320" height="692" loading="lazy"></div>
+  </article>
+  <article class="feat rev">
+    <div class="feat-txt"><span class="num">02</span><h3>Alerté dès qu’un prix monte</h3><p>Ton streaming passe de 10,99 € à 13,49 € ? Tu es prévenu tout de suite. Et aussi : doubles prélèvements, rappel avant chaque débit, fin d’essai gratuit.</p></div>
+    <div class="phone sm"><img src="assets/shots/alertes.webp" alt="Alertes : hausses de prix et doubles prélèvements" width="320" height="692" loading="lazy"></div>
+  </article>
+  <article class="feat">
+    <div class="feat-txt"><span class="num">03</span><h3>Les petits prélèvements oubliés</h3><p>2,99 € par-ci, 4,99 € par-là… Prelevo débusque ces petites sommes qui partent chaque mois sans que tu t’en rendes compte. Et te montre ton reste à vivre.</p></div>
+    <div class="phone sm"><img src="assets/shots/oublies.webp" alt="Petits prélèvements oubliés détectés" width="320" height="692" loading="lazy"></div>
+  </article>
+  <article class="feat rev">
+    <div class="feat-txt"><span class="num">04</span><h3>Résilie en quelques minutes</h3><p>Lettre prête à envoyer, démarches pas à pas et suivi jusqu’à l’arrêt du prélèvement. Tu gardes la main, Prelevo fait le plus pénible.</p></div>
+    <div class="phone sm"><img src="assets/shots/resiliation.webp" alt="Résiliation guidée avec lettre prête" width="320" height="692" loading="lazy"></div>
+  </article>
+</section>
+
+<section id="prix" class="pricing wrap">
+  <h2 class="h2">Un prix qui se rembourse dès la première résiliation</h2>
+  <p class="sub">1 mois de Premium offert pour essayer. Sans engagement, annulable en 1 clic.</p>
+  <div class="plans">
+    <div class="plan"><h3>Gratuit</h3><div class="p">0 €</div><ul><li>Scan de tes comptes</li><li>Liste des abonnements et total</li><li>1 banque connectée</li></ul></div>
+    <div class="plan"><h3>Premium Mensuel</h3><div class="p">3,99 €<small>/mois</small></div><ul><li>Tout le gratuit</li><li>Alertes hausse de prix et doublons</li><li>Petits prélèvements oubliés</li><li>Résiliation guidée et lettres</li><li>Reste à vivre et suivi des économies</li><li>Banques illimitées, support prioritaire</li></ul></div>
+    <div class="plan rec"><em>Recommandé</em><h3>Premium Annuel <b class="save">−37 %</b></h3><div class="p">29,99 €<small>/an</small></div><p class="eq">soit 2,50 €/mois</p><ul><li>Tout Premium Mensuel</li><li>Payé une fois par an</li><li>17,89 € économisés par an</li></ul></div>
+  </div>
+</section>
+
+<section class="trust wrap">
+  <h2 class="h2">Ton argent reste ton argent</h2>
+  <div class="trust-grid">
+    <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><h3>Lecture seule</h3><p>Prelevo voit tes opérations, mais ne peut jamais déplacer ton argent ni faire de paiement.</p></div>
+    <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg><h3>Partenaire agréé</h3><p>La connexion bancaire passera par un partenaire agréé (norme européenne DSP2). Tu peux couper l’accès à tout moment.</p></div>
+    <div><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg><h3>Zéro pub, zéro partenariat</h3><p>Pas de commission, pas d’offre sponsorisée. Notre seul revenu, c’est ton abonnement : nos conseils restent neutres.</p></div>
+    <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg><h3>Support humain</h3><p>Une question ? Une vraie personne te répond, pas un robot.</p></div>
+  </div>
+</section>
+
+<section id="faq" class="faq wrap">
+  <h2 class="h2">Questions fréquentes</h2>
+  <details><summary>Prelevo peut-il toucher à mon argent ?</summary><p>Non. L’accès est en lecture seule : Prelevo peut lire tes opérations pour repérer tes abonnements, mais il est techniquement impossible de faire un virement ou un paiement.</p></details>
+  <details><summary>Comment Prelevo se connecte à ma banque ?</summary><p>Via un partenaire agréé, selon la norme européenne DSP2, comme les autres applis de gestion de budget. Tu choisis tes banques, tu ne donnes jamais tes identifiants à Prelevo, et tu peux révoquer l’accès quand tu veux.</p></details>
+  <details><summary>Qu’est-ce qui est gratuit, qu’est-ce qui est Premium ?</summary><p>Le scan de tes comptes et la liste de tes abonnements avec le total sont gratuits. Premium (3,99 €/mois ou 29,99 €/an) ajoute les alertes de hausse de prix, les petits prélèvements oubliés, la résiliation guidée, le reste à vivre et les banques illimitées. 1 mois offert pour essayer.</p></details>
+  <details><summary>Prelevo résilie à ma place ?</summary><p>Prelevo te prépare tout : lettre de résiliation prête, démarches pas à pas pour chaque service et suivi jusqu’à l’arrêt du prélèvement. Tu valides et tu envoies : tu gardes toujours la main.</p></details>
+  <details><summary>Quand sort l’application ?</summary><p>Prelevo est en cours de création. Les inscrits sur la liste d’attente seront prévenus en premier, et pourront tester avant tout le monde. L’app fonctionnera sur iPhone et Android.</p></details>
+</section>
+
+<section class="cta wrap">
+  <h2>Arrête de payer pour rien.</h2>
+  <p>Inscris-toi, on te prévient dès que Prelevo est prêt.</p>
+  <form class="wl dark" data-source="bas-de-page" novalidate>
+    <div class="wl-row">
+      <label class="sr" for="email-cta">Ton e-mail</label>
+      <input id="email-cta" type="email" name="email" placeholder="ton@email.fr" autocomplete="email" inputmode="email" required>
+      <button type="submit">Rejoindre la liste d’attente</button>
+    </div>
+    <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <label class="consent"><input type="checkbox" name="consent" required><span>J’accepte de recevoir des e-mails de Prelevo sur son lancement. Désinscription en 1 clic. <a href="#confidentialite">Confidentialité</a></span></label>
+    <p class="incentive" data-incentive>🎁 Les 500 premiers inscrits : 3 mois de Premium offerts</p>
+    <p class="wl-msg" role="status" aria-live="polite"></p>
+  </form>
+  <p class="demo-link"><a href="app/?demo=1">Voir la démo interactive →</a></p>
+</section>
+</main>
+
+<footer class="foot wrap">
+  <div class="foot-top">
+    <a class="brand" href="./"><img src="assets/logo-mark.svg" alt="" width="24" height="24"><span>Prelevo</span></a>
+    <p class="wip">Projet en cours de création. Les écrans présentés utilisent des données d’exemple.</p>
+  </div>
+  <details id="confidentialite"><summary>Confidentialité (RGPD)</summary>
+    <p><b>Responsable du traitement :</b> <span data-publisher>Jhn Dlt</span> (particulier). Contact : <span data-contact>jhn.dlt@mail.grokbot.com</span>.</p>
+    <p><b>Données collectées :</b> uniquement ton adresse e-mail, avec ton consentement (case à cocher).</p>
+    <p><b>Finalité :</b> te prévenir du lancement de Prelevo et de l’offre réservée aux inscrits. Ton e-mail n’est jamais vendu ni partagé à des fins commerciales.</p>
+    <p><b>Sous-traitant :</b> le formulaire est transmis par FormSubmit (formsubmit.co), qui envoie l’inscription par e-mail à l’éditeur. Ce service est situé hors de l’Union européenne : ton e-mail peut donc être transféré et traité hors UE.</p>
+    <p><b>Conservation :</b> jusqu’au lancement, puis 12 mois maximum, ou jusqu’à ta désinscription si elle intervient avant.</p>
+    <p><b>Tes droits :</b> accès, rectification, suppression et retrait du consentement à tout moment, en écrivant à <span data-contact>jhn.dlt@mail.grokbot.com</span>. Tu peux aussi introduire une réclamation auprès de la CNIL (<a href="https://www.cnil.fr/fr/plaintes" rel="noopener">cnil.fr</a>).</p>
+    <p>Ce site n’utilise ni cookie, ni traceur, ni outil de mesure d’audience.</p>
+  </details>
+  <details id="mentions"><summary>Mentions légales</summary>
+    <p><b>Éditeur :</b> <span data-publisher>Jhn Dlt</span>, particulier – projet en cours de création (aucune société constituée à ce jour).</p>
+    <p><b>Directeur de la publication :</b> <span data-publisher>Jhn Dlt</span>.</p>
+    <p><b>Contact :</b> <span data-contact>jhn.dlt@mail.grokbot.com</span></p>
+    <p><b>Hébergeur :</b> GitHub, Inc. (GitHub Pages), 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, États-Unis – github.com.</p>
+  </details>
+  <p class="copy">© 2026 Prelevo</p>
+</footer>
+<script src="config.js"></script>
+<script src="landing.js" defer></script>
 </body>
 </html>
