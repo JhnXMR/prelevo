@@ -1,32 +1,40 @@
-name: Décoder les icônes PNG
+name: Déployer le site (paquet)
 # GitHub Pages sert directement la branche main (racine) : ce workflow ne déploie rien.
-# Il décode le paquet d'icônes PNG envoyé en base64 (icons/icons-png.tar.b64) et enregistre les PNG.
+# Il décode le paquet du site (site-bundle.tgz.b64 : landing à la racine + maquette dans app/, icônes dans app/icons),
+# supprime les anciens fichiers de la maquette à la racine, puis enregistre le tout.
 on:
   push:
     branches: [main]
-    paths: ['icons/icons-png.tar.b64', '.github/workflows/pages.yml']
+    paths: ['site-bundle.tgz.b64', 'app/icons/icons-png.tar.b64', '.github/workflows/pages.yml']
   workflow_dispatch:
 permissions:
   contents: write
 concurrency:
-  group: decode-icons
+  group: decode-site
   cancel-in-progress: false
 jobs:
   decode:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Décoder les icônes
+      - name: Décoder
         run: |
-          base64 -d icons/icons-png.tar.b64 | tar -xvf -
-          git rm -q --ignore-unmatch icons/*.png.b64
-          ls -l icons
-      - name: Enregistrer les PNG
+          if [ -f site-bundle.tgz.b64 ]; then
+            git rm -q -r --ignore-unmatch icons styles.css app.js manifest.json
+            base64 -d site-bundle.tgz.b64 | tar -xzvf -
+            git rm -q --cached --ignore-unmatch site-bundle.tgz.b64; rm -f site-bundle.tgz.b64
+          fi
+          if [ -f app/icons/icons-png.tar.b64 ]; then
+            base64 -d app/icons/icons-png.tar.b64 | tar -xvf - -C app
+            git rm -q --cached --ignore-unmatch app/icons/icons-png.tar.b64; rm -f app/icons/icons-png.tar.b64
+          fi
+          ls -la . app app/icons assets
+      - name: Enregistrer
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
-          git add -A icons
+          git add -A .
           if git diff --cached --quiet; then echo "Rien à enregistrer"; exit 0; fi
-          git commit -m "Icônes PNG décodées"
+          git commit -m "Site Prelevo : landing à la racine, maquette dans app/"
           for i in 1 2 3; do git pull --rebase origin main && git push && exit 0; sleep 5; done
           exit 1
