@@ -1,5 +1,5 @@
-const CACHE = 'prelevo-app-v11-pubs';
-const ASSETS = ['./', './index.html', './styles.css', './config.js', './app.js', './manifest.json',
+const CACHE = 'prelevo-app-v12-powens';
+const ASSETS = ['./', './index.html', './styles.css', './config.js', './powens.js', './app.js', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon.svg',
   './icons/favicon.svg', './icons/favicon-32.png', './icons/apple-touch-icon-180.png'];
 self.addEventListener('install', e => {
@@ -10,9 +10,16 @@ self.addEventListener('activate', e => {
 });
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  const url = new URL(e.request.url);
+  // Jamais de cache pour les API (Powens / biapi) ni pour tout autre domaine : le navigateur va directement au réseau.
+  if (url.origin !== self.location.origin) return;
+  // Retour de la webview Powens (?connection_id=…) ou autre URL avec paramètres : réseau, sans mise en cache.
+  if (url.search) {
+    e.respondWith(fetch(e.request).catch(() => caches.match('./index.html')));
+    return;
+  }
   e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).then(res => {
-    const copy = res.clone();
-    caches.open(CACHE).then(c => c.put(e.request, copy));
+    if (res.ok && res.type === 'basic') { const copy = res.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
     return res;
   }).catch(() => caches.match('./index.html'))));
 });

@@ -320,3 +320,12 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .ad-brand{font-size:11.5px;color:var(--ink2);font-weight:500}
 .ad-brand i{font-style:normal;color:var(--muted);font-weight:400;margin-left:4px}
 .ad-cta{font-size:12.5px;font-weight:600;color:var(--ink);border:1px solid var(--line);border-radius:99px;padding:6px 11px;white-space:nowrap}
+
+/* Banque de test Powens (sandbox) */
+.demo.live{color:#fff;background:var(--accent,#2A5BF6);padding:3px 8px;border-radius:999px;font-weight:650;letter-spacing:0}
+.pw-note{margin:12px 0 4px;padding:12px 14px;border:1px dashed var(--line,#D9DEE7);border-radius:14px;font-size:12.5px;line-height:1.45;color:var(--ink2,#3A4458)}
+.pw-note b{display:block;color:var(--ink,#0A0B0D);font-size:13px;margin-bottom:6px}
+.pw-note div{margin:3px 0}
+.pw-note div span{display:inline-block;min-width:118px;font-weight:650;color:var(--ink,#0A0B0D)}
+.pw-note p{margin:8px 0 0;color:var(--muted,#6B7280);font-size:11.5px}
+.kv .nw{white-space:nowrap;margin-left:10px}

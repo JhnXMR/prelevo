@@ -5,11 +5,11 @@ const APP_NAME = CFG.name;
 document.title = `${APP_NAME} – ${CFG.tagline}`;
 
 const USER = { prenom: 'Camille', nom: 'Exemple', adresse: '12 rue de l’Exemple\n75011 Paris' };
-const INCOME = 2150;          // salaire net (exemple)
-const RENT = 720;             // loyer (exemple)
-const SPENT = 486.30;         // dépenses courantes déjà faites ce mois-ci (exemple)
-const PAYDAY_IN = 12;         // jours avant la prochaine paie
-const PAST_SAVED = 6.99;      // un abonnement déjà résilié le mois dernier (exemple)
+let INCOME = 2150;          // salaire net (exemple)
+let RENT = 720;             // loyer (exemple)
+let SPENT = 486.30;         // dépenses courantes déjà faites ce mois-ci (exemple)
+let PAYDAY_IN = 12;         // jours avant la prochaine paie
+let PAST_SAVED = 6.99;      // un abonnement déjà résilié le mois dernier (exemple)
 
 const SUBS = [
   { id:'flixo', name:'Flixo', cat:'Streaming vidéo', color:'#E50914', ini:'F', price:13.49, prev:10.99, day:12, since:'mars 2021', hist:[10.99,10.99,10.99,10.99,13.49,13.49],
@@ -66,7 +66,38 @@ if (QS.has('demo')) { state.connected = true; state.bank = state.bank || 'b1'; s
 if (QS.get('plan') === 'premium') { state.premium = true; save(); }
 if (QS.get('plan') === 'free') { state.premium = false; save(); }
 const isP = () => state.premium;
-const linked = () => isP() ? LINKED : LINKED.slice(0,1);
+const linked = () => LIVE ? [liveBank()] : isP() ? LINKED : LINKED.slice(0,1);
+
+// ---------- Banque de TEST Powens (sandbox) : vraies données de test, analysées dans le navigateur ----------
+const PWX = window.PW || null;
+if (PWX && QS.has('demo')) PWX.clear();            // ?demo=1 = toujours les données d'exemple
+let LIVE = null;
+function applyLive(r){
+  LIVE = r;
+  SUBS.splice(0, SUBS.length, ...r.subs);
+  MONTHS.splice(0, MONTHS.length, ...r.months);
+  INCOME = r.income; RENT = 0; SPENT = r.spent; PAYDAY_IN = r.payIn; PAST_SAVED = 0;
+  Object.assign(USER, { prenom:'', nom:'[Prénom Nom]', adresse:'[Ton adresse]' });
+  state.resiliated = state.resiliated.filter(id => SUBS.some(s => s.id === id));
+  demoTag = '<span class="demo live">Banque de test Powens</span>';
+}
+function liveBank(){
+  const tk = PWX && PWX.tokenInfo(); const expired = !tk || tk.expired;
+  const mins = tk ? Math.max(0, Math.round((tk.exp - Date.now())/60000)) : 0;
+  const n = LIVE.accounts.length;
+  return { id:'pw', name:LIVE.bank, color:'#2A5BF6', ini:'PW', live:true,
+    accounts:`${n} compte${n>1?'s':''} de test · ${LIVE.txCount} opérations`,
+    status: expired ? 'expired' : 'ok', sync: 'il y a ' + Math.max(0, Math.round((Date.now()-LIVE.at)/60000)) + ' min',
+    expiresIn: 999, expires: expired ? 'expirée' : `encore ${mins} min`, mins };
+}
+const pwNote = () => `<div class="pw-note"><b>Identifiants de test Powens</b>
+  ${(PWX ? PWX.testCreds : []).map(c=>`<div><span>${c.bank}</span>${c.fields}</div>`).join('')}
+  <p>Fausses banques, faux comptes : aucune vraie donnée. Session de test valable 30 min, gardée seulement dans cet onglet.</p></div>`;
+function pwConnect(){
+  if (!PWX) return toast('Module Powens indisponible');
+  toast('Ouverture de la banque de test Powens…');
+  PWX.start().catch(err => toast('Powens injoignable : ' + err.message));
+}
 
 
 const SVG = d => `<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -113,7 +144,7 @@ const byId = id => SUBS.find(s => s.id === id);
 const logo = (s, cls='logo') => `<div class="${cls}" style="background:${s.color}">${s.ini}</div>`;
 const increase = s => s.prev && s.price > s.prev ? s.price - s.prev : 0;
 const pct = s => Math.round(increase(s) / s.prev * 100);
-const demoTag = '<span class="demo">Données d’exemple</span>';
+let demoTag = '<span class="demo">Données d’exemple</span>';
 const lockBadge = (t='Premium') => `<span class="badge b-lock">⟦lock⟧ ${t}</span>`;
 const neutral = `<div class="neutral"><span class="nic">⟦ban⟧</span><div><b>Zéro pub en Premium · conseils toujours neutres</b>La version gratuite affiche quelques pubs, toujours signalées « Sponsorisé ». Les sponsors n’influencent jamais tes alertes, tes résultats ni nos conseils, et on ne touche aucune commission sur tes résiliations.</div></div>`;
 // Pubs de la version gratuite (annonceurs FICTIFS, publicité contextuelle, sans ciblage)
@@ -163,6 +194,8 @@ function alerts(){
   linked().forEach(b => {
     if (b.expiresIn <= 7) out.unshift({ id:'exp-'+b.id, ic:'⟦key⟧', bg:'var(--amberbg)', title:`Accès à ${b.name} : expire dans ${b.expiresIn} jours`,
       text:`Ta banque demande de renouveler l’accès tous les 180 jours. 30 secondes suffisent, sinon tes données ne se mettront plus à jour.`, when:'Aujourd’hui', link:'#/banques' });
+    if (b.status==='expired') out.unshift({ id:'pwexp', ic:'⟦key⟧', bg:'var(--amberbg)', title:'Session de test Powens expirée',
+      text:'Le jeton de test dure 30 minutes. Tes résultats restent affichés ; reconnecte la banque de test pour les relire.', when:'Maintenant', link:'#/banques' });
     if (b.status==='error') out.unshift({ id:'err-'+b.id, ic:'⟦link⟧', bg:'var(--redbg)', title:`${b.name} ne se synchronise plus`,
       text:`Dernière tentative ${b.sync}. Reconnecte-la pour garder des chiffres justes.`, when:'Hier', link:'#/banques' });
   });
@@ -190,6 +223,7 @@ screens.onboarding = () => `
   </ul>
   <div class="spacer"></div>
   <a class="btn" href="#/connect">Connecter ma banque</a>
+  ${PWX ? `<button class="btn ghost" id="pw-connect" style="margin-top:8px">⟦bank⟧ Connecter une banque de test</button>` : ''}
   <p class="fine">⟦lock⟧ Gratuit pour commencer, Premium à ${prix(CFG.priceMonth)}/mois.<br>Accès en lecture seule via un agrégateur bancaire agréé. ${APP_NAME} ne peut jamais déplacer ton argent.<br>Maquette – données d’exemple</p>
 </div>`;
 
@@ -202,6 +236,10 @@ screens.connect = () => `
   <div class="banks">${BANKS.map(b=>`<button class="bank ${state.bank===b.id?'on':''}" data-bank="${b.id}">${logo(b)}${b.name}</button>`).join('')}</div>
   <div class="banner blue"><span class="ic">⟦lock⟧</span><div><b>Tes identifiants restent chez ta banque</b>${APP_NAME} passe par un agrégateur agréé (DSP2). L’accès dure 180 jours : on te prévient avant qu’il expire, et tu peux le retirer à tout moment.</div></div>
   <button class="btn mint" id="go-scan" ${state.bank?'':'disabled style="opacity:.5"'}>Continuer</button>
+  ${PWX ? `<div class="section-h"><h2>Ou essaie une vraie connexion… de test</h2></div>
+  <p class="muted small" style="margin:-4px 2px 10px">Passe par l’agrégateur Powens avec ses fausses banques : ${APP_NAME} analyse alors de vraies opérations de test.</p>
+  <button class="btn ghost" id="pw-connect">⟦bank⟧ Connecter une banque de test</button>
+  ${pwNote()}` : ''}
 </div>`;
 
 screens.scan = () => `
@@ -219,7 +257,12 @@ screens.scan = () => `
 </div></div>`;
 
 function bankStrip(){
-  const L = linked(); const warn = L.find(b=>b.status==='error') || L.find(b=>b.expiresIn<=7);
+  const L = linked();
+  if (LIVE){ const b = L[0]; return `<a class="bankstrip" href="#/banques">
+    <div class="bs-logos"><span class="bs-l" style="background:${b.color}">${b.ini}<i class="st ${b.status==='expired'?'warn':'ok'}"></i></span></div>
+    <div class="bs-txt">${b.status==='expired' ? '<b class="t-amber">Session de test expirée · reconnecter</b>' : `<b>${b.name} · banque de test</b>`}<span>${b.accounts}</span></div>
+    <span class="chev">⟦chev⟧</span></a>`; }
+  const warn = L.find(b=>b.status==='error') || L.find(b=>b.expiresIn<=7);
   return `<a class="bankstrip" href="#/banques">
     <div class="bs-logos">${L.map(b=>`<span class="bs-l" style="background:${b.color}">${b.ini}<i class="st ${b.status==='error'?'err':b.expiresIn<=7?'warn':'ok'}"></i></span>`).join('')}</div>
     <div class="bs-txt">${warn ? (warn.status==='error' ? `<b class="t-red">${warn.name} : synchro en échec</b>` : `<b class="t-amber">Accès ${warn.name} : expire dans ${warn.expiresIn} j</b>`) : '<b>Comptes à jour</b>'}<span>${L.length} banque${L.length>1?'s':''} · synchro ${L[0].sync}</span></div>
@@ -231,7 +274,7 @@ screens.dashboard = () => {
   return `
 <div class="screen">
   ${brandBar(`<a class="gear" href="#/aide" aria-label="Aide et réglages">⟦settings⟧</a>`)}
-  <p class="hello">Bonjour ${USER.prenom} <span class="plan-pill ${P?'p':''}">${P?'Premium':'Gratuit'}</span> ${demoTag}</p>
+  <p class="hello">Bonjour${USER.prenom?' '+USER.prenom:''} <span class="plan-pill ${P?'p':''}">${P?'Premium':'Gratuit'}</span> ${demoTag}</p>
   ${bankStrip()}
   ${P ? `
   <div class="hero">
@@ -260,12 +303,12 @@ screens.dashboard = () => {
   </div>
   ${t.list.some(s=>s.doubleCharge)?`<a class="banner red" href="#/abo/mobi"><span class="ic">⟦alert⟧</span><div><b>Prélevé 2 fois : Mobi Forfait</b>15,99 € débités deux fois le 8 oct. Demande le remboursement.</div></a>`:''}
   ${t.ups.length?`<a class="banner red" href="#/abonnements?f=up"><span class="ic">⟦trend⟧</span><div><b>${t.ups.length} abonnements ont augmenté</b>+${eur(t.upsAmt)}/mois depuis l’an dernier sans que tu ne changes rien.</div></a>`:''}
-  ${t.smalls.length?`<a class="banner amber" href="#/abonnements?f=small"><span class="ic">⟦search⟧</span><div><b>${t.smalls.length} petits prélèvements oubliés</b>${eur(t.smalls.reduce((a,s)=>a+s.price,0))}/mois qui passent inaperçus.</div></a>`:''}
+  ${t.smalls.length?`<a class="banner amber" href="#/abonnements?f=small"><span class="ic">⟦search⟧</span><div><b>${t.smalls.length} petit${t.smalls.length>1?'s':''} prélèvement${t.smalls.length>1?'s':''} oublié${t.smalls.length>1?'s':''}</b>${eur(t.smalls.reduce((a,s)=>a+s.price,0))}/mois qui passent inaperçus.</div></a>`:''}
   ` : `
   <div class="section-h"><h2>On a trouvé de quoi économiser</h2></div>
-  ${teaser(`${t.ups.length} hausses de prix détectées`, 'Découvre lesquels de tes abonnements ont augmenté')}
-  ${teaser('1 double prélèvement', 'Un abonnement t’a été débité deux fois ce mois-ci')}
-  ${teaser(`${t.smalls.length} petits prélèvements oubliés`, 'Des petites sommes qui partent chaque mois')}
+  ${!LIVE || t.ups.length ? teaser(`${t.ups.length} hausse${t.ups.length>1?'s':''} de prix détectée${t.ups.length>1?'s':''}`, 'Découvre lesquels de tes abonnements ont augmenté') : ''}
+  ${t.list.some(s=>s.doubleCharge) ? teaser('1 double prélèvement', 'Un abonnement t’a été débité deux fois ce mois-ci') : ''}
+  ${!LIVE || t.smalls.length ? teaser(`${t.smalls.length} petit${t.smalls.length>1?'s':''} prélèvement${t.smalls.length>1?'s':''} oublié${t.smalls.length>1?'s':''}`, 'Des petites sommes qui partent chaque mois') : ''}
   <a class="btn mint" href="#/premium" style="margin:6px 0 4px">Récupérer ${eur(t.found)}/mois</a>
   <p class="muted small center" style="margin-bottom:14px">⟦gift⟧ ${CFG.trial} · puis ${prix(CFG.priceMonth)}/mois</p>`}
   ${adSlot('dash')}
@@ -299,12 +342,12 @@ screens.abonnements = (q) => {
     <div style="text-align:right"><div class="muted small">Sur un an</div><div style="font-weight:700">${eur0(t.monthly*12)}</div></div>
   </div>
   <div class="chips">${chip('all','Tous ('+t.list.length+')')}${chip('up','⟦trend⟧ Hausses ('+t.ups.length+')')}${chip('small','⟦search⟧ Oubliés ('+t.smalls.length+')')}${chip('eco','⟦coin⟧ À économiser')}</div>
-  ${P?'':teaser(`${eur(t.found)}/mois d’économies repérées`, `${t.ups.length} hausses, 1 doublon, 1 double prélèvement, ${t.smalls.length} oubliés`)}
+  ${P?'':teaser(`${eur(t.found)}/mois d’économies repérées`, LIVE ? `${t.ups.length} hausse${t.ups.length>1?'s':''}, ${t.smalls.length} petit${t.smalls.length>1?'s':''} prélèvement${t.smalls.length>1?'s':''} sous 10 €` : `${t.ups.length} hausses, 1 doublon, 1 double prélèvement, ${t.smalls.length} oubliés`)}
   ${list.length?`<div class="card" style="padding:4px 16px">${list.map(row).join('')}</div>`:''}
   ${adSlot('subs')}
   ${showSmall && t.smalls.length?`
   <div class="section-h"><h2>⟦search⟧ Petits prélèvements oubliés</h2><span class="muted small">${eur(t.smalls.reduce((a,s)=>a+s.price,0))}/mois</span></div>
-  <p class="muted small" style="margin:-4px 2px 10px">Moins de 5 € chacun, mais ${eur0(t.smalls.reduce((a,s)=>a+s.price,0)*12)} par an au total.</p>
+  <p class="muted small" style="margin:-4px 2px 10px">Moins de ${LIVE?10:5} € chacun, mais ${eur0(t.smalls.reduce((a,s)=>a+s.price,0)*12)} par an au total.</p>
   <div class="card" style="padding:4px 16px">${t.smalls.map(row).join('')}</div>`:''}
   ${state.resiliated.length?`<div class="section-h"><h2>⟦check⟧ Résiliés</h2></div><div class="card" style="padding:4px 16px">${SUBS.filter(s=>state.resiliated.includes(s.id)).map(s=>`<div class="row">${logo(s)}<div class="mid"><div class="name">${s.name}</div><div class="meta">Résiliation envoyée</div></div><div class="amt" style="color:var(--mint)">−${eur(s.price)}</div></div>`).join('')}</div>`:''}
 </div>`;
@@ -336,6 +379,9 @@ screens.abo = (q, id) => {
     <div class="kv"><span>Rappel avant prélèvement</span><span>${P?'la veille ⟦bell⟧':'⟦lock⟧ Premium'}</span></div>
     <div class="kv"><span>Coût sur un an</span><span>${eur(s.price*12)}</span></div>
     <div class="kv"><span>Client depuis</span><span>${s.since}</span></div>
+    ${s.live ? `<div class="kv"><span>Libellé bancaire</span><span class="small">${s.label}</span></div>
+    <div class="kv"><span>Dernier prélèvement</span><span>${new Date(s.lastDate+'T12:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</span></div>
+    <div class="kv"><span>Détection</span><span>${s.confirmed ? `Récurrent confirmé (${s.count}×)` : 'Probable (1×)'}</span></div>` : ''}
   </div>
   ${done?`<a class="btn ghost" href="#/abonnements">Retour aux abonnements</a>` : P ? `
   <a class="btn danger" href="#/resilier/${s.id}/1">⟦scissors⟧ Résilier cet abonnement</a>
@@ -468,6 +514,23 @@ screens.alertes = () => {
 
 screens.banques = () => {
   const L = linked(); const P = isP();
+  if (LIVE){ const b = L[0]; return `
+<div class="screen">
+  <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a><h1 style="font-size:19px">Mes banques</h1>${demoTag}</div>
+  <div class="card bankcard">
+    <div style="display:flex;gap:12px;align-items:center">${logo(b)}
+      <div style="flex:1"><div style="font-weight:700">${b.name}</div><div class="muted small">${b.accounts}</div></div>
+      <span class="status ${b.status==='expired'?'err':'ok'}">${b.status==='expired'?'Expirée':'Connectée'}</span></div>
+    <div class="kv"><span>Données lues</span><span>${b.sync}</span></div>
+    <div class="kv"><span>Session de test</span><span class="${b.status==='expired'?'t-amber':''}">${b.expires}</span></div>
+    ${LIVE.accounts.map(a=>`<div class="kv"><span class="small">${a.name}</span><span class="nw">${(a.balance||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} ${a.currency==='EUR'||!a.currency?'€':a.currency}</span></div>`).join('')}
+    ${b.status==='expired' ? `<div class="banner amber" style="margin:10px 0 0"><span class="ic">⟦key⟧</span><div><b>Session de test expirée</b>Le jeton Powens de test ne dure que 30 minutes. Les résultats restent affichés ; reconnecte-toi pour relire les comptes.</div></div>` : ''}
+    <button class="btn small-btn" id="${b.status==='expired'?'pw-connect':'pw-refresh'}" style="margin-top:12px">${b.status==='expired'?'Reconnecter la banque de test':'Relire les opérations'}</button>
+  </div>
+  <p class="muted small" style="margin:2px 2px 12px">Comptes en euros uniquement. ${LIVE.subs.length} prélèvement${LIVE.subs.length>1?'s':''} retenu${LIVE.subs.length>1?'s':''} sur ${LIVE.txCount} opérations : « confirmé » = au moins 2 prélèvements à ~1 mois d’écart et montant à ±10 % ; « probable » = 1 seul prélèvement au libellé typique d’un abonnement.</p>
+  <button class="btn ghost" id="pw-quit">Revenir aux données d’exemple</button>
+  ${pwNote()}
+</div>`; }
   return `
 <div class="screen">
   <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a><h1 style="font-size:19px">Mes banques</h1>${demoTag}</div>
@@ -486,6 +549,7 @@ screens.banques = () => {
   ${P ? `<button class="btn ghost" data-toast="Ajout d’une banque (simulation)">⟦plus⟧ Ajouter une banque</button>`
       : `<a class="btn ghost" href="#/premium">⟦lock⟧ Ajouter une autre banque · Premium</a><p class="muted small center" style="margin-top:8px">La version gratuite inclut 1 banque.</p>`}
   <div class="banner blue" style="margin-top:14px"><span class="ic">⟦lock⟧</span><div><b>Lecture seule</b>${APP_NAME} ne voit jamais tes identifiants et ne peut faire aucun virement. Tu peux couper l’accès ici à tout moment.</div></div>
+  ${PWX ? `<button class="btn ghost" id="pw-connect" style="margin-top:4px">⟦bank⟧ Connecter une banque de test (Powens)</button>${pwNote()}` : ''}
 </div>`;
 };
 
@@ -662,6 +726,9 @@ function chartGeom(S){
   return { ticks, x, y };
 }
 function balanceChart(){
+  if (LIVE) return `<div class="card" id="balance"><div style="font-weight:700;margin-bottom:2px">Comptes de test</div>
+    <div class="muted small" style="margin-bottom:6px">Soldes lus chez ${LIVE.bank} (sandbox Powens)</div>
+    ${LIVE.accounts.map(a=>`<div class="kv"><span class="small">${a.name}</span><span class="nw">${(a.balance||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} ${a.currency==='EUR'||!a.currency?'€':a.currency}</span></div>`).join('')}</div>`;
   const S = samples(balPeriod), P = PERIODS[balPeriod], { ticks, x, y } = chartGeom(S);
   window.__BAL = S;
   const line = 'M' + S.map((p,i)=>`${x(i).toFixed(1)},${y(p.bal).toFixed(1)}`).join(' L');
@@ -723,6 +790,39 @@ document.addEventListener('click', e => {
   const sec = document.getElementById('balance'); if (sec) sec.outerHTML = balanceChart();
 });
 
+screens.pwscan = () => `
+<div class="screen"><div class="loader">
+  <div class="spin"></div>
+  <h2 style="font-size:20px">Lecture de tes comptes de test…</h2>
+  <p class="muted small" style="margin-top:6px">Banque de test Powens · analyse faite dans ton navigateur</p>
+  <div class="scanlist" id="pwlist"><div class="done">⟦check⟧ Connexion à la banque de test</div><div id="pw-step">⟦clock⟧ Récupération des opérations…</div></div>
+  <div id="pw-err"></div>
+</div></div>`;
+async function runPwScan(){
+  const fail = (title, text) => { const e = $('#pw-err'); if (e) e.innerHTML = icons(`<div class="banner amber" style="margin-top:18px;text-align:left"><span class="ic">⟦alert⟧</span><div><b>${title}</b>${text}</div></div>
+    <button class="btn" id="pw-connect">Réessayer</button><a class="btn ghost" href="#/onboarding" id="pw-quit">Revenir à la démo</a>`); };
+  const err = PWX.returnError();
+  history.replaceState(null, '', location.pathname + '#/pwscan');
+  if (err) return fail('Connexion annulée', `Powens a renvoyé : ${String(err).replace(/</g,'&lt;')}`);
+  const tk = PWX.tokenInfo();
+  if (!tk || tk.expired) return fail('Session de test expirée', 'Le jeton Powens ne dure que 30 minutes. Relance la connexion.');
+  try {
+    const r = await PWX.fetchAll();
+    applyLive(r); state.connected = true; save();
+    location.hash = '#/dashboard';
+    toast(`${r.subs.length} prélèvement${r.subs.length>1?'s':''} récurrent${r.subs.length>1?'s':''} détecté${r.subs.length>1?'s':''} sur ${r.txCount} opérations`);
+  } catch(e){
+    if (e.status === 401 || e.status === 403) fail('Session de test expirée', 'Le jeton Powens n’est plus valable. Relance la connexion.');
+    else fail('Lecture impossible', String(e.message).replace(/</g,'&lt;'));
+  }
+}
+async function pwRefresh(){
+  const tk = PWX.tokenInfo(); if (!tk || tk.expired) { render(); return toast('Session de test expirée : reconnecte la banque de test'); }
+  toast('Relecture des opérations…');
+  try { applyLive(await PWX.fetchAll()); render(); toast('Opérations relues'); }
+  catch(e){ if (e.status===401||e.status===403){ const t = PWX.tokenInfo(); if (t) sessionStorage.setItem('prelevo-pw-token', JSON.stringify({...t, exp:0})); render(); toast('Session de test expirée'); } else toast('Erreur Powens : ' + e.message); }
+}
+
 // ---------- routeur ----------
 function render(){
   _timeline = null;
@@ -738,6 +838,7 @@ function render(){
   $('#alert-dot').classList.toggle('show', alerts().some(a=>!state.readAlerts.includes(a.id)));
   window.scrollTo(0,0);
   if (name==='scan') runScan();
+  if (name==='pwscan' && PWX && !LIVE) runPwScan();
   if (name==='resilier' && !isP()) toast('La résiliation guidée fait partie de Premium');
 }
 
@@ -748,7 +849,7 @@ function runScan(){
 }
 
 document.addEventListener('click', e => {
-  const el = e.target.closest('[data-bank],[data-method],[data-toast],[data-billing],[data-alert],[data-plan],#go-scan,#keep,#confirm-resil,#go-premium,#reset');
+  const el = e.target.closest('[data-bank],[data-method],[data-toast],[data-billing],[data-alert],[data-plan],#go-scan,#keep,#confirm-resil,#go-premium,#reset,#pw-connect,#pw-quit,#pw-refresh');
   if (!el) return;
   if (el.dataset.toast){ e.preventDefault(); toast(el.dataset.toast); }
   else if (el.dataset.bank){ state.bank = el.dataset.bank; save(); render(); }
@@ -756,6 +857,9 @@ document.addEventListener('click', e => {
   else if (el.dataset.billing){ billing = el.dataset.billing; render(); }
   else if (el.dataset.plan){ state.premium = el.dataset.plan==='premium'; save(); toast('Mode démo : ' + (state.premium?'Premium':'Gratuit')); render(); }
   else if (el.dataset.alert){ if(!state.readAlerts.includes(el.dataset.alert)){ state.readAlerts.push(el.dataset.alert); save(); } }
+  else if (el.id==='pw-connect'){ e.preventDefault(); pwConnect(); }
+  else if (el.id==='pw-refresh'){ pwRefresh(); }
+  else if (el.id==='pw-quit'){ e.preventDefault(); PWX && PWX.clear(); location.replace(location.pathname + (state.connected ? '#/dashboard' : '#/onboarding')); location.reload(); }
   else if (el.id==='go-scan'){ if(state.bank) location.hash = '#/scan'; }
   else if (el.id==='keep'){ toast('OK, on ne t’alertera plus pour celui-ci'); }
   else if (el.id==='confirm-resil'){ const id = el.dataset.id; if(!state.resiliated.includes(id)) state.resiliated.push(id); save(); location.hash = '#/resilier/'+id+'/4'; }
@@ -773,5 +877,11 @@ document.addEventListener('submit', e => {
   setTimeout(()=>{ CHAT.push({ me:false, t:'Merci, je regarde ça et je te réponds dans quelques minutes (réponse simulée)', h }); if (location.hash.startsWith('#/chat')) render(); }, 1200);
 });
 
+if (PWX && !QS.has('demo')) {
+  if (PWX.isReturn()) history.replaceState(null, '', location.pathname + location.search + '#/pwscan');
+  else { const r = PWX.result(); if (r) applyLive(r); }
+}
+// expiration du jeton de test (30 min) : on rafraîchit l'affichage quand elle survient
+setInterval(() => { if (LIVE && /banques|dashboard|alertes/.test(location.hash)) { const tk = PWX.tokenInfo(); if (tk && tk.expired && !tk._shown) { sessionStorage.setItem('prelevo-pw-token', JSON.stringify({...tk, _shown:1})); render(); toast('Session de test Powens expirée (30 min)'); } } }, 30000);
 window.addEventListener('hashchange', render);
 render();
