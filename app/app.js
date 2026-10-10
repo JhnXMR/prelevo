@@ -115,7 +115,18 @@ const increase = s => s.prev && s.price > s.prev ? s.price - s.prev : 0;
 const pct = s => Math.round(increase(s) / s.prev * 100);
 const demoTag = '<span class="demo">Données d’exemple</span>';
 const lockBadge = (t='Premium') => `<span class="badge b-lock">⟦lock⟧ ${t}</span>`;
-const neutral = `<div class="neutral"><span class="nic">⟦ban⟧</span><div><b>Zéro pub, zéro partenariat commercial</b>On ne touche aucune commission : nos conseils sont 100 % neutres. Notre seul revenu, c’est ton abonnement.</div></div>`;
+const neutral = `<div class="neutral"><span class="nic">⟦ban⟧</span><div><b>Zéro pub en Premium · conseils toujours neutres</b>La version gratuite affiche quelques pubs, toujours signalées « Sponsorisé ». Les sponsors n’influencent jamais tes alertes, tes résultats ni nos conseils, et on ne touche aucune commission sur tes résiliations.</div></div>`;
+// Pubs de la version gratuite (annonceurs FICTIFS, publicité contextuelle, sans ciblage)
+const ADS = {
+  dash: { ini:'VC', color:'#0A0B0D', brand:'Vélo Clair', tag:'Marque fictive', title:'Le vélo électrique en location, sans engagement', text:'Premier mois à 19 € au lieu de 39 €. Livraison en 48 h.', cta:'Découvrir' },
+  subs: { ini:'PM', color:'#2A5BF6', brand:'Papeterie Mirabelle', tag:'Marque fictive', title:'Carnets et agendas 2027', text:'−15 % sur la collection d’automne, livraison offerte dès 25 €.', cta:'Voir l’offre' }
+};
+const adSlot = k => { if (isP()) return ''; const a = ADS[k]; return `<div class="ad" role="complementary" aria-label="Publicité">
+  <div class="ad-h"><span class="ad-tag">Sponsorisé</span><a href="#/premium">Retirer les pubs · Premium ${prix(CFG.priceMonth)}/mois</a></div>
+  <a class="ad-body" href="#/${k==='dash'?'dashboard':'abonnements'}" data-toast="Publicité d’exemple : ${a.brand} est une marque fictive">
+    <span class="ad-logo" style="background:${a.color}">${a.ini}</span>
+    <div class="ad-txt"><span class="ad-brand">${a.brand} <i>${a.tag}</i></span><b>${a.title}</b><span>${a.text}</span></div>
+    <span class="ad-cta">${a.cta}</span></a></div>`; };
 const teaser = (title, text) => `<a class="teaser" href="#/premium"><div class="tl">⟦lock⟧</div><div><b>${title}</b><span>${text}</span></div><div class="tc">Débloquer</div></a>`;
 function toast(msg){ const t=$('#toast'); t.textContent=msg.replace(/⟦\w+⟧\s?/g,''); t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2200); }
 
@@ -174,7 +185,7 @@ screens.onboarding = () => `
     <li><span>⟦search⟧</span>Tous tes abonnements détectés en 30 secondes</li>
     <li><span>⟦trend⟧</span>Alerte dès qu’un prix augmente en douce</li>
     <li><span>⟦scissors⟧</span>Résiliation guidée, lettre prête à envoyer</li>
-    <li><span class="nic">⟦ban⟧</span>Zéro pub, zéro partenariat commercial : des conseils neutres</li>
+    <li><span class="nic">⟦ban⟧</span>Des conseils neutres : les sponsors n’influencent jamais tes résultats</li>
     <li><span>⟦user⟧</span>Un support humain qui répond vraiment</li>
   </ul>
   <div class="spacer"></div>
@@ -257,6 +268,7 @@ screens.dashboard = () => {
   ${teaser(`${t.smalls.length} petits prélèvements oubliés`, 'Des petites sommes qui partent chaque mois')}
   <a class="btn mint" href="#/premium" style="margin:6px 0 4px">Récupérer ${eur(t.found)}/mois</a>
   <p class="muted small center" style="margin-bottom:14px">⟦gift⟧ ${CFG.trial} · puis ${prix(CFG.priceMonth)}/mois</p>`}
+  ${adSlot('dash')}
   <div class="section-h"><h2>Prochains prélèvements</h2><a href="#/abonnements">Tout voir</a></div>
   <div class="card" style="padding:4px 16px">
     ${t.list.filter(s=>s.day>=10).sort((a,b)=>a.day-b.day).slice(0,4).map(s=>`
@@ -289,6 +301,7 @@ screens.abonnements = (q) => {
   <div class="chips">${chip('all','Tous ('+t.list.length+')')}${chip('up','⟦trend⟧ Hausses ('+t.ups.length+')')}${chip('small','⟦search⟧ Oubliés ('+t.smalls.length+')')}${chip('eco','⟦coin⟧ À économiser')}</div>
   ${P?'':teaser(`${eur(t.found)}/mois d’économies repérées`, `${t.ups.length} hausses, 1 doublon, 1 double prélèvement, ${t.smalls.length} oubliés`)}
   ${list.length?`<div class="card" style="padding:4px 16px">${list.map(row).join('')}</div>`:''}
+  ${adSlot('subs')}
   ${showSmall && t.smalls.length?`
   <div class="section-h"><h2>⟦search⟧ Petits prélèvements oubliés</h2><span class="muted small">${eur(t.smalls.reduce((a,s)=>a+s.price,0))}/mois</span></div>
   <p class="muted small" style="margin:-4px 2px 10px">Moins de 5 € chacun, mais ${eur0(t.smalls.reduce((a,s)=>a+s.price,0)*12)} par an au total.</p>
@@ -313,7 +326,7 @@ screens.abo = (q, id) => {
   ${s.doubleCharge?`<div class="banner red"><span class="ic">⟦alert⟧</span><div><b>Prélevé deux fois le ${s.doubleCharge}</b>${eur(s.price)} en trop. On te prépare la demande de remboursement.<br><a href="#" data-toast="Demande de remboursement prête (simulation)" style="font-weight:700;text-decoration:underline">Demander le remboursement</a></div></div>`:''}
   ${increase(s)?`<div class="banner red"><span class="ic">⟦trend⟧</span><div><b>Hausse de prix détectée</b>Tu payais ${eur(s.prev)}. Cette hausse te coûte ${eur(increase(s)*12)} de plus par an.</div></div>`:''}
   ${s.note?`<div class="banner amber"><span class="ic">⟦info⟧</span><div><b>${s.note}</b>${eur(s.price*12)} par an pour un service que tu as peut-être oublié.</div></div>`:''}
-  ${s.tip?`<div class="banner blue"><span class="ic">⟦info⟧</span><div>${s.tip} <i>(Conseil neutre : aucun partenariat.)</i></div></div>`:''}` : (flagged ? teaser('Une alerte attend sur cet abonnement', 'Hausse, doublon ou oubli : découvre-la en Premium') : '')}
+  ${s.tip?`<div class="banner blue"><span class="ic">⟦info⟧</span><div>${s.tip} <i>(Conseil neutre : aucun sponsor derrière ce conseil.)</i></div></div>`:''}` : (flagged ? teaser('Une alerte attend sur cet abonnement', 'Hausse, doublon ou oubli : découvre-la en Premium') : '')}
   <div class="card">
     <div style="font-weight:700;margin-bottom:4px">Historique des prélèvements</div>
     <div class="chart">${s.hist.map((v,i)=>`<div class="col ${P&&i>0&&v>s.hist[i-1]?'up':''}"><span>${v?v.toFixed(2).replace('.',','):'–'}</span><i style="height:${Math.max(4,v/max*70)}px"></i>${MONTHS[i]}</div>`).join('')}</div>
@@ -528,9 +541,9 @@ screens.premium = () => {
   </div>
   <div class="banner green" style="margin-top:14px"><span class="ic">⟦coin⟧</span><div><b>Chez ${USER.prenom} (exemple) : ${eur(t.found)}/mois d’économies trouvées</b>Premium coûte ${prix(CFG.priceMonth)}/mois. Il est remboursé dès la première résiliation.</div></div>
   <div class="plans" role="radiogroup" aria-label="Formules">
-    <div class="plan free"><div class="pl-l"><h3>Gratuit</h3><span>Scan + liste des abonnements</span></div><div class="pl-r"><div class="p">0 €</div></div></div>
-    <button class="plan ${Y?'':'on'}" data-billing="month" role="radio" aria-checked="${!Y}"><i class="radio"></i><div class="pl-l"><h3>Premium Mensuel</h3><span>Sans engagement</span></div><div class="pl-r"><div class="p">${prix(CFG.priceMonth)}<small>/mois</small></div></div></button>
-    <button class="plan rec ${Y?'on':''}" data-billing="year" role="radio" aria-checked="${Y}"><em class="rec-b">Recommandé</em><i class="radio"></i><div class="pl-l"><h3>Premium Annuel <b class="save">−${yearSave()} %</b></h3><span>soit ${prix(CFG.priceYear/12)}/mois</span></div><div class="pl-r"><div class="p">${prix(CFG.priceYear)}<small>/an</small></div></div></button>
+    <div class="plan free"><div class="pl-l"><h3>Gratuit</h3><span>Scan + liste · avec pubs</span></div><div class="pl-r"><div class="p">0 €</div></div></div>
+    <button class="plan ${Y?'':'on'}" data-billing="month" role="radio" aria-checked="${!Y}"><i class="radio"></i><div class="pl-l"><h3>Premium Mensuel</h3><span>Sans engagement · Zéro pub</span></div><div class="pl-r"><div class="p">${prix(CFG.priceMonth)}<small>/mois</small></div></div></button>
+    <button class="plan rec ${Y?'on':''}" data-billing="year" role="radio" aria-checked="${Y}"><em class="rec-b">Recommandé</em><i class="radio"></i><div class="pl-l"><h3>Premium Annuel <b class="save">−${yearSave()} %</b></h3><span>soit ${prix(CFG.priceYear/12)}/mois · Zéro pub</span></div><div class="pl-r"><div class="p">${prix(CFG.priceYear)}<small>/an</small></div></div></button>
   </div>
   <div class="trial">⟦gift⟧ <span><b>${CFG.trial}</b><br>puis <span class="${Y?'':'sel'}">${prix(CFG.priceMonth)}/mois</span> ou <span class="${Y?'sel':''}">${prix(CFG.priceYear)}/an</span></span></div>
   <div class="card">
@@ -546,7 +559,8 @@ screens.premium = () => {
       <tr><td>Résiliation guidée et lettres</td><td class="n">—</td><td class="y">⟦check⟧</td></tr>
       <tr><td>Reste à vivre et suivi des économies</td><td class="n">—</td><td class="y">⟦check⟧</td></tr>
       <tr><td>Support humain</td><td class="y">⟦check⟧</td><td><b>Prioritaire</b></td></tr>
-      <tr><td>Zéro pub, zéro partenariat</td><td class="y">⟦check⟧</td><td class="y">⟦check⟧</td></tr>
+      <tr><td>Sans publicité</td><td class="n">—</td><td class="y">⟦check⟧</td></tr>
+      <tr><td>Conseils neutres (aucun sponsor n’influence tes résultats)</td><td class="y">⟦check⟧</td><td class="y">⟦check⟧</td></tr>
     </table>
   </div>
   ${neutral}

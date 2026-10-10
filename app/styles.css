@@ -307,3 +307,16 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .g-sel{fill:#FFFFFF;stroke:#5B86FF;stroke-width:1.5}
 .g-hit{fill:transparent;cursor:crosshair}
 @media (prefers-color-scheme: dark){ .gcard{background:#16181D} }
+
+/* pubs (version gratuite uniquement) */
+.ad{margin:22px 0 6px}
+.ad-h{display:flex;justify-content:space-between;align-items:center;margin:0 2px 7px;font-size:11.5px}
+.ad-tag{font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;font-size:10.5px;border:1px solid var(--line);border-radius:5px;padding:1px 6px}
+.ad-h a{color:var(--accent);font-weight:500;text-decoration:none}
+.ad-body{display:flex;align-items:center;gap:12px;border:1px dashed var(--line2);border-radius:14px;padding:14px;text-decoration:none;color:var(--ink);background:var(--bg)}
+.ad-logo{width:38px;height:38px;border-radius:10px;color:#fff;font-size:12px;font-weight:700;display:grid;place-items:center;flex:none}
+.ad-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;font-size:12.5px;color:var(--muted);line-height:1.4}
+.ad-txt b{font-size:14px;color:var(--ink);font-weight:600;line-height:1.3}
+.ad-brand{font-size:11.5px;color:var(--ink2);font-weight:500}
+.ad-brand i{font-style:normal;color:var(--muted);font-weight:400;margin-left:4px}
+.ad-cta{font-size:12.5px;font-weight:600;color:var(--ink);border:1px solid var(--line);border-radius:99px;padding:6px 11px;white-space:nowrap}

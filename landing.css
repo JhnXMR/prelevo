@@ -131,3 +131,5 @@ h1{font-size:clamp(40px,6vw,64px);line-height:1.03;letter-spacing:-.045em;font-w
   .strip{padding-top:20px;padding-bottom:20px}.foot{padding-top:48px;padding-bottom:40px}
 }
 @media (prefers-reduced-motion:reduce){.pulse{animation:none}html{scroll-behavior:auto}}
+.plan li.ads{color:var(--muted)}
+.plan li.ads:before{border:0;width:8px;height:1.6px;background:var(--muted);transform:none;top:10px}
