@@ -178,13 +178,21 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .scanlist div.done{opacity:1}
 
 /* premium */
-.plans{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px 0 12px}
-.plan{border:1px solid var(--line);border-radius:14px;padding:16px}
-.plan.pro{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink);position:relative}
-.plan.pro:before{content:"Recommandé";position:absolute;top:-9px;left:14px;background:var(--bg);color:var(--ink);font-size:10.5px;font-weight:600;padding:0 6px;letter-spacing:.03em}
-.plan h3{font-size:13px;color:var(--ink2);font-weight:500}
-.plan .p{font-size:26px;font-weight:600;letter-spacing:-.03em;margin:6px 0 2px}
-.plan .p small{font-size:13px;font-weight:500;color:var(--muted)}
+.plans{display:grid;gap:10px;margin:18px 0 12px}
+.plan{position:relative;display:flex;align-items:center;gap:12px;width:100%;text-align:left;border:1px solid var(--line);border-radius:14px;padding:14px 16px;background:var(--surface);color:var(--ink)}
+.plan.free{background:var(--soft);border-color:transparent}
+.plan.free h3,.plan.free .p{color:var(--ink2)}
+.plan.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.plan .radio{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--line2);flex:none}
+.plan.on .radio{border:5px solid var(--accent)}
+.pl-l{flex:1;min-width:0}
+.pl-l span{display:block;font-size:12.5px;color:var(--muted);margin-top:2px}
+.pl-r{text-align:right;white-space:nowrap}
+.plan h3{font-size:15px;color:var(--ink);font-weight:600;letter-spacing:-.01em}
+.plan .save{white-space:nowrap;font-size:11px;font-weight:600;color:var(--accent);background:var(--tint);border-radius:99px;padding:2px 7px;margin-left:4px;vertical-align:1px}
+.plan .p{font-size:22px;font-weight:600;letter-spacing:-.03em}
+.plan .p small{font-size:12.5px;font-weight:500;color:var(--muted);letter-spacing:0}
+.rec-b{position:absolute;top:-9px;right:14px;background:var(--accent);color:var(--accent-ink);font-style:normal;font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:99px;letter-spacing:.02em}
 .cmp{width:100%;border-collapse:collapse;font-size:13.5px}
 .cmp th{font-size:11.5px;color:var(--muted);font-weight:500;text-align:center;padding:4px 4px 10px;text-transform:uppercase;letter-spacing:.05em}
 .cmp th:first-child{text-align:left}
@@ -197,6 +205,8 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .toggle button.on{background:var(--ink);color:var(--bg)}
 .trial{display:flex;justify-content:center;align-items:center;gap:8px;font-size:13.5px;color:var(--ink2);margin-bottom:18px}
 .trial b{color:var(--ink);font-weight:600}
+.trial>span{text-align:center;line-height:1.45}
+.trial .sel{color:var(--ink);font-weight:600}
 .trial .i{width:17px;height:17px;color:var(--accent)}
 
 /* barre d'onglets */
@@ -224,6 +234,7 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .locked-cta{position:absolute;inset:0;display:grid;place-items:center}
 .lc-box{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:18px;text-align:center;max-width:88%;font-size:13.5px}
 .lc-box b{font-weight:600}
+.lc-trial{display:block;font-size:12px;color:var(--muted);margin-top:8px}
 .lc-box a{display:inline-block;margin-top:12px;background:var(--accent);color:var(--accent-ink);font-weight:600;padding:10px 16px;border-radius:10px}
 .locked-btn{color:var(--ink2)!important}
 

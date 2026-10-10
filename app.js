@@ -179,7 +179,7 @@ screens.onboarding = () => `
   </ul>
   <div class="spacer"></div>
   <a class="btn" href="#/connect">Connecter ma banque</a>
-  <p class="fine">⟦lock⟧ Accès en lecture seule via un agrégateur bancaire agréé. ${APP_NAME} ne peut jamais déplacer ton argent.<br>Maquette – données d’exemple</p>
+  <p class="fine">⟦lock⟧ Gratuit pour commencer, Premium à ${prix(CFG.priceMonth)}/mois.<br>Accès en lecture seule via un agrégateur bancaire agréé. ${APP_NAME} ne peut jamais déplacer ton argent.<br>Maquette – données d’exemple</p>
 </div>`;
 
 screens.connect = () => `
@@ -328,7 +328,7 @@ screens.abo = (q, id) => {
   <a class="btn danger" href="#/resilier/${s.id}/1">⟦scissors⟧ Résilier cet abonnement</a>
   <button class="btn ghost" id="keep">Je le garde, ne plus m’alerter</button>` : `
   <a class="btn danger locked-btn" href="#/premium">⟦lock⟧ Résiliation guidée · Premium</a>
-  <p class="muted small center" style="margin-top:10px">Lettre prête, démarches pas à pas et suivi jusqu’à l’arrêt du prélèvement. ${CFG.trial}.</p>`}
+  <p class="muted small center" style="margin-top:10px">Lettre prête, démarches pas à pas et suivi jusqu’à l’arrêt du prélèvement. Premium ${prix(CFG.priceMonth)}/mois · ${CFG.trial}.</p>`}
 </div>`;
 };
 
@@ -440,7 +440,7 @@ screens.alertes = () => {
   <div class="section-h"><h2>${prem.length} alertes d’économies en attente</h2>${lockBadge()}</div>
   <div class="locked-wrap">
     <div class="lock">${prem.slice(0,3).map(a=>item({...a, title:a.title.replace(/[0-9]+,[0-9]+ €/g,'••• €'), text:'•••••••• •••••• ••••• •••••••• ••• •••••• •••••••••'})).join('')}</div>
-    <div class="locked-cta"><div class="lc-box"><b>Hausses de prix, doubles prélèvements, rappels avant chaque prélèvement</b><a href="#/premium">Débloquer · ${CFG.trial}</a></div></div>
+    <div class="locked-cta"><div class="lc-box"><b>Hausses de prix, doubles prélèvements, rappels avant chaque prélèvement</b><a href="#/premium">Débloquer · ${prix(CFG.priceMonth)}/mois</a><span class="lc-trial">${CFG.trial}</span></div></div>
   </div>`}
   <div class="section-h"><h2>Réglages des alertes</h2></div>
   <div class="card" style="padding:4px 16px">
@@ -527,12 +527,12 @@ screens.premium = () => {
     <p class="muted" style="margin-top:6px;font-size:14.5px">L’app qui te fait économiser plus qu’elle ne coûte.</p>
   </div>
   <div class="banner green" style="margin-top:14px"><span class="ic">⟦coin⟧</span><div><b>Chez ${USER.prenom} (exemple) : ${eur(t.found)}/mois d’économies trouvées</b>Premium coûte ${prix(CFG.priceMonth)}/mois. Il est remboursé dès la première résiliation.</div></div>
-  <div class="toggle"><button class="${Y?'':'on'}" data-billing="month">Mensuel</button><button class="${Y?'on':''}" data-billing="year">Annuel −${yearSave()} %</button></div>
-  <div class="plans">
-    <div class="plan"><h3>Gratuit</h3><div class="p">0 €</div><div class="muted small">scan + liste</div></div>
-    <div class="plan pro"><h3>Premium</h3><div class="p">${Y?prix(CFG.priceYear)+'<small>/an</small>':prix(CFG.priceMonth)+'<small>/mois</small>'}</div><div class="muted small">${Y?'soit '+prix(CFG.priceYear/12)+'/mois':'sans engagement'}</div></div>
+  <div class="plans" role="radiogroup" aria-label="Formules">
+    <div class="plan free"><div class="pl-l"><h3>Gratuit</h3><span>Scan + liste des abonnements</span></div><div class="pl-r"><div class="p">0 €</div></div></div>
+    <button class="plan ${Y?'':'on'}" data-billing="month" role="radio" aria-checked="${!Y}"><i class="radio"></i><div class="pl-l"><h3>Premium Mensuel</h3><span>Sans engagement</span></div><div class="pl-r"><div class="p">${prix(CFG.priceMonth)}<small>/mois</small></div></div></button>
+    <button class="plan rec ${Y?'on':''}" data-billing="year" role="radio" aria-checked="${Y}"><em class="rec-b">Recommandé</em><i class="radio"></i><div class="pl-l"><h3>Premium Annuel <b class="save">−${yearSave()} %</b></h3><span>soit ${prix(CFG.priceYear/12)}/mois</span></div><div class="pl-r"><div class="p">${prix(CFG.priceYear)}<small>/an</small></div></div></button>
   </div>
-  <div class="trial">⟦gift⟧ <b>${CFG.trial}</b> · puis ${Y?prix(CFG.priceYear)+'/an':prix(CFG.priceMonth)+'/mois'}</div>
+  <div class="trial">⟦gift⟧ <span><b>${CFG.trial}</b><br>puis <span class="${Y?'':'sel'}">${prix(CFG.priceMonth)}/mois</span> ou <span class="${Y?'sel':''}">${prix(CFG.priceYear)}/an</span></span></div>
   <div class="card">
     <table class="cmp">
       <tr><th></th><th>Gratuit</th><th>Premium</th></tr>
@@ -552,7 +552,7 @@ screens.premium = () => {
   ${neutral}
   <a class="card sup-mini" href="#/chat"><span class="avatars"><span style="background:#F59E0B">S</span><span style="background:#3B82F6">K</span></span><div><b>Une question avant de t’abonner ?</b><span>Un humain te répond, pas un robot.</span></div><span class="chev">⟦chev⟧</span></a>
   <button class="btn mint" id="go-premium">${state.premium?'Premium actif (démo)':'Commencer : '+CFG.trial}</button>
-  <p class="muted small center" style="margin-top:10px">Puis ${Y?prix(CFG.priceYear)+'/an':prix(CFG.priceMonth)+'/mois'}. Annulable en 1 clic, à tout moment. Paiement simulé dans cette maquette.</p>
+  <p class="muted small center" style="margin-top:10px">Formule ${Y?'Annuelle':'Mensuelle'} : puis ${Y?prix(CFG.priceYear)+'/an (soit '+prix(CFG.priceYear/12)+'/mois)':prix(CFG.priceMonth)+'/mois'} après l’essai. Annulable en 1 clic, à tout moment. Paiement simulé dans cette maquette.</p>
 </div>`;
 };
 

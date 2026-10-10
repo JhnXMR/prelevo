@@ -1,4 +1,4 @@
-const CACHE = 'prelevo-v8-nom';
+const CACHE = 'prelevo-v9-tarifs';
 const ASSETS = ['./', './index.html', './styles.css', './config.js', './app.js', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon.svg',
   './icons/favicon.svg', './icons/favicon-32.png', './icons/apple-touch-icon-180.png'];
