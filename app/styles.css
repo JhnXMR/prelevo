@@ -35,7 +35,7 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .topbar h1{font-size:24px;font-weight:650;letter-spacing:-.025em}
 .back,.gear{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;color:var(--ink)}
 .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:16px;letter-spacing:-.01em}
-.brand img{width:28px;height:28px;border-radius:8px}
+.brand picture{display:flex}.brand img{width:auto;height:28px}
 .demo{font-size:10.5px;color:var(--muted);letter-spacing:.02em;white-space:nowrap}
 .hello{color:var(--ink2);font-size:14px;margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .hello .demo{margin-left:auto}
@@ -155,7 +155,7 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 
 /* accueil */
 .onb{min-height:100vh;display:flex;flex-direction:column;padding:calc(40px + env(safe-area-inset-top)) 26px 30px;background:var(--bg);color:var(--ink)}
-.onb .logo-xl{width:56px;height:56px;border-radius:14px;margin-bottom:36px}
+.onb picture{display:block}.onb .logo-xl{width:auto;height:60px;margin-bottom:34px}
 .onb h1{font-size:34px;line-height:1.1;font-weight:650;letter-spacing:-.035em;margin-bottom:14px}
 .onb h1 em{font-style:normal;color:var(--muted)}
 .onb p.lead{color:var(--ink2);font-size:15.5px;line-height:1.55}

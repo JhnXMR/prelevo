@@ -1,7 +1,7 @@
-const CACHE = 'prelevo-app-v12-powens';
+const CACHE = 'prelevo-app-v13-logo';
 const ASSETS = ['./', './index.html', './styles.css', './config.js', './powens.js', './app.js', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon.svg',
-  './icons/favicon.svg', './icons/favicon-32.png', './icons/apple-touch-icon-180.png'];
+  './icons/favicon.svg', './icons/logo-mark.svg', './icons/logo-mark-white.svg', './icons/favicon-32.png', './icons/apple-touch-icon-180.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
 });

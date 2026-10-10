@@ -206,12 +206,12 @@ function alerts(){
 
 // ---------- écrans ----------
 const screens = {};
-const brandBar = (right=demoTag) => `<div class="topbar"><div class="brand"><img src="icons/icon.svg" alt="">${APP_NAME}</div>${right}</div>`;
+const brandBar = (right=demoTag) => `<div class="topbar"><div class="brand"><picture><source srcset="icons/logo-mark-white.svg" media="(prefers-color-scheme: dark)"><img src="icons/logo-mark.svg" alt=""></picture>${APP_NAME}</div>${right}</div>`;
 const yearSave = () => Math.round((1 - CFG.priceYear / (CFG.priceMonth*12)) * 100);
 
 screens.onboarding = () => `
 <div class="onb">
-  <img class="logo-xl" src="icons/icon.svg" alt="">
+  <picture><source srcset="icons/logo-mark-white.svg" media="(prefers-color-scheme: dark)"><img class="logo-xl" src="icons/logo-mark.svg" alt=""></picture>
   <h1>Arrête de payer pour des abonnements <em>que tu as oubliés.</em></h1>
   <p class="lead">${APP_NAME} analyse tes comptes, repère tous tes prélèvements récurrents et te prévient quand un prix augmente.</p>
   <ul>
