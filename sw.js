@@ -1,6 +1,7 @@
-const CACHE = 'scan-finance-v2';
+const CACHE = 'prelevo-v8-nom';
 const ASSETS = ['./', './index.html', './styles.css', './config.js', './app.js', './manifest.json',
-  './icons/icon-192.png', './icons/icon-512.png', './icons/icon.svg'];
+  './icons/icon-192.png', './icons/icon-512.png', './icons/icon.svg',
+  './icons/favicon.svg', './icons/favicon-32.png', './icons/apple-touch-icon-180.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
 });

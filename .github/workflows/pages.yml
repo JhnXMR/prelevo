@@ -1,49 +1,32 @@
-name: Publier sur GitHub Pages
-
+name: Décoder les icônes PNG
+# GitHub Pages sert directement la branche main (racine) : ce workflow ne déploie rien.
+# Il décode le paquet d'icônes PNG envoyé en base64 (icons/icons-png.tar.b64) et enregistre les PNG.
 on:
   push:
     branches: [main]
+    paths: ['icons/icons-png.tar.b64', '.github/workflows/pages.yml']
   workflow_dispatch:
-
 permissions:
   contents: write
-  pages: write
-  id-token: write
-
 concurrency:
-  group: pages
-  cancel-in-progress: true
-
+  group: decode-icons
+  cancel-in-progress: false
 jobs:
-  deploy:
+  decode:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-
-      - name: Décoder les icônes PNG (stockées en base64)
+      - name: Décoder les icônes
         run: |
-          for f in icons/*.png.b64; do base64 -d "$f" > "${f%.b64}"; done
+          base64 -d icons/icons-png.tar.b64 | tar -xvf -
+          git rm -q --ignore-unmatch icons/*.png.b64
           ls -l icons
-
-      - name: Enregistrer les PNG dans le dépôt (utile si Pages est servi depuis la branche main)
+      - name: Enregistrer les PNG
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
-          git add icons/*.png
-          git diff --cached --quiet || (git commit -m "Ajoute les icônes PNG décodées [skip ci]" && git push)
-
-      - name: Configurer Pages
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-        continue-on-error: true
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: .
-
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          git add -A icons
+          if git diff --cached --quiet; then echo "Rien à enregistrer"; exit 0; fi
+          git commit -m "Icônes PNG décodées"
+          for i in 1 2 3; do git pull --rebase origin main && git push && exit 0; sleep 5; done
+          exit 1

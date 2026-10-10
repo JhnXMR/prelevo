@@ -1,6 +1,6 @@
 /* Configuration de la maquette – changer le nom de l'app ICI (et dans manifest.json + <title> d'index.html, voir README). */
 window.APP_CONFIG = {
-  name: 'Scan Finance',
+  name: 'Prelevo',
   tagline: 'l’app qui traque tes abonnements',
   priceMonth: 3.99,
   priceYear: 29.99,
