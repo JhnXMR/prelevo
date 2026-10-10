@@ -11,7 +11,7 @@ window.PRELEVO_LANDING = {
      - 'formspree'   : endpoint = https://formspree.io/f/<ID>
      - 'apps-script' : endpoint = URL /exec d'un script Google Apps Script (web app) relié à une Google Sheet
      - 'json'        : n'importe quel endpoint qui accepte un POST JSON { email, source, date } */
-  waitlist: { provider: 'formsubmit', endpoint: 'https://formsubmit.co/ajax/a1ca38f8d891211a55ddf55b3329f250', field: 'email' },
+  waitlist: { provider: 'formsubmit', endpoint: 'https://formsubmit.co/ajax/4e6ccd8efe4049c714bdbd1134e55349', field: 'email' },
 
   /* Éditeur et contact affichés dans les mentions / la confidentialité. */
   publisher: 'Jhn Dlt',
