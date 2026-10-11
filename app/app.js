@@ -69,7 +69,10 @@ const isP = () => state.premium;
 const linked = () => LIVE ? [liveBank()] : isP() ? LINKED : LINKED.slice(0,1);
 
 // ---------- Banque de TEST Powens (sandbox) : vraies données de test, analysées dans le navigateur ----------
-const PWX = window.PW || null;
+// Avec une API Prelevo configurée (config.js > apiBase), la banque passe par le serveur : le flux « 100 % navigateur » est désactivé.
+const API = window.PAPI || null;
+const PWX = API ? null : (window.PW || null);
+let ME = null;               // réponse de GET /me
 if (PWX && QS.has('demo')) PWX.clear();            // ?demo=1 = toujours les données d'exemple
 let LIVE = null;
 function applyLive(r){
@@ -82,6 +85,9 @@ function applyLive(r){
   demoTag = '<span class="demo live">Banque de test Powens</span>';
 }
 function liveBank(){
+  if (API){ const n = LIVE.accounts.length;
+    return { id:'pw', name:LIVE.bank, color:'#0066FF', ini:'PW', live:true, accounts:`${n} compte${n>1?'s':''} · ${LIVE.txCount} opérations`,
+      status:'ok', sync: LIVE.at ? 'il y a ' + ago(LIVE.at) : '—', expiresIn: 999, expires:'180 jours (règle DSP2)', mins: 0 }; }
   const tk = PWX && PWX.tokenInfo(); const expired = !tk || tk.expired;
   const mins = tk ? Math.max(0, Math.round((tk.exp - Date.now())/60000)) : 0;
   const n = LIVE.accounts.length;
@@ -90,6 +96,27 @@ function liveBank(){
     status: expired ? 'expired' : 'ok', sync: 'il y a ' + Math.max(0, Math.round((Date.now()-LIVE.at)/60000)) + ' min',
     expiresIn: 999, expires: expired ? 'expirée' : `encore ${mins} min`, mins };
 }
+const ago = t => { const m = Math.max(0, Math.round((Date.now()-t)/60000)); return m < 60 ? m + ' min' : m < 1440 ? Math.round(m/60) + ' h' : Math.round(m/1440) + ' j'; };
+const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function applyServer(me){
+  ME = me;
+  if (!me.bankConnected || !me.stats) return;
+  const st = me.stats || {};
+  applyLive({ subs: me.subscriptions, months: st.months && st.months.length ? st.months : MONTHS.slice(), income: st.income || 0, spent: st.spent || 0,
+    payIn: st.payIn || 30, accounts: me.accounts || [], recent: me.transactions || [], txCount: me.txCount || 0, bank: st.bank || 'Ma banque',
+    at: me.lastSyncAt ? Date.parse(me.lastSyncAt) : null, history: { days: st.days, debits: st.debits, total: st.total, limited: st.limited }, savings: st.savings });
+  state.connected = true; save();
+  demoTag = '<span class="demo live">Banque de test</span>';
+}
+function apiFail(e){
+  if (e && e.status === 401){ ME = null; LIVE = null; toast('Session expirée : reconnecte-toi'); location.hash = '#/connexion'; return; }
+  toast(e && e.message ? e.message : 'Erreur');
+}
+async function apiLoadMe(){ try { applyServer(await API.me()); } catch(e){ apiFail(e); } }
+const sandboxNote = () => window.PW && API ? `<div class="pw-note"><b>Banque de test (sandbox Powens)</b>
+  ${window.PW.testCreds.map(c=>`<div><span>${c.bank}</span>${c.fields}</div>`).join('')}
+  <p>Pendant l’alpha, seules les fausses banques de test sont proposées.</p></div>` : '';
+const notBank = (extra='') => `<p class="notbank ${extra}">⟦shield⟧<span><b>${APP_NAME} n’est pas une banque.</b> C’est une télécommande élégante pour celles que tu as déjà : on s’y branche en lecture seule, via un agrégateur agréé par l’ACPR.</span></p>`;
 const pwNote = () => `<div class="pw-note"><b>Identifiants de test Powens</b>
   ${(PWX ? PWX.testCreds : []).map(c=>`<div><span>${c.bank}</span>${c.fields}</div>`).join('')}
   <p>Fausses banques, faux comptes : aucune vraie donnée. Session de test valable 30 min, gardée seulement dans cet onglet.</p></div>`;
@@ -224,10 +251,14 @@ screens.onboarding = () => `
     <li><span class="nic">⟦ban⟧</span>Des conseils neutres : les sponsors n’influencent jamais tes résultats</li>
     <li><span>⟦user⟧</span>Un support humain qui répond vraiment</li>
   </ul>
+  ${notBank('onb-nb')}
   <div class="spacer"></div>
-  <a class="btn" href="#/connect">Connecter ma banque</a>
-  ${PWX ? `<button class="btn ghost" id="pw-connect" style="margin-top:8px">⟦bank⟧ Connecter une banque de test</button>` : ''}
-  <p class="fine">⟦lock⟧ Gratuit pour commencer, Premium à ${prix(CFG.priceMonth)}/mois.<br>Accès en lecture seule via un agrégateur bancaire agréé. ${APP_NAME} ne peut jamais déplacer ton argent.<br>Maquette – données d’exemple</p>
+  ${API ? (API.loggedIn() ? `<button class="btn" id="api-connect">⟦bank⟧ Connecter ma banque</button>
+  <button class="btn ghost" id="api-logout" style="margin-top:8px">Se déconnecter</button>`
+    : `<a class="btn" href="#/connexion">⟦mail⟧ Se connecter avec mon e-mail</a>
+  <a class="btn ghost" href="?demo=1#/dashboard" style="margin-top:8px">Voir la démo (données d’exemple)</a>`) : `<a class="btn" href="#/connect">Connecter ma banque</a>
+  ${PWX ? `<button class="btn ghost" id="pw-connect" style="margin-top:8px">⟦bank⟧ Connecter une banque de test</button>` : ''}`}
+  <p class="fine">⟦lock⟧ Gratuit pour commencer, Premium à ${prix(CFG.priceMonth)}/mois.<br>Accès en lecture seule via un agrégateur bancaire agréé. ${APP_NAME} ne peut jamais déplacer ton argent.<br>${API ? 'Alpha – banques de test uniquement' : 'Maquette – données d’exemple'}</p>
 </div>`;
 
 screens.connect = () => `
@@ -235,6 +266,7 @@ screens.connect = () => `
   <div class="topbar"><a class="back" href="#/onboarding">⟦back⟧</a>${demoTag}</div>
   <h1 style="font-size:24px;letter-spacing:-.02em">Choisis ta banque</h1>
   <p class="muted small" style="margin-top:6px">Connexion sécurisée, en lecture seule (simulation).</p>
+  ${notBank()}
   <div class="search" style="margin-top:16px">⟦search⟧ Rechercher une banque</div>
   <div class="banks">${BANKS.map(b=>`<button class="bank ${state.bank===b.id?'on':''}" data-bank="${b.id}">${logo(b)}${b.name}</button>`).join('')}</div>
   <div class="banner blue"><span class="ic">⟦lock⟧</span><div><b>Tes identifiants restent chez ta banque</b>${APP_NAME} passe par un agrégateur agréé (DSP2). L’accès dure 180 jours : on te prévient avant qu’il expire, et tu peux le retirer à tout moment.</div></div>
@@ -263,7 +295,7 @@ function bankStrip(){
   const L = linked();
   if (LIVE){ const b = L[0]; return `<a class="bankstrip" href="#/banques">
     <div class="bs-logos"><span class="bs-l" style="background:${b.color}">${b.ini}<i class="st ${b.status==='expired'?'warn':'ok'}"></i></span></div>
-    <div class="bs-txt">${b.status==='expired' ? '<b class="t-amber">Session de test expirée · reconnecter</b>' : `<b>${b.name} · banque de test</b>`}<span>${b.accounts}</span></div>
+    <div class="bs-txt">${b.status==='expired' ? '<b class="t-amber">Session de test expirée · reconnecter</b>' : `<b>${b.name} · ${API ? 'synchro il y a ' + (LIVE.at ? ago(LIVE.at) : '—') : 'banque de test'}</b>`}<span>${b.accounts}</span></div>
     <span class="chev">⟦chev⟧</span></a>`; }
   const warn = L.find(b=>b.status==='error') || L.find(b=>b.expiresIn<=7);
   return `<a class="bankstrip" href="#/banques">
@@ -272,55 +304,245 @@ function bankStrip(){
     <span class="chev">⟦chev⟧</span></a>`;
 }
 
+// ---------- Accueil « au quotidien » : tous les comptes, les opérations du jour, ce qui part cette semaine ----------
+// Inspiration Tricount (simplicité, gros chiffres lisibles, pastilles de catégorie, listes par jour, ton amical), DA Prelevo.
+Object.assign(ICONS, {
+  cart:'<path d="M3 4h2l2.2 10.5a1.5 1.5 0 0 0 1.5 1.2h8.6a1.5 1.5 0 0 0 1.5-1.1L20.5 8H6"/><circle cx="9.5" cy="19.5" r="1.2"/><circle cx="17" cy="19.5" r="1.2"/>',
+  cup:'<path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5z"/><path d="M16 10h1.5a2.5 2.5 0 0 1 0 5H16M9 3.5v2.5M12.5 3.5v2.5"/>',
+  train:'<rect x="6" y="3" width="12" height="13" rx="3"/><path d="M6 10h12M9 19.5l-2 2M15 19.5l2 2"/><circle cx="9.5" cy="13" r=".6"/><circle cx="14.5" cy="13" r=".6"/>',
+  bag:'<path d="M5 8h14l-1 12H6z"/><path d="M9 8V6.5a3 3 0 0 1 6 0V8"/>',
+  heart:'<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
+  home:'<path d="M4 11l8-6 8 6v8a1 1 0 0 1-1 1h-4v-6H9v6H5a1 1 0 0 1-1-1z"/>',
+  bolt:'<path d="M13 3L5 13h6l-1 8 8-10h-6z"/>',
+  wifi:'<path d="M3 9a13 13 0 0 1 18 0M6 12.5a8.5 8.5 0 0 1 12 0M9 16a4 4 0 0 1 6 0"/><circle cx="12" cy="19" r=".8"/>',
+  repeat:'<path d="M17 3l3 3-3 3"/><path d="M4 12V9a3 3 0 0 1 3-3h13M7 21l-3-3 3-3"/><path d="M20 12v3a3 3 0 0 1-3 3H4"/>',
+  swap:'<path d="M7 4L3 8l4 4M3 8h14M17 12l4 4-4 4M21 16H7"/>',
+  income:'<path d="M17 7L7 17M7 9v8h8"/>',
+  cash:'<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>',
+  ticket:'<path d="M4 7h16v3a2 2 0 0 0 0 4v3H4v-3a2 2 0 0 0 0-4z"/><path d="M14 7.5v9" stroke-dasharray="1.5 2"/>',
+  plane:'<path d="M10.5 13.5L4 11.5l1.2-1.8 7 .3 4.3-4.6a1.5 1.5 0 0 1 2.1 2.1L14 11.8l.3 7-1.8 1.2-2-6.5z"/>',
+  dot:'<circle cx="12" cy="12" r="2.5"/>',
+});
+const CATS = {
+  courses:{ ic:'cart', l:'Courses' }, resto:{ ic:'cup', l:'Restos & cafés' }, transport:{ ic:'train', l:'Transports' },
+  shopping:{ ic:'bag', l:'Shopping' }, sante:{ ic:'heart', l:'Santé' }, logement:{ ic:'home', l:'Logement' },
+  energie:{ ic:'bolt', l:'Énergie' }, telecom:{ ic:'wifi', l:'Téléphone & internet' }, abo:{ ic:'repeat', l:'Abonnement' },
+  revenu:{ ic:'income', l:'Revenu' }, virement:{ ic:'swap', l:'Virement' }, retrait:{ ic:'cash', l:'Retrait' },
+  loisirs:{ ic:'ticket', l:'Loisirs' }, voyage:{ ic:'plane', l:'Voyage' }, pret:{ ic:'bank', l:'Prêt' }, autre:{ ic:'dot', l:'Autre' },
+};
+const CAT_RULES = [
+  [/LOYER|AGENCE|SYNDIC/, 'logement'],
+  [/SUPERMARCH|SUP[EÉ]RETTE|MARCH[EÉ]\b|PRIMEUR|BOULANG|[EÉ]PICERIE|CARREFOUR|MONOPRIX|LIDL|FRANPRIX|AUCHAN|LECLERC|INTERMARCH|PICARD/, 'courses'],
+  [/RESTAURANT|CAF[EÉ]\b|BRASSERIE|CANTINE|\bBAR\b|PIZZ|SUSHI|BURGER|DELIVEROO|UBER ?EATS|BOULANGERIE/, 'resto'],
+  [/PHARMACIE|M[EÉ]DECIN|DOCTEUR|DENTISTE|MUTUELLE|SANT[EÉ]|OPTIC/, 'sante'],
+  [/BILLET|AVION|AIR ?FRANCE|H[OÔ]TEL|AIRBNB|VOYAGE/, 'voyage'],
+  [/SNCF|RATP|NAVIGO|M[EÉ]TRO|TRANSPORT|TAXI|UBER|ESSENCE|CARBURANT|P[EÉ]AGE|PARKING|V[EÉ]LO/, 'transport'],
+  [/MUS[EÉ]E|MUSEUM|CIN[EÉ]|CONCERT|TH[EÉ][AÂ]TRE|SPECTACLE/, 'loisirs'],
+  [/[EÉ]LECTRICIT|EDF|ENGIE|\bGAZ\b|\bEAU\b|[EÉ]NERGIE/, 'energie'],
+  [/MOBILE|FORFAIT|\bBOX\b|INTERNET|FIBRE|T[EÉ]L[EÉ]COM/, 'telecom'],
+  [/AMAZON|LIBRAIRIE|FNAC|BOUTIQUE|BRICOLAGE|\bSHOP/, 'shopping'],
+];
+function catOf(w, type, amt){
+  const s = String(w || '').toUpperCase();
+  if (type === 'withdrawal' || /RETRAIT|\bDAB\b/.test(s)) return 'retrait';
+  if (type === 'loan_repayment' || /PR[EÊ]T\b/.test(s) && amt < 0) return 'pret';
+  for (const [re, c] of CAT_RULES) if (re.test(s)) return c;
+  if (amt > 0) return 'revenu';
+  if (type === 'transfer' || /VIR(EMENT)?\b/.test(s)) return 'virement';
+  return 'autre';
+}
+/** « CB DEBIT IMMEDIAT RESTAURANT PARIS 09/10 » → « Restaurant Paris » */
+function cleanName(w){
+  let s = String(w || '').toUpperCase();
+  s = s.replace(/\bN°\s*\S+/g, ' ').replace(/\b\d{4}X+\d+\b|X{3,}\d*/g, ' ').replace(/\b\d{2}[\/.]\d{2}([\/.]\d{2,4})?\b/g, ' ');
+  for (let i = 0; i < 4; i++) s = s.replace(/^\s*(CB|CARTE|PRLV|PR[EÉ]L[EÈ]VEMENT|SEPA|VIR(EMENT)?|INST(ANTAN[EÉ])?|RE[CÇ]U|D[EÉ]BIT|IMM[EÉ]DIAT|RETRAIT|DAB|PAIEMENT)\b\.?\s*/, '');
+  s = s.replace(/\s+/g, ' ').trim();
+  if (!s) return 'Opération';
+  const KEEP = /^(CAF|APL|SNCF|RATP|EDF|SFR|SAS|TV|BNP|LCL|CROUS|USA)$/, SMALL = /^(DE|DU|DES|LA|LE|LES|ET|EN|AU|AUX|SUR|OF|D'|L')$/;
+  return s.split(' ').map((x, i) => KEEP.test(x) ? x : (i && SMALL.test(x)) ? x.toLowerCase() : x.charAt(0) + x.slice(1).toLowerCase()).join(' ');
+}
+
+const DAY_MS = 864e5;
+const JOURS = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+const nowRef = () => LIVE ? new Date() : new Date(NOW);
+const day0 = d => { const x = new Date(d); x.setHours(0,0,0,0); return x; };
+function dayLabel(d){
+  const n = Math.round((day0(d) - day0(nowRef())) / DAY_MS);
+  if (n === 0) return 'Aujourd’hui'; if (n === -1) return 'Hier'; if (n === 1) return 'Demain';
+  return cap(JOURS[d.getDay()]) + ' ' + d.getDate() + ' ' + MOIS[d.getMonth()];
+}
+const money = n => { const s = Math.abs(n).toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }); const k = s.lastIndexOf(',');
+  return `${n < 0 ? '−' : ''}<span class="m-int">${s.slice(0, k)}</span><span class="m-dec">${s.slice(k)} €</span>`; };
+const signed = n => (n > 0 ? '+' : n < 0 ? '−' : '') + eur(Math.abs(n));
+
+// Comptes de démo par banque (montants fictifs) ; le compte courant suit la courbe de solde de la démo
+const DEMO_ACC = { b1:[['Compte courant', null], ['Livret A', 4250]], b2:[['Compte joint', 612.08]], b3:[['Carte en ligne', 138.9]] };
+const MERCH = { s:[['Boulangerie Martin','courses'],['Café Lumière','resto'],['Transports urbains','transport'],['Kiosque Presse','shopping']],
+  m:[['Pharmacie des Lilas','sante'],['Cantine Sato','resto'],['Librairie du Parc','shopping'],['Ciné Rex','loisirs'],['Primeur Bio','courses']],
+  l:[['Supérette du Canal','courses'],['Marché Saint-Louis','courses'],['Bricolage Dupont','shopping'],['Bistrot Les Amis','resto']] };
+let _ledger = null;
+function ledger(){
+  if (_ledger && _ledger.key === (LIVE ? 'live' + LIVE.at : 'demo' + isP() + state.resiliated.join())) return _ledger;
+  const L = LIVE ? liveLedger() : demoLedger();
+  L.key = LIVE ? 'live' + LIVE.at : 'demo' + isP() + state.resiliated.join();
+  return (_ledger = L);
+}
+function demoLedger(){
+  const T = timeline();
+  const banks = linked().map(b => ({ ...b, accs: (DEMO_ACC[b.id] || []).map(([n, v]) => ({ name:n, balance: v == null ? T.end : v })) }));
+  banks.forEach(b => b.total = b.accs.reduce((a, x) => a + x.balance, 0));
+  const total = banks.reduce((a, b) => a + b.total, 0), others = total - T.end;
+  const from = NOW.getTime() - 35 * DAY_MS;
+  const tx = T.ev.filter(e => e.t.getTime() >= from).map(e => {
+    if (e.k === 'spend'){ const a = -e.amt, pool = a < 9 ? MERCH.s : a < 40 ? MERCH.m : MERCH.l, m = pool[Math.floor(e.t.getTime() / 6e4) % pool.length];
+      return { t:e.t, name:m[0], cat:m[1], amt:e.amt, where:'Banque Exemple' }; }
+    if (e.k === 'in') return { t:e.t, name:'Salaire · Exemple SAS', cat:'revenu', amt:e.amt, where:'Banque Exemple' };
+    if (e.k === 'rent') return { t:e.t, name:'Loyer · Agence Fictive', cat:'logement', amt:e.amt, where:'Banque Exemple' };
+    const s = SUBS.find(x => x.name === e.name); return { t:e.t, name:e.name, cat:'abo', amt:e.amt, sub:s && s.id, where:'Prélèvement' };
+  }).reverse();
+  const curve = samples('1M').map(p => ({ t:p.t, v:p.bal + others }));
+  const t0 = day0(NOW), up = [];
+  active().forEach(s => { for (const mo of [0, 1]){ const d = new Date(NOW.getFullYear(), NOW.getMonth() + mo, s.day, 7); if (d > NOW && d - t0 < 8 * DAY_MS) up.push({ t:d, name:s.name, cat:'abo', amt:-s.price, sub:s.id, where:'Abonnement détecté' }); } });
+  up.sort((a, b) => a.t - b.t);
+  return { banks, total, tx, curve, up, nAcc: banks.reduce((a, b) => a + b.accs.length, 0) };
+}
+function liveLedger(){
+  const accs = LIVE.accounts || [];
+  const isEur = a => !a.currency || a.currency === 'EUR';
+  const counted = a => isEur(a) && !/card|loan|credit/.test(String(a.type || ''));
+  const b = liveBank();
+  const ini = String(LIVE.bank || 'B').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const bank = { ...b, ini, accs: accs.map(a => ({ id:a.id, name:a.name, balance:Number(a.balance) || 0, currency:a.currency, counted:counted(a), type:a.type })) };
+  bank.total = bank.accs.filter(a => a.counted).reduce((x, a) => x + a.balance, 0);
+  const accName = id => { const a = accs.find(x => x.id === id); return a ? a.name.replace(/\s*-\s*Mr.*$/i, '') : LIVE.bank; };
+  const t0 = day0(new Date()), dt = t => new Date(t.date + 'T12:00');
+  const raw = (LIVE.recent || []).filter(t => t.type !== 'summary_card');
+  const map = t => ({ t:dt(t), name:cleanName(t.wording), cat:catOf(t.wording, t.type, t.value), amt:t.value, acc:t.account, where:accName(t.account) });
+  const tx = raw.filter(t => !t.coming && dt(t) < new Date(t0.getTime() + DAY_MS)).map(map).sort((a, b) => b.t - a.t);
+  const up = raw.filter(t => t.coming && t.value < 0 && dt(t) >= t0 && dt(t) - t0 < 8 * DAY_MS).map(map);
+  (LIVE.subs || []).forEach(s => { const d = nextLive(s); if (d >= t0 && d - t0 < 8 * DAY_MS) up.push({ t:d, name:s.name, cat:'abo', amt:-(s.amount || s.price), sub:s.id, where:'Abonnement détecté' }); });
+  up.sort((a, b) => a.t - b.t);
+  // courbe 30 j : solde des comptes courants/épargne aujourd'hui, en remontant leurs opérations
+  const ids = new Set(bank.accs.filter(a => a.counted && a.id != null).map(a => a.id));
+  const flows = tx.filter(x => ids.has(x.acc));
+  const curve = [];
+  for (let d = 30; d >= 0; d--){ const end = new Date(t0.getTime() - (d - 1) * DAY_MS); curve.push({ t:new Date(end - DAY_MS / 2), v: bank.total - flows.filter(f => f.t >= end).reduce((a, f) => a + f.amt, 0) }); }
+  return { banks:[bank], total:bank.total, tx, curve, up, nAcc:bank.accs.filter(a => a.counted).length, live:true };
+}
+
+function spark(curve){
+  if (!curve || curve.length < 2) return '';
+  const W = 340, H = 70, vs = curve.map(p => p.v), lo = Math.min(...vs), hi = Math.max(...vs), r = hi - lo || 1;
+  const x = i => (i / (curve.length - 1)) * W, y = v => 6 + (hi - v) / r * (H - 14);
+  const pts = curve.map((p, i) => [x(i), y(p.v)]);
+  const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const last = pts[pts.length - 1];
+  return `<div class="spark"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+    <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".16"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+    <path class="sp-area" d="${d} L${W},${H} L0,${H} Z" fill="url(#spk)"/>
+    <path class="sp-line" d="${d}" pathLength="1" fill="none" stroke="var(--accent)" stroke-width="1.8" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg><i class="sp-dot" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%"></i>
+  <div class="sp-legend"><span>il y a 30 jours</span><span>aujourd’hui</span></div></div>`;
+}
+const catChip = c => `<span class="cat cat-${c}" aria-hidden="true">⟦${(CATS[c] || CATS.autre).ic}⟧</span>`;
+const txRow = x => `<a class="tx" href="${x.sub ? '#/abo/' + x.sub : '#/operations'}">${catChip(x.cat)}
+  <div class="mid"><div class="name">${esc(x.name)}</div><div class="meta">${(CATS[x.cat] || CATS.autre).l}${x.where ? ' · ' + esc(x.where) : ''}</div></div>
+  <div class="amt ${x.amt > 0 ? 'pos' : ''}">${signed(x.amt)}</div></a>`;
+function txGroups(list, maxDays = 99, maxRows = 999){
+  const groups = []; let rows = 0;
+  for (const x of list){
+    const k = day0(x.t).getTime(); let g = groups[groups.length - 1];
+    if (!g || g.k !== k){ if (groups.length >= maxDays || rows >= maxRows) break; g = { k, d:x.t, items:[] }; groups.push(g); }
+    if (rows >= maxRows) break; g.items.push(x); rows++;
+  }
+  return groups.map(g => { const net = g.items.reduce((a, x) => a + x.amt, 0);
+    return `<div class="day"><div class="day-h"><span>${dayLabel(g.d)}</span><span>${signed(net)}</span></div>${g.items.map(txRow).join('')}</div>`; }).join('');
+}
+let _homeAnimated = false;
+function animateHome(){
+  const el = document.querySelector('[data-count]'); if (!el) return;
+  if (_homeAnimated || matchMedia('(prefers-reduced-motion: reduce)').matches){ document.querySelector('.home')?.classList.add('static'); return; }
+  _homeAnimated = true;
+  const target = +el.dataset.count, t0 = performance.now(), dur = 750;
+  const step = now => { const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3); el.innerHTML = money(target * (0.92 + 0.08 * e)); if (p < 1) requestAnimationFrame(step); else el.innerHTML = money(target); };
+  requestAnimationFrame(step);
+}
+
 screens.dashboard = () => {
-  const t = totals(); const used = (t.fixed + SPENT) / INCOME * 100; const P = isP();
+  const t = totals(), P = isP(), L = ledger(), al = alerts();
+  const unread = al.filter(a => !state.readAlerts.includes(a.id)).length;
+  const first = L.curve.length ? L.curve[0].v : L.total, delta = L.total - first;
+  const upSum = L.up.reduce((a, x) => a + x.amt, 0);
+  const nextSub = L.up.find(x => x.sub);
+  const banksN = L.banks.length;
+  const prenom = USER.prenom ? ' ' + USER.prenom : '';
   return `
-<div class="screen">
+<div class="screen home ${_homeAnimated ? 'static' : ''}">
   ${brandBar(`<a class="gear" href="#/aide" aria-label="Aide et réglages">⟦settings⟧</a>`)}
-  <p class="hello">Bonjour${USER.prenom?' '+USER.prenom:''} <span class="plan-pill ${P?'p':''}">${P?'Premium':'Gratuit'}</span> ${demoTag}</p>
-  ${bankStrip()}
-  ${P ? `
-  <div class="hero">
-    <div class="lbl">Reste à vivre jusqu’à la paie</div>
-    <div class="big">${eur(t.reste)}</div>
-    <div class="sub">soit ${eur(t.reste/PAYDAY_IN)} par jour pendant ${PAYDAY_IN} jours</div>
-    <div class="bar"><i style="width:${Math.min(100,used).toFixed(0)}%"></i></div>
-    <div class="bar-legend"><span>Dépensé + charges : ${eur0(t.fixed+SPENT)}</span><span>Revenus : ${eur0(INCOME)}</span></div>
+  <div class="greet rise" style="--d:0"><div class="g-row"><p class="g-day">${cap(JOURS[nowRef().getDay()])} ${nowRef().getDate()} ${MOIS[nowRef().getMonth()]}</p>
+    <div class="g-tags"><span class="plan-pill ${P ? 'p' : ''}">${P ? 'Premium' : 'Gratuit'}</span>${demoTag}</div></div><h1>Bonjour${prenom}</h1></div>
+
+  <section class="total rise" style="--d:1">
+    <div class="lbl">Solde total · ${L.nAcc} compte${L.nAcc > 1 ? 's' : ''}${banksN > 1 ? ' dans ' + banksN + ' banques' : ''}</div>
+    <div class="amount" data-count="${L.total.toFixed(2)}">${money(L.total)}</div>
+    <div class="delta">${delta >= 0 ? '⟦trend⟧' : ''}<b class="${delta >= 0 ? 'pos' : ''}">${signed(delta)}</b> sur 30 jours</div>
+    ${spark(L.curve)}
+    ${P ? `<a class="rav" href="#/abonnements"><span>Reste à vivre jusqu’à la paie</span><b>${eur(t.reste)}</b></a>`
+        : `<a class="rav locked" href="#/premium"><span>⟦lock⟧ Reste à vivre jusqu’à la paie</span><b>Premium</b></a>`}
+  </section>
+
+  <div class="section-h rise" style="--d:2"><h2>À venir cette semaine</h2>${L.up.length ? `<span class="sec-sum">${signed(upSum)}</span>` : ''}</div>
+  <div class="panel rise" style="--d:2">
+    ${L.up.length ? `<p class="insight">${L.up.length} prélèvement${L.up.length > 1 ? 's' : ''} ${L.up.length > 1 ? 'vont' : 'va'} partir d’ici 7 jours${nextSub ? `, dont <b>${esc(nextSub.name)}</b> ${dayLabel(nextSub.t).toLowerCase()}` : ''}. Rien d’autre de prévu.</p>
+      ${L.up.map(x => `<a class="tx up" href="${x.sub ? '#/abo/' + x.sub : '#/operations'}">${catChip(x.cat)}<div class="mid"><div class="name">${esc(x.name)}</div><div class="meta">${dayLabel(x.t)} · ${esc(x.where)}</div></div><div class="amt">${signed(x.amt)}</div></a>`).join('')}`
+      : `<p class="insight">Aucun prélèvement prévu dans les 7 prochains jours. Profites-en.</p>`}
   </div>
-  ${balanceChart()}` : `
-  <a class="hero" href="#/abonnements">
-    <div class="lbl">Tes abonnements détectés</div>
-    <div class="big">${eur(t.monthly)}<span style="font-size:16px;opacity:.7"> /mois</span></div>
-    <div class="sub">${t.list.length} prélèvements récurrents · ${eur0(t.monthly*12)} par an</div>
-  </a>`}
-  <div class="grid2">
-    ${P ? `<a class="kpi" href="#/abonnements"><div class="lbl">Abonnements / mois</div><div class="val">${eur(t.monthly)}</div><div class="hint">${t.list.length} actifs · ${eur0(t.monthly*12)}/an</div></a>`
-        : `<a class="kpi locked" href="#/premium"><div class="lbl">Reste à vivre ⟦lock⟧</div><div class="val blur">${eur(t.reste)}</div><div class="hint">Disponible en Premium</div></a>`}
-    <a class="kpi green" href="${P?'#/abonnements?f=eco':'#/premium'}"><div class="lbl">Économies trouvées ${P?'':'⟦lock⟧'}</div><div class="val">${eur(t.found)}</div><div class="hint">${P?'par mois, à récupérer':'par mois · débloque-les'}</div></a>
+
+  <div class="section-h rise" style="--d:3"><h2>Mes comptes</h2><a href="#/banques">Gérer</a></div>
+  <div class="panel accts rise" style="--d:3">
+    ${L.banks.map(b => `<div class="bank-g">
+      <a class="bank-h" href="#/banques"><span class="bk-ini">${b.ini}${b.status === 'error' ? '<i class="st err"></i>' : b.status === 'expired' ? '<i class="st warn"></i>' : ''}</span>
+        <div class="mid"><div class="name">${esc(b.name)}</div><div class="meta ${b.status === 'error' ? 't-red' : ''}">${b.status === 'error' ? 'Synchro en échec · reconnecter' : b.status === 'expired' ? 'Session expirée' : 'À jour · ' + b.sync}</div></div>
+        <div class="amt">${eur(b.total)}</div></a>
+      ${b.accs.map(a => `<div class="acc ${a.counted === false ? 'off' : ''}"><span>${esc(a.name)}</span><span>${a.currency && a.currency !== 'EUR' ? (a.balance || 0).toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' ' + esc(a.currency) : eur(a.balance)}</span></div>`).join('')}
+    </div>`).join('')}
+    ${!LIVE && !P ? `<a class="bank-add" href="#/premium">⟦plus⟧<span>Ajouter une banque</span><b>Premium</b></a>` : ''}
   </div>
-  ${P ? '' : balanceChart()}
-  ${P ? `
-  <div class="card" style="display:flex;align-items:center;gap:12px">
-    <div class="ic-round">⟦check⟧</div>
-    <div style="flex:1"><div style="font-weight:700">${eur(t.achieved)} économisés / mois</div><div class="muted small">grâce à tes résiliations · ${eur(t.achieved*12)} sur un an</div></div>
-  </div>
-  ${t.list.some(s=>s.doubleCharge)?`<a class="banner red" href="#/abo/mobi"><span class="ic">⟦alert⟧</span><div><b>Prélevé 2 fois : Mobi Forfait</b>15,99 € débités deux fois le 8 oct. Demande le remboursement.</div></a>`:''}
-  ${t.ups.length?`<a class="banner red" href="#/abonnements?f=up"><span class="ic">⟦trend⟧</span><div><b>${t.ups.length} abonnements ont augmenté</b>+${eur(t.upsAmt)}/mois depuis l’an dernier sans que tu ne changes rien.</div></a>`:''}
-  ${t.smalls.length?`<a class="banner amber" href="#/abonnements?f=small"><span class="ic">⟦search⟧</span><div><b>${t.smalls.length} petit${t.smalls.length>1?'s':''} prélèvement${t.smalls.length>1?'s':''} oublié${t.smalls.length>1?'s':''}</b>${eur(t.smalls.reduce((a,s)=>a+s.price,0))}/mois qui passent inaperçus.</div></a>`:''}
-  ` : `
-  <div class="section-h"><h2>On a trouvé de quoi économiser</h2></div>
-  ${!LIVE || t.ups.length ? teaser(`${t.ups.length} hausse${t.ups.length>1?'s':''} de prix détectée${t.ups.length>1?'s':''}`, 'Découvre lesquels de tes abonnements ont augmenté') : ''}
-  ${t.list.some(s=>s.doubleCharge) ? teaser('1 double prélèvement', 'Un abonnement t’a été débité deux fois ce mois-ci') : ''}
-  ${!LIVE || t.smalls.length ? teaser(`${t.smalls.length} petit${t.smalls.length>1?'s':''} prélèvement${t.smalls.length>1?'s':''} oublié${t.smalls.length>1?'s':''}`, 'Des petites sommes qui partent chaque mois') : ''}
-  <a class="btn mint" href="#/premium" style="margin:6px 0 4px">Récupérer ${eur(t.found)}/mois</a>
-  <p class="muted small center" style="margin-bottom:14px">⟦gift⟧ ${CFG.trial} · puis ${prix(CFG.priceMonth)}/mois</p>`}
+
+  <a class="subs-card rise" style="--d:4" href="#/abonnements">
+    <div class="sc-top">${catChip('abo')}<div class="mid"><div class="name">Abonnements</div><div class="meta">${t.list.length} actif${t.list.length > 1 ? 's' : ''}${nextSub ? ' · prochain : ' + esc(nextSub.name) + ', ' + dayLabel(nextSub.t).toLowerCase() : ''}</div></div>
+      <div class="amt">${eur(t.monthly)}<small>/mois</small></div></div>
+    <div class="hchips">
+      ${t.ups.length ? `<span class="hchip">⟦trend⟧ ${t.ups.length} hausse${t.ups.length > 1 ? 's' : ''}</span>` : ''}
+      ${t.smalls.length ? `<span class="hchip">⟦search⟧ ${t.smalls.length} oublié${t.smalls.length > 1 ? 's' : ''}</span>` : ''}
+      ${t.dups.length ? `<span class="hchip">⟦copy⟧ ${t.dups.length} doublon${t.dups.length > 1 ? 's' : ''}</span>` : ''}
+      ${unread ? `<span class="hchip dark">⟦bell⟧ ${unread} alerte${unread > 1 ? 's' : ''}</span>` : ''}
+      ${t.found ? (P ? `<span class="hchip blue">${eur(t.found)}/mois à économiser</span>` : `<span class="hchip blue">⟦lock⟧ ${eur(t.found)}/mois d’économies repérées</span>`) : ''}
+    </div>
+  </a>
+
   ${adSlot('dash')}
-  <div class="section-h"><h2>Prochains prélèvements</h2><a href="#/abonnements">Tout voir</a></div>
-  <div class="card" style="padding:4px 16px">
-    ${t.list.filter(s=>s.day>=10).sort((a,b)=>a.day-b.day).slice(0,4).map(s=>`
-      <a class="row" href="#/abo/${s.id}">${logo(s)}<div class="mid"><div class="name">${s.name}</div><div class="meta">le ${s.day} oct.${P?' · rappel la veille ⟦bell⟧':''}</div></div><div class="amt">${eur(s.price)}</div></a>`).join('')}
-  </div>
+
+  <div class="section-h rise" style="--d:5"><h2>Opérations récentes</h2><a href="#/operations">Tout voir</a></div>
+  <div class="panel rise" style="--d:5">${L.tx.length ? txGroups(L.tx, 4, 12) : '<p class="insight">Aucune opération ces derniers jours.</p>'}</div>
   ${neutral}
+</div>`;
+};
+
+let opsFilter = 'all';
+screens.operations = () => {
+  const L = ledger();
+  const list = L.tx.filter(x => opsFilter === 'all' || (opsFilter === 'out' ? x.amt < 0 : x.amt > 0));
+  const out = L.tx.filter(x => x.amt < 0 && day0(x.t) > new Date(nowRef() - 30 * DAY_MS)).reduce((a, x) => a + x.amt, 0);
+  const inc = L.tx.filter(x => x.amt > 0 && day0(x.t) > new Date(nowRef() - 30 * DAY_MS)).reduce((a, x) => a + x.amt, 0);
+  return `
+<div class="screen home static">
+  <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a><h1 style="font-size:19px">Opérations</h1>${demoTag}</div>
+  <div class="grid2 sums"><div class="kpi"><div class="lbl">Dépensé · 30 j</div><div class="val">${eur(-out)}</div></div><div class="kpi"><div class="lbl">Reçu · 30 j</div><div class="val t-blue">${eur(inc)}</div></div></div>
+  <div class="seg ops-seg" role="tablist">${[['all','Tout'],['out','Dépenses'],['in','Revenus']].map(([k, l]) => `<button type="button" role="tab" class="${opsFilter === k ? 'on' : ''}" data-ops="${k}">${l}</button>`).join('')}</div>
+  <div class="panel">${list.length ? txGroups(list) : '<p class="insight">Rien sur cette période.</p>'}</div>
+  <p class="muted small center" style="margin-top:6px">${L.live ? 'Opérations des 35 derniers jours, lues chez ta banque.' : 'Opérations d’exemple des 35 derniers jours.'}</p>
 </div>`;
 };
 
@@ -347,7 +569,7 @@ screens.abonnements = (q) => {
     <div><div class="muted small">Total mensuel</div><div style="font-size:26px;font-weight:760;letter-spacing:-.02em">${eur(t.monthly)}</div></div>
     <div style="text-align:right"><div class="muted small">Sur un an</div><div style="font-weight:700">${eur0(t.monthly*12)}</div></div>
   </div>
-  <div class="chips">${chip('all','Tous ('+t.list.length+')')}${chip('up','⟦trend⟧ Hausses ('+t.ups.length+')')}${chip('small','⟦search⟧ Oubliés ('+t.smalls.length+')')}${chip('eco','⟦coin⟧ À économiser')}</div>
+  <div class="hchips">${chip('all','Tous ('+t.list.length+')')}${chip('up','⟦trend⟧ Hausses ('+t.ups.length+')')}${chip('small','⟦search⟧ Oubliés ('+t.smalls.length+')')}${chip('eco','⟦coin⟧ À économiser')}</div>
   ${P?'':teaser(`${eur(t.found)}/mois d’économies repérées`, LIVE ? `${t.ups.length} hausse${t.ups.length>1?'s':''}, ${t.smalls.length} petit${t.smalls.length>1?'s':''} prélèvement${t.smalls.length>1?'s':''} sous 10 €` : `${t.ups.length} hausses, 1 doublon, 1 double prélèvement, ${t.smalls.length} oubliés`)}
   ${LIVE && LIVE.history && LIVE.history.limited ? `<div class="banner amber"><span class="ic">⟦info⟧</span><div><b>Historique court : détection partielle</b>La banque de test ne fournit que ${LIVE.history.days} jours d’opérations (${LIVE.history.debits} débits). Il faut au moins 2 prélèvements pour confirmer un abonnement : ceux vus une seule fois sont marqués « probable ».</div></div>` : ''}
   ${LIVE && !t.list.length ? `<div class="card center"><b>Aucun prélèvement récurrent trouvé</b><p class="muted small" style="margin-top:6px">Rien de régulier dans ces ${LIVE.txCount} opérations de test. Avec plus d’historique (2 mois ou plus), la détection sera plus complète.</p></div>` : ''}
@@ -532,14 +754,14 @@ screens.banques = () => {
       <div style="flex:1"><div style="font-weight:700">${b.name}</div><div class="muted small">${b.accounts}</div></div>
       <span class="status ${b.status==='expired'?'err':'ok'}">${b.status==='expired'?'Expirée':'Connectée'}</span></div>
     <div class="kv"><span>Données lues</span><span>${b.sync}</span></div>
-    <div class="kv"><span>Session de test</span><span class="${b.status==='expired'?'t-amber':''}">${b.expires}</span></div>
+    <div class="kv"><span>${API ? 'Accès bancaire' : 'Session de test'}</span><span class="${b.status==='expired'?'t-amber':''}">${b.expires}</span></div>
     ${LIVE.accounts.map(a=>`<div class="kv"><span class="small">${a.name}</span><span class="nw">${(a.balance||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} ${a.currency==='EUR'||!a.currency?'€':a.currency}</span></div>`).join('')}
     ${b.status==='expired' ? `<div class="banner amber" style="margin:10px 0 0"><span class="ic">⟦key⟧</span><div><b>Session de test expirée</b>Le jeton Powens de test ne dure que 30 minutes. Les résultats restent affichés ; reconnecte-toi pour relire les comptes.</div></div>` : ''}
-    <button class="btn small-btn" id="${b.status==='expired'?'pw-connect':'pw-refresh'}" style="margin-top:12px">${b.status==='expired'?'Reconnecter la banque de test':'Relire les opérations'}</button>
+    <button class="btn small-btn" id="${API ? 'api-sync' : b.status==='expired'?'pw-connect':'pw-refresh'}" style="margin-top:12px">${b.status==='expired'?'Reconnecter la banque de test':'Relire les opérations'}</button>
   </div>
   <p class="muted small" style="margin:2px 2px 12px">Comptes en euros uniquement. ${LIVE.subs.length} prélèvement${LIVE.subs.length>1?'s':''} retenu${LIVE.subs.length>1?'s':''} sur ${LIVE.txCount} opérations : « confirmé » = au moins 2 prélèvements à ~1 mois d’écart et montant à ±10 % ; « probable » = 1 seul prélèvement au libellé typique d’un abonnement.</p>
-  <button class="btn ghost" id="pw-quit">Revenir aux données d’exemple</button>
-  ${pwNote()}
+  ${API ? sandboxNote() : `<button class="btn ghost" id="pw-quit">Revenir aux données d’exemple</button>
+  ${pwNote()}`}
 </div>`; }
   return `
 <div class="screen">
@@ -586,6 +808,17 @@ screens.aide = () => `
     <div style="font-weight:700">Apparence</div>
     <div class="muted small">Automatique suit le réglage de ton téléphone.</div>
     <div class="seg" role="radiogroup" aria-label="Thème">${[['light','sun','Jour'],['dark','moon','Nuit'],['auto','auto','Automatique']].map(([v,ic,l])=>`<button type="button" role="radio" aria-checked="${themePref()===v}" class="${themePref()===v?'on':''}" data-theme-set="${v}">⟦${ic}⟧${l}</button>`).join('')}</div>
+  </div>
+  ${API && API.loggedIn() ? `<div class="card account-card">
+    <div style="font-weight:700">Mon compte</div>
+    <div class="muted small brk">${ME ? esc(ME.email) : ''}</div>
+    <button class="btn ghost" id="api-logout" style="margin-top:12px">Se déconnecter</button>
+    <a class="btn danger-ghost" href="#/supprimer">Supprimer mon compte</a>
+  </div>` : ''}
+  <div class="card about">
+    <div style="font-weight:700">À propos de ${APP_NAME}</div>
+    <p>${APP_NAME} n’est pas une banque : c’est une belle interface qui se branche sur tes banques actuelles, comme une télécommande. Tu gardes tes comptes, tes cartes et ton conseiller.</p>
+    <p>L’accès est en lecture seule, via un agrégateur agréé par l’ACPR (norme européenne DSP2) : ${APP_NAME} voit tes opérations, mais ne peut jamais déplacer ton argent.</p>
   </div>
   ${neutral}
   <div class="card">
@@ -742,8 +975,8 @@ function chartGeom(S){
   return { ticks, x, y };
 }
 function balanceChart(){
-  if (LIVE) return `<div class="card" id="balance"><div style="font-weight:700;margin-bottom:2px">Comptes de test</div>
-    <div class="muted small" style="margin-bottom:6px">Soldes lus chez ${LIVE.bank} (sandbox Powens)</div>
+  if (LIVE) return `<div class="card" id="balance"><div style="font-weight:700;margin-bottom:2px">${API ? 'Mes comptes' : 'Comptes de test'}</div>
+    <div class="muted small" style="margin-bottom:6px">Soldes lus chez ${LIVE.bank}${API ? '' : ' (sandbox Powens)'}</div>
     ${LIVE.accounts.map(a=>`<div class="kv"><span class="small">${a.name}</span><span class="nw">${(a.balance||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} ${a.currency==='EUR'||!a.currency?'€':a.currency}</span></div>`).join('')}</div>`;
   const S = samples(balPeriod), P = PERIODS[balPeriod], { ticks, x, y } = chartGeom(S);
   window.__BAL = S;
@@ -839,22 +1072,87 @@ async function pwRefresh(){
   catch(e){ if (e.status===401||e.status===403){ const t = PWX.tokenInfo(); if (t) sessionStorage.setItem('prelevo-pw-token', JSON.stringify({...t, exp:0})); render(); toast('Session de test expirée'); } else toast('Erreur Powens : ' + e.message); }
 }
 
+// ---------- compte Prelevo (API) ----------
+let loginSent = null;
+screens.connexion = (q) => {
+  if (q.get('token')) return `<div class="screen"><div class="loader"><div class="spin"></div><h2 style="font-size:20px">Connexion…</h2><p class="muted small" style="margin-top:6px">Vérification de ton lien</p></div></div>`;
+  if (!API) return screens.onboarding();
+  return `
+<div class="screen login">
+  <div class="topbar"><a class="back" href="#/onboarding">⟦back⟧</a></div>
+  <span class="lg"><img class="logo-l lg-l" src="icons/logo-mark.svg" alt=""><img class="logo-l lg-d" src="icons/logo-mark-white.svg" alt="Prelevo"></span>
+  <h1 style="font-size:26px;letter-spacing:-.02em;margin-top:18px">${loginSent ? 'Regarde tes e-mails' : 'Connexion'}</h1>
+  ${loginSent ? `<p class="muted" style="margin-top:8px;line-height:1.5">Si l’adresse <b>${esc(loginSent)}</b> est valide, tu viens de recevoir un lien de connexion. Il est valable 15 minutes et ne sert qu’une fois.</p>
+  <button class="btn ghost" id="login-again" style="margin-top:22px">Utiliser une autre adresse</button>`
+  : `<p class="muted" style="margin-top:8px;line-height:1.5">Pas de mot de passe : on t’envoie un lien de connexion par e-mail.</p>
+  <form id="login-form" class="login-form" novalidate>
+    <label for="login-email" class="small" style="font-weight:600">Adresse e-mail</label>
+    <input id="login-email" type="email" inputmode="email" autocomplete="email" required placeholder="toi@exemple.fr">
+    <button class="btn" type="submit" id="login-submit">Recevoir mon lien</button>
+  </form>
+  <p class="fine" style="margin-top:14px">⟦lock⟧ Ton e-mail sert uniquement à te connecter et à t’envoyer tes alertes. Aucune publicité par e-mail.</p>`}
+</div>`;
+};
+screens.apiwait = () => `
+<div class="screen"><div class="loader">
+  <div class="spin"></div>
+  <h2 style="font-size:20px">Lecture de tes comptes…</h2>
+  <p class="muted small" style="margin-top:6px">La banque transmet tes opérations, cela peut prendre jusqu’à 30 secondes.</p>
+  <div id="api-err"></div>
+</div></div>`;
+screens.supprimer = () => !API || !API.loggedIn() ? screens.onboarding() : `
+<div class="screen">
+  <div class="topbar"><a class="back" href="#/aide">⟦back⟧</a><h1 style="font-size:19px">Supprimer mon compte</h1></div>
+  <div class="card">
+    <div style="font-weight:700;margin-bottom:6px">Ce qui sera effacé, définitivement :</div>
+    <ul class="del-list">
+      <li>⟦check⟧<span>ton compte${ME ? ` <b class="brk">${esc(ME.email)}</b>` : ''} et tes sessions</span></li>
+      <li>⟦check⟧<span>l’accès à ta banque, aussi chez notre agrégateur (Powens)</span></li>
+      <li>⟦check⟧<span>tes opérations, abonnements détectés et alertes</span></li>
+    </ul>
+    <p class="muted small" style="margin-top:8px">Rien n’est conservé chez ${APP_NAME}. Tu pourras recréer un compte plus tard, en repartant de zéro.</p>
+  </div>
+  <label class="del-confirm"><input type="checkbox" id="del-check"> Je comprends que c’est irréversible</label>
+  <button class="btn danger" id="api-delete" disabled>Supprimer définitivement</button>
+  <a class="btn ghost" href="#/aide">Annuler</a>
+</div>`;
+async function apiVerify(token){
+  history.replaceState(null, '', location.pathname + '#/connexion');
+  try { await API.verify(token); toast('Connecté'); await apiLoadMe(); location.hash = ME && ME.bankConnected ? '#/dashboard' : '#/onboarding'; render(); }
+  catch(e){ toast(e.message || 'Lien invalide'); location.hash = '#/connexion'; render(); }
+}
+async function apiFinish(){
+  const p = API.returnParams();
+  history.replaceState(null, '', location.pathname + '#/apiwait');
+  const fail = (t, x) => { const e = $('#api-err'); if (e) e.innerHTML = icons(`<div class="banner amber" style="margin-top:18px;text-align:left"><span class="ic">⟦alert⟧</span><div><b>${t}</b>${esc(x)}</div></div><button class="btn" id="api-connect">Réessayer</button><a class="btn ghost" href="#/onboarding">Plus tard</a>`); };
+  if (!p) return fail('Retour de connexion incomplet', 'Relance la connexion de ta banque.');
+  try {
+    const r = await API.finishConnect(p);
+    await apiLoadMe();
+    location.hash = '#/dashboard';
+    toast(`${r.subscriptions} prélèvement${r.subscriptions>1?'s':''} récurrent${r.subscriptions>1?'s':''} détecté${r.subscriptions>1?'s':''}${r.history && r.history.limited ? ' (historique court)' : ''}`);
+  } catch(e){ if (e.status === 401) return apiFail(e); fail(p.error ? 'Connexion annulée' : 'Lecture impossible', e.message); }
+}
+
 // ---------- routeur ----------
 function render(){
   _timeline = null;
-  const raw = location.hash.replace(/^#\/?/, '') || (state.connected ? 'dashboard' : 'onboarding');
+  const raw = location.hash.replace(/^#\/?/, '') || (API ? (API.loggedIn() && LIVE ? 'dashboard' : 'onboarding') : state.connected ? 'dashboard' : 'onboarding');
   const [path, qs] = raw.split('?');
   const [name, ...args] = path.split('/');
   const fn = screens[name] || screens.dashboard;
   $('#app').innerHTML = icons(fn(new URLSearchParams(qs||''), ...args));
-  const tabbed = ['dashboard','abonnements','alertes','premium','abo','aide','banques'].includes(name) || (!screens[name]);
+  const tabbed = ['dashboard','operations','abonnements','alertes','premium','abo','aide','banques'].includes(name) || (!screens[name]);
   $('#tabbar').hidden = !tabbed;
-  const tabName = name==='abo' ? 'abonnements' : (!screens[name] ? 'dashboard' : name);
+  const tabName = name==='abo' ? 'abonnements' : name==='operations' || !screens[name] ? 'dashboard' : name;
   document.querySelectorAll('#tabbar a').forEach(a=>a.classList.toggle('on', a.dataset.tab===tabName));
   $('#alert-dot').classList.toggle('show', alerts().some(a=>!state.readAlerts.includes(a.id)));
   window.scrollTo(0,0);
+  if (name==='dashboard') animateHome();
   if (name==='scan') runScan();
   if (name==='pwscan' && PWX && !LIVE) runPwScan();
+  if (name==='connexion' && API){ const tk = new URLSearchParams(qs||'').get('token'); if (tk) apiVerify(tk); }
+  if (API && !API.loggedIn() && ['dashboard','abonnements','alertes','banques','abo','supprimer'].includes(name)){ location.replace('#/onboarding'); }
   if (name==='resilier' && !isP()) toast('La résiliation guidée fait partie de Premium');
 }
 
@@ -865,9 +1163,10 @@ function runScan(){
 }
 
 document.addEventListener('click', e => {
+  const ops = e.target.closest('[data-ops]'); if (ops){ opsFilter = ops.dataset.ops; render(); return; }
   const th = e.target.closest('[data-theme-set]');
   if (th){ if (window.PrelevoTheme) PrelevoTheme.set(th.dataset.themeSet); document.querySelectorAll('[data-theme-set]').forEach(b=>{ const on=b===th; b.classList.toggle('on',on); b.setAttribute('aria-checked',on); }); return; }
-  const el = e.target.closest('[data-bank],[data-method],[data-toast],[data-billing],[data-alert],[data-plan],#go-scan,#keep,#confirm-resil,#go-premium,#reset,#pw-connect,#pw-quit,#pw-refresh');
+  const el = e.target.closest('[data-bank],[data-method],[data-toast],[data-billing],[data-alert],[data-plan],#go-scan,#keep,#confirm-resil,#go-premium,#reset,#pw-connect,#pw-quit,#pw-refresh,#api-connect,#api-sync,#api-logout,#api-delete,#login-again,#del-check');
   if (!el) return;
   if (el.dataset.toast){ e.preventDefault(); toast(el.dataset.toast); }
   else if (el.dataset.bank){ state.bank = el.dataset.bank; save(); render(); }
@@ -875,6 +1174,14 @@ document.addEventListener('click', e => {
   else if (el.dataset.billing){ billing = el.dataset.billing; render(); }
   else if (el.dataset.plan){ state.premium = el.dataset.plan==='premium'; save(); toast('Mode démo : ' + (state.premium?'Premium':'Gratuit')); render(); }
   else if (el.dataset.alert){ if(!state.readAlerts.includes(el.dataset.alert)){ state.readAlerts.push(el.dataset.alert); save(); } }
+  else if (el.id==='api-connect'){ e.preventDefault(); toast('Ouverture de la connexion bancaire…'); API.connectBank().catch(apiFail); }
+  else if (el.id==='api-sync'){ toast('Synchronisation…'); API.sync().then(apiLoadMe).then(()=>{ render(); toast('Comptes à jour'); }).catch(apiFail); }
+  else if (el.id==='api-logout'){ API.logout().then(()=>{ ME = null; LIVE = null; state.connected = false; save(); location.replace(location.pathname + '#/onboarding'); location.reload(); }); }
+  else if (el.id==='del-check'){ const b = $('#api-delete'); if (b) b.disabled = !el.checked; }
+  else if (el.id==='api-delete'){ if (!$('#del-check') || !$('#del-check').checked) return; el.disabled = true; el.textContent = 'Suppression…';
+    API.deleteAccount().then(()=>{ localStorage.removeItem(KEY); sessionStorage.setItem('prelevo-deleted', '1'); location.replace(location.pathname + '#/onboarding'); location.reload(); })
+      .catch(err => { el.disabled = false; el.textContent = 'Supprimer définitivement'; apiFail(err); }); }
+  else if (el.id==='login-again'){ loginSent = null; render(); }
   else if (el.id==='pw-connect'){ e.preventDefault(); pwConnect(); }
   else if (el.id==='pw-refresh'){ pwRefresh(); }
   else if (el.id==='pw-quit'){ e.preventDefault(); PWX && PWX.clear(); location.replace(location.pathname + (state.connected ? '#/dashboard' : '#/onboarding')); location.reload(); }
@@ -886,6 +1193,12 @@ document.addEventListener('click', e => {
 });
 
 document.addEventListener('submit', e => {
+  if (e.target.id === 'login-form'){ e.preventDefault();
+    const email = $('#login-email').value.trim(); const btn = $('#login-submit');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return toast('Adresse e-mail invalide');
+    btn.disabled = true; btn.textContent = 'Envoi…';
+    API.requestLink(email).then(()=>{ loginSent = email; render(); }).catch(err => { btn.disabled = false; btn.textContent = 'Recevoir mon lien'; apiFail(err); });
+    return; }
   if (e.target.id !== 'chat-form') return;
   e.preventDefault();
   const v = $('#chat-text').value.trim(); if (!v) return;
@@ -902,4 +1215,9 @@ if (PWX && !QS.has('demo')) {
 // expiration du jeton de test (30 min) : on rafraîchit l'affichage quand elle survient
 setInterval(() => { if (LIVE && /banques|dashboard|alertes/.test(location.hash)) { const tk = PWX.tokenInfo(); if (tk && tk.expired && !tk._shown) { sessionStorage.setItem('prelevo-pw-token', JSON.stringify({...tk, _shown:1})); render(); toast('Session de test Powens expirée (30 min)'); } } }, 30000);
 window.addEventListener('hashchange', render);
-render();
+if (API){
+  if (sessionStorage.getItem('prelevo-deleted')){ sessionStorage.removeItem('prelevo-deleted'); setTimeout(()=>toast('Compte supprimé. Toutes tes données ont été effacées.'), 300); }
+  if (API.returnParams()){ render(); apiFinish(); }
+  else if (API.loggedIn()){ $('#app').innerHTML = icons(screens.apiwait().replace('Lecture de tes comptes…','Chargement…').replace(/<p class="muted small"[^>]*>.*?<\/p>/,'')); apiLoadMe().then(render); }
+  else render();
+} else render();
