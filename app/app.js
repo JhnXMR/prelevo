@@ -40,20 +40,31 @@ const SUBS = [
 ];
 const MONTHS = ['mai','juin','juil.','août','sept.','oct.'];
 
+// Banques réelles, en monogramme couleur de marque (couleurs approximatives) : aucun fichier de logo officiel dans la démo publique.
+// En mode réel (API), le logo officiel vient de l'agrégateur (Powens) ; le monogramme sert de secours.
 const BANKS = [
-  { id:'b1', name:'Banque Exemple', color:'#E2001A', ini:'BE' },
-  { id:'b2', name:'Crédit Fictif', color:'#00965E', ini:'CF' },
-  { id:'b3', name:'NéoBanque Démo', color:'#111827', ini:'ND' },
-  { id:'b4', name:'Caisse Test', color:'#1F4E9C', ini:'CT' },
-  { id:'b5', name:'Banque en ligne', color:'#FF6B00', ini:'BL' },
-  { id:'b6', name:'Autre banque', color:'#8A94A8', ini:'+' },
+  { id:'b1',  name:'Crédit Agricole',     color:'#00877F', ini:'CA' },
+  { id:'b7',  name:'Société Générale',    color:'#E60028', ini:'SG' },
+  { id:'b8',  name:'Caisse d’Épargne',    color:'#D0021B', ini:'CE' },
+  { id:'b9',  name:'BNP Paribas',         color:'#00915A', ini:'BNP' },
+  { id:'b10', name:'LCL',                 color:'#0A3D91', ini:'LCL' },
+  { id:'b11', name:'La Banque Postale',   color:'#FFCC00', ini:'LBP', fg:'#0A2A6B' },
+  { id:'b12', name:'Banque Populaire',    color:'#0055A4', ini:'BP' },
+  { id:'b13', name:'Crédit Mutuel',       color:'#0B3F8C', ini:'CM' },
+  { id:'b14', name:'CIC',                 color:'#0096D6', ini:'CIC' },
+  { id:'b2',  name:'BoursoBank',          color:'#D3006E', ini:'BB' },
+  { id:'b15', name:'Fortuneo',            color:'#84BD00', ini:'F' },
+  { id:'b16', name:'Hello bank!',         color:'#00A3E0', ini:'hb' },
+  { id:'b3',  name:'Revolut',             color:'#191C1F', ini:'R' },
+  { id:'b17', name:'N26',                 color:'#36A18B', ini:'N26' },
+  { id:'b6',  name:'Autre banque',        color:'#8A94A8', ini:'+' },
 ];
 
 // Comptes connectés (exemple) : statut de synchro + expiration de l'accès (renouvellement DSP2 tous les 180 jours)
 const LINKED = [
-  { id:'b1', name:'Banque Exemple', color:'#E2001A', ini:'BE', accounts:'Compte courant · Livret A', status:'ok', sync:'il y a 12 min', expiresIn:6, expires:'15 oct.' },
-  { id:'b2', name:'Crédit Fictif', color:'#00965E', ini:'CF', accounts:'Compte joint', status:'ok', sync:'il y a 3 h', expiresIn:142, expires:'28 févr.' },
-  { id:'b3', name:'NéoBanque Démo', color:'#111827', ini:'ND', accounts:'Carte en ligne', status:'error', sync:'échec depuis hier 18:40', expiresIn:63, expires:'11 déc.' },
+  { id:'b1', name:'Crédit Agricole', color:'#00877F', ini:'CA', accounts:'Compte courant · Livret A', status:'ok', sync:'il y a 12 min', expiresIn:6, expires:'15 oct.' },
+  { id:'b2', name:'BoursoBank', color:'#D3006E', ini:'BB', accounts:'Compte joint', status:'ok', sync:'il y a 3 h', expiresIn:142, expires:'28 févr.' },
+  { id:'b3', name:'Revolut', color:'#191C1F', ini:'R', accounts:'Carte en ligne', status:'error', sync:'échec depuis hier 18:40', expiresIn:63, expires:'11 déc.' },
 ];
 
 // ---------- état (localStorage) ----------
@@ -86,12 +97,12 @@ function applyLive(r){
 }
 function liveBank(){
   if (API){ const n = LIVE.accounts.length;
-    return { id:'pw', name:LIVE.bank, color:'#0066FF', ini:'PW', live:true, accounts:`${n} compte${n>1?'s':''} · ${LIVE.txCount} opérations`,
+    return { id:'pw', name:LIVE.bank, color:LIVE.bankColor || '#0066FF', logo:LIVE.bankLogo || null, ini:'', live:true, accounts:`${n} compte${n>1?'s':''} · ${LIVE.txCount} opérations`,
       status:'ok', sync: LIVE.at ? 'il y a ' + ago(LIVE.at) : '—', expiresIn: 999, expires:'180 jours (règle DSP2)', mins: 0 }; }
   const tk = PWX && PWX.tokenInfo(); const expired = !tk || tk.expired;
   const mins = tk ? Math.max(0, Math.round((tk.exp - Date.now())/60000)) : 0;
   const n = LIVE.accounts.length;
-  return { id:'pw', name:LIVE.bank, color:'#0066FF', ini:'PW', live:true,
+  return { id:'pw', name:LIVE.bank, color:LIVE.bankColor || '#0066FF', logo:LIVE.bankLogo || null, ini:'', live:true,
     accounts:`${n} compte${n>1?'s':''} de test · ${LIVE.txCount} opérations`,
     status: expired ? 'expired' : 'ok', sync: 'il y a ' + Math.max(0, Math.round((Date.now()-LIVE.at)/60000)) + ' min',
     expiresIn: 999, expires: expired ? 'expirée' : `encore ${mins} min`, mins };
@@ -103,7 +114,8 @@ function applyServer(me){
   if (!me.bankConnected || !me.stats) return;
   const st = me.stats || {};
   applyLive({ subs: me.subscriptions, months: st.months && st.months.length ? st.months : MONTHS.slice(), income: st.income || 0, spent: st.spent || 0,
-    payIn: st.payIn || 30, accounts: me.accounts || [], recent: me.transactions || [], txCount: me.txCount || 0, bank: st.bank || 'Ma banque',
+    payIn: st.payIn || 30, accounts: me.accounts || [], recent: me.transactions || [], txCount: me.txCount || 0, bank: (me.bank && me.bank.name) || st.bank || 'Ma banque',
+    bankLogo: (me.bank && me.bank.logo) || st.bankLogo || null, bankColor: (me.bank && me.bank.color) || st.bankColor || null,
     at: me.lastSyncAt ? Date.parse(me.lastSyncAt) : null, history: { days: st.days, debits: st.debits, total: st.total, limited: st.limited }, savings: st.savings });
   state.connected = true; save();
   demoTag = '<span class="demo live">Banque de test</span>';
@@ -171,6 +183,14 @@ const eur0 = n => Math.round(n).toLocaleString('fr-FR') + ' €';
 const $ = s => document.querySelector(s);
 const active = () => SUBS.filter(s => !state.resiliated.includes(s.id));
 const byId = id => SUBS.find(s => s.id === id);
+// Tuile banque : logo officiel de l'agrégateur si fourni (mode réel), sinon monogramme à la couleur de la marque.
+const lum = hex => { const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return 0; const n = parseInt(m[1], 16), c = [n >> 16, n >> 8 & 255, n & 255].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
+const bankTile = (b, cls = '', extra = '') => {
+  const bg = /^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '#0066FF', fg = b.fg || (lum(bg) > .45 ? '#0A0B0D' : '#FFFFFF');
+  const ini = esc(b.ini || String(b.name || 'B').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase());
+  const img = b.logo && /^https:\/\//.test(b.logo) ? `<img src="${esc(b.logo)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.remove('has-logo');this.remove()">` : '';
+  return `<span class="bk-tile ${img ? 'has-logo' : ''} ${String(ini).length > 2 ? 'x3' : ''} ${cls}" style="--bk:${bg};--bkf:${fg}" title="${esc(b.name)}">${img}<b>${ini}</b>${extra}</span>`;
+};
 const logo = (s, cls='logo') => `<div class="${cls}" style="background:${s.color}">${s.ini}</div>`;
 const increase = s => s.prev && s.price > s.prev ? s.price - s.prev : 0;
 const pct = s => Math.round(increase(s) / s.prev * 100);
@@ -268,7 +288,8 @@ screens.connect = () => `
   <p class="muted small" style="margin-top:6px">Connexion sécurisée, en lecture seule (simulation).</p>
   ${notBank()}
   <div class="search" style="margin-top:16px">⟦search⟧ Rechercher une banque</div>
-  <div class="banks">${BANKS.map(b=>`<button class="bank ${state.bank===b.id?'on':''}" data-bank="${b.id}">${logo(b)}${b.name}</button>`).join('')}</div>
+  <div class="banks">${BANKS.map(b=>`<button class="bank ${state.bank===b.id?'on':''}" data-bank="${b.id}">${bankTile(b)}<span>${b.name}</span></button>`).join('')}</div>
+  <p class="fine" style="margin:-4px 2px 14px">Noms de banques cités à titre d’exemple dans cette démo : ${APP_NAME} n’est affilié à aucune d’elles. Monogrammes aux couleurs approximatives des marques.</p>
   <div class="banner blue"><span class="ic">⟦lock⟧</span><div><b>Vos identifiants restent chez votre banque</b>${APP_NAME} passe par un agrégateur agréé (DSP2). L’accès dure 180 jours : on vous prévient avant qu’il expire, et vous pouvez le retirer à tout moment.</div></div>
   <button class="btn mint" id="go-scan" ${state.bank?'':'disabled style="opacity:.5"'}>Continuer</button>
   ${PWX ? `<div class="section-h"><h2>Ou essayez une vraie connexion… de test</h2></div>
@@ -294,12 +315,12 @@ screens.scan = () => `
 function bankStrip(){
   const L = linked();
   if (LIVE){ const b = L[0]; return `<a class="bankstrip" href="#/banques">
-    <div class="bs-logos"><span class="bs-l" style="background:${b.color}">${b.ini}<i class="st ${b.status==='expired'?'warn':'ok'}"></i></span></div>
+    <div class="bs-logos">${bankTile(b, 'bs-l', `<i class="st ${b.status==='expired'?'warn':'ok'}"></i>`)}</div>
     <div class="bs-txt">${b.status==='expired' ? '<b class="t-amber">Session de test expirée · reconnecter</b>' : `<b>${b.name} · ${API ? 'synchro il y a ' + (LIVE.at ? ago(LIVE.at) : '—') : 'banque de test'}</b>`}<span>${b.accounts}</span></div>
     <span class="chev">⟦chev⟧</span></a>`; }
   const warn = L.find(b=>b.status==='error') || L.find(b=>b.expiresIn<=7);
   return `<a class="bankstrip" href="#/banques">
-    <div class="bs-logos">${L.map(b=>`<span class="bs-l" style="background:${b.color}">${b.ini}<i class="st ${b.status==='error'?'err':b.expiresIn<=7?'warn':'ok'}"></i></span>`).join('')}</div>
+    <div class="bs-logos">${L.map(b=>bankTile(b, 'bs-l', `<i class="st ${b.status==='error'?'err':b.expiresIn<=7?'warn':'ok'}"></i>`)).join('')}</div>
     <div class="bs-txt">${warn ? (warn.status==='error' ? `<b class="t-red">${warn.name} : synchro en échec</b>` : `<b class="t-amber">Accès ${warn.name} : expire dans ${warn.expiresIn} j</b>`) : '<b>Comptes à jour</b>'}<span>${L.length} banque${L.length>1?'s':''} · synchro ${L[0].sync}</span></div>
     <span class="chev">⟦chev⟧</span></a>`;
 }
@@ -396,9 +417,9 @@ function demoLedger(){
   const from = NOW.getTime() - 35 * DAY_MS;
   const tx = T.ev.filter(e => e.t.getTime() >= from).map(e => {
     if (e.k === 'spend'){ const a = -e.amt, pool = a < 9 ? MERCH.s : a < 40 ? MERCH.m : MERCH.l, m = pool[Math.floor(e.t.getTime() / 6e4) % pool.length];
-      return { t:e.t, name:m[0], cat:m[1], amt:e.amt, where:'Banque Exemple' }; }
-    if (e.k === 'in') return { t:e.t, name:'Salaire · Exemple SAS', cat:'revenu', amt:e.amt, where:'Banque Exemple' };
-    if (e.k === 'rent') return { t:e.t, name:'Loyer · Agence Fictive', cat:'logement', amt:e.amt, where:'Banque Exemple' };
+      return { t:e.t, name:m[0], cat:m[1], amt:e.amt, where:LINKED[0].name }; }
+    if (e.k === 'in') return { t:e.t, name:'Salaire · Exemple SAS', cat:'revenu', amt:e.amt, where:LINKED[0].name };
+    if (e.k === 'rent') return { t:e.t, name:'Loyer · Agence Fictive', cat:'logement', amt:e.amt, where:LINKED[0].name };
     const s = SUBS.find(x => x.name === e.name); return { t:e.t, name:e.name, cat:'abo', amt:e.amt, sub:s && s.id, where:'Prélèvement' };
   }).reverse();
   const curve = samples('1M').map(p => ({ t:p.t, v:p.bal + others }));
@@ -412,7 +433,7 @@ function liveLedger(){
   const isEur = a => !a.currency || a.currency === 'EUR';
   const counted = a => isEur(a) && !/card|loan|credit/.test(String(a.type || ''));
   const b = liveBank();
-  const ini = String(LIVE.bank || 'B').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const ini = String(LIVE.bank || 'B').split(/\s+/).filter(w => /^[\wÀ-ÿ]/.test(w)).map(w => w[0]).join('').slice(0, 3).toUpperCase();
   const bank = { ...b, ini, accs: accs.map(a => ({ id:a.id, name:a.name, balance:Number(a.balance) || 0, currency:a.currency, counted:counted(a), type:a.type })) };
   bank.total = bank.accs.filter(a => a.counted).reduce((x, a) => x + a.balance, 0);
   const accName = id => { const a = accs.find(x => x.id === id); return a ? a.name.replace(/\s*-\s*Mr.*$/i, '') : LIVE.bank; };
@@ -502,7 +523,7 @@ screens.dashboard = () => {
   <div class="section-h rise" style="--d:3"><h2>Mes comptes</h2><a href="#/banques">Gérer</a></div>
   <div class="panel accts rise" style="--d:3">
     ${L.banks.map(b => `<div class="bank-g">
-      <a class="bank-h" href="#/banques"><span class="bk-ini">${b.ini}${b.status === 'error' ? '<i class="st err"></i>' : b.status === 'expired' ? '<i class="st warn"></i>' : ''}</span>
+      <a class="bank-h" href="#/banques">${bankTile(b, 'bk-ini', b.status === 'error' ? '<i class="st err"></i>' : b.status === 'expired' ? '<i class="st warn"></i>' : '')}
         <div class="mid"><div class="name">${esc(b.name)}</div><div class="meta ${b.status === 'error' ? 't-red' : ''}">${b.status === 'error' ? 'Synchro en échec · reconnecter' : b.status === 'expired' ? 'Session expirée' : 'À jour · ' + b.sync}</div></div>
         <div class="amt">${eur(b.total)}</div></a>
       ${b.accs.map(a => `<div class="acc ${a.counted === false ? 'off' : ''}"><span>${esc(a.name)}</span><span>${a.currency && a.currency !== 'EUR' ? (a.balance || 0).toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' ' + esc(a.currency) : eur(a.balance)}</span></div>`).join('')}
@@ -750,7 +771,7 @@ screens.banques = () => {
 <div class="screen">
   <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a><h1 style="font-size:19px">Mes banques</h1>${demoTag}</div>
   <div class="card bankcard">
-    <div style="display:flex;gap:12px;align-items:center">${logo(b)}
+    <div style="display:flex;gap:12px;align-items:center">${bankTile(b, 'lg')}
       <div style="flex:1"><div style="font-weight:700">${b.name}</div><div class="muted small">${b.accounts}</div></div>
       <span class="status ${b.status==='expired'?'err':'ok'}">${b.status==='expired'?'Expirée':'Connectée'}</span></div>
     <div class="kv"><span>Données lues</span><span>${b.sync}</span></div>
@@ -769,7 +790,7 @@ screens.banques = () => {
   <p class="muted small" style="margin:-6px 2px 14px">On vous affiche honnêtement l’état de chaque connexion. Si une banque ne se synchronise pas, vos chiffres peuvent être incomplets.</p>
   ${L.map(b=>`
   <div class="card bankcard">
-    <div style="display:flex;gap:12px;align-items:center">${logo(b)}
+    <div style="display:flex;gap:12px;align-items:center">${bankTile(b, 'lg')}
       <div style="flex:1"><div style="font-weight:700">${b.name}</div><div class="muted small">${b.accounts}</div></div>
       <span class="status ${b.status==='error'?'err':'ok'}">${b.status==='error'?'Erreur':'Synchronisée'}</span></div>
     <div class="kv"><span>Dernière synchro</span><span>${b.sync}</span></div>

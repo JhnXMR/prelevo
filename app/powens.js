@@ -205,10 +205,14 @@
       await new Promise(ok => setTimeout(ok, 2500));
     }
     let bank = 'Banque de test';
-    try { const c = await api('/users/me/connections?expand=connector'); const k = c.connections && c.connections[0]; if (k && k.connector) bank = k.connector.name; } catch(e){}
+    let bankLogo = null, bankColor = null;   // logo officiel servi par le CDN de Powens (celui de sa Webview), couleur de marque fournie par l'API
+    try { const c = await api('/users/me/connections?expand=connector'); const k = c.connections && c.connections[0];
+      if (k && k.connector){ bank = k.connector.name;
+        if (/^[0-9a-f-]{36}$/i.test(k.connector.uuid || '')) bankLogo = 'https://assets.powens.com/logos/' + k.connector.uuid.toLowerCase() + '-thumbnail@2x.webp';
+        if (/^[0-9a-f]{6}$/i.test(k.connector.color || '')) bankColor = '#' + k.connector.color.toUpperCase(); } } catch(e){}
     const det = detect(accounts, txs);
     const result = Object.assign(det, {
-      bank, at: Date.now(), txCount: txs.length,
+      bank, bankLogo, bankColor, at: Date.now(), txCount: txs.length,
       // opérations des 35 derniers jours (+ à venir) pour l'accueil
       recent: txs.filter(t => !t.deleted && new Date(t.date) >= new Date(Date.now() - 35 * 864e5)).slice(0, 400)
         .map(t => ({ id: t.id, account: t.id_account, date: t.date, value: t.value, wording: t.simplified_wording || t.wording || t.original_wording, type: t.type, coming: !!t.coming })),

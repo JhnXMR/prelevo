@@ -456,3 +456,22 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .onb .notbank{margin:18px 0 0}
 .about p{font-size:13.5px;line-height:1.55;color:var(--ink2);margin-top:8px}
 .greet{display:block}.greet .g-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:2px}.greet .g-day{margin:0}
+
+/* Tuiles banque : monogramme couleur de marque, ou logo officiel fourni par l'agrégateur (mode réel) */
+.bk-tile{position:relative;width:36px;height:36px;border-radius:11px;display:grid;place-items:center;flex:none;background:var(--bk);color:var(--bkf);box-shadow:inset 0 0 0 1px rgba(127,127,127,.18)}
+.bk-tile b{font-size:12.5px;font-weight:700;letter-spacing:-.01em;line-height:1}
+.bk-tile.x3 b{font-size:10.5px;letter-spacing:-.02em}
+.bk-tile.has-logo{background:#fff;overflow:visible}
+.bk-tile.has-logo b{display:none}
+.bk-tile img{width:78%;height:78%;object-fit:contain;border-radius:6px}
+.bk-tile .st{position:absolute;right:-3px;bottom:-3px;width:11px;height:11px;border-radius:50%;border:2px solid var(--surface)}
+.bank .bk-tile{width:32px;height:32px;border-radius:10px}
+.bank .bk-tile b{font-size:11.5px}.bank .bk-tile.x3 b{font-size:9.5px}
+.bank span:last-child{min-width:0;line-height:1.25}
+.bk-tile.lg{width:42px;height:42px;border-radius:13px}
+.bk-tile.bk-ini{width:40px;height:40px;border-radius:12px;background:var(--bk);color:var(--bkf)}
+.bk-tile.bk-ini.has-logo{background:#fff}
+.bk-tile.bs-l{width:28px;height:28px;border-radius:9px;margin-right:-6px;border:2px solid var(--bg);background:var(--bk)!important;color:var(--bkf)}
+.bk-tile.bs-l.has-logo{background:#fff!important}
+.bk-tile.bs-l b{font-size:9.5px}.bk-tile.bs-l.x3 b{font-size:8px}
+.bk-tile.bs-l .st{width:8px;height:8px;right:-2px;bottom:-2px;border-width:1.5px;border-color:var(--bg)}
