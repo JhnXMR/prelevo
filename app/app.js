@@ -324,6 +324,9 @@ screens.dashboard = () => {
 </div>`;
 };
 
+const cadTxt = s => s.live && s.cadence && s.cadence !== 'month' ? ' · ' + eur(s.amount) + ' ' + s.cadenceLabel : '';
+const PERIOD_DAYS = { week:7, month:30.4, quarter:91, year:365 };
+const nextLive = s => { if (s.nextDate) return new Date(s.nextDate+'T12:00'); const d = new Date(s.lastDate+'T12:00'); const step = PERIOD_DAYS[s.cadence||'month']; while (d < new Date()) d.setTime(d.getTime() + step*864e5); return d; };
 screens.abonnements = (q) => {
   const t = totals(); const P = isP(); let f = q.get('f') || 'all';
   if (!P && f!=='all') f = 'all';
@@ -334,8 +337,8 @@ screens.abonnements = (q) => {
   if (f==='small') list = [];
   const row = s => `<a class="row" href="#/abo/${s.id}">${logo(s)}
       <div class="mid"><div class="name">${s.name}${P ? `${increase(s)?`<span class="badge b-red">+${pct(s)} %</span>`:''}${s.doubleCharge?'<span class="badge b-red">2× prélevé</span>':''}${t.dups.includes(s)?'<span class="badge b-blue">Doublon</span>':''}${s.trial?'<span class="badge b-amber">Essai fini</span>':''}` : ((increase(s)||s.small||s.doubleCharge||t.dups.includes(s)) ? lockBadge('Alerte') : '')}</div>
-      <div class="meta">${P ? (s.note || s.cat) : s.cat} · le ${s.day}</div></div>
-      <div class="amt">${eur(s.price)}${P && increase(s)?`<small class="strike">${eur(s.prev)}</small>`:'<small>/mois</small>'}</div></a>`;
+      <div class="meta">${P ? (s.note || s.cat) : s.cat}${cadTxt(s)}${s.variable?' · montant variable':''}${s.cadence==='week'?'':' · le '+s.day}</div></div>
+      <div class="amt">${s.cadence&&s.cadence!=='month'?'≈ ':''}${eur(s.price)}${P && increase(s)?`<small class="strike">${eur(s.prev)}</small>`:'<small>/mois</small>'}</div></a>`;
   const chip = (k,l) => P ? `<a class="chip ${f===k?'on':''}" href="#/abonnements${k==='all'?'':'?f='+k}">${l}</a>` : `<a class="chip ${k==='all'?'on':''}" href="${k==='all'?'#/abonnements':'#/premium'}">${k==='all'?l:'⟦lock⟧ '+l.replace(/^\S+ /,'')}</a>`;
   return `
 <div class="screen">
@@ -346,6 +349,8 @@ screens.abonnements = (q) => {
   </div>
   <div class="chips">${chip('all','Tous ('+t.list.length+')')}${chip('up','⟦trend⟧ Hausses ('+t.ups.length+')')}${chip('small','⟦search⟧ Oubliés ('+t.smalls.length+')')}${chip('eco','⟦coin⟧ À économiser')}</div>
   ${P?'':teaser(`${eur(t.found)}/mois d’économies repérées`, LIVE ? `${t.ups.length} hausse${t.ups.length>1?'s':''}, ${t.smalls.length} petit${t.smalls.length>1?'s':''} prélèvement${t.smalls.length>1?'s':''} sous 10 €` : `${t.ups.length} hausses, 1 doublon, 1 double prélèvement, ${t.smalls.length} oubliés`)}
+  ${LIVE && LIVE.history && LIVE.history.limited ? `<div class="banner amber"><span class="ic">⟦info⟧</span><div><b>Historique court : détection partielle</b>La banque de test ne fournit que ${LIVE.history.days} jours d’opérations (${LIVE.history.debits} débits). Il faut au moins 2 prélèvements pour confirmer un abonnement : ceux vus une seule fois sont marqués « probable ».</div></div>` : ''}
+  ${LIVE && !t.list.length ? `<div class="card center"><b>Aucun prélèvement récurrent trouvé</b><p class="muted small" style="margin-top:6px">Rien de régulier dans ces ${LIVE.txCount} opérations de test. Avec plus d’historique (2 mois ou plus), la détection sera plus complète.</p></div>` : ''}
   ${list.length?`<div class="card" style="padding:4px 16px">${list.map(row).join('')}</div>`:''}
   ${adSlot('subs')}
   ${showSmall && t.smalls.length?`
@@ -378,13 +383,15 @@ screens.abo = (q, id) => {
     <div class="chart">${s.hist.map((v,i)=>`<div class="col ${P&&i>0&&v>s.hist[i-1]?'up':''}"><span>${v?v.toFixed(2).replace('.',','):'–'}</span><i style="height:${Math.max(4,v/max*70)}px"></i>${MONTHS[i]}</div>`).join('')}</div>
   </div>
   <div class="card" style="padding:4px 16px">
-    <div class="kv"><span>Prochain prélèvement</span><span>${s.day} ${s.day>=9?'oct.':'nov.'}</span></div>
+    <div class="kv"><span>Prochain prélèvement</span><span>${s.live ? (s.confirmed||s.nextDate ? '' : '≈ ') + (d => d.toLocaleDateString('fr-FR', d.getFullYear() === new Date().getFullYear() ? {day:'numeric',month:'short'} : {day:'numeric',month:'short',year:'numeric'}))(nextLive(s)) : `${s.day} ${s.day>=9?'oct.':'nov.'}`}</span></div>
     <div class="kv"><span>Rappel avant prélèvement</span><span>${P?'la veille ⟦bell⟧':'⟦lock⟧ Premium'}</span></div>
     <div class="kv"><span>Coût sur un an</span><span>${eur(s.price*12)}</span></div>
     <div class="kv"><span>Client depuis</span><span>${s.since}</span></div>
     ${s.live ? `<div class="kv"><span>Libellé bancaire</span><span class="small">${s.label}</span></div>
     <div class="kv"><span>Dernier prélèvement</span><span>${new Date(s.lastDate+'T12:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</span></div>
-    <div class="kv"><span>Détection</span><span>${s.confirmed ? `Récurrent confirmé (${s.count}×)` : 'Probable (1×)'}</span></div>` : ''}
+    <div class="kv"><span>Fréquence</span><span>${eur(s.amount)} ${s.cadenceLabel}${s.variable?' (variable)':''}</span></div>
+    <div class="kv"><span>Détection</span><span>${s.confirmed ? `Récurrent confirmé (${s.count}×)` : 'Probable (1×)'}</span></div>
+    ${s.duplicate?`<div class="kv"><span>Doublon possible</span><span>même usage que ${s.dupOf}</span></div>`:''}` : ''}
   </div>
   ${done?`<a class="btn ghost" href="#/abonnements">Retour aux abonnements</a>` : P ? `
   <a class="btn danger" href="#/resilier/${s.id}/1">⟦scissors⟧ Résilier cet abonnement</a>
@@ -819,7 +826,7 @@ async function runPwScan(){
     const r = await PWX.fetchAll();
     applyLive(r); state.connected = true; save();
     location.hash = '#/dashboard';
-    toast(`${r.subs.length} prélèvement${r.subs.length>1?'s':''} récurrent${r.subs.length>1?'s':''} détecté${r.subs.length>1?'s':''} sur ${r.txCount} opérations`);
+    toast(`${r.subs.length} prélèvement${r.subs.length>1?'s':''} récurrent${r.subs.length>1?'s':''} détecté${r.subs.length>1?'s':''} sur ${r.txCount} opérations${r.history && r.history.limited ? ' (historique court)' : ''}`);
   } catch(e){
     if (e.status === 401 || e.status === 403) fail('Session de test expirée', 'Le jeton Powens n’est plus valable. Relance la connexion.');
     else fail('Lecture impossible', String(e.message).replace(/</g,'&lt;'));

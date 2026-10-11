@@ -1,4 +1,4 @@
-const CACHE = 'prelevo-app-v14-theme';
+const CACHE = 'prelevo-app-v15-detect';
 const ASSETS = ['./', './index.html', './styles.css', './config.js', './powens.js', './app.js', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon.svg',
   './icons/favicon.svg', './icons/logo-mark.svg', './icons/logo-mark-white.svg', './icons/favicon-32.png', './icons/apple-touch-icon-180.png'];

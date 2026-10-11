@@ -75,13 +75,31 @@
   const days = (a, b) => Math.round((b - a) / 864e5);
   const title = s => s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 
+  // cadences reconnues : écart médian entre deux prélèvements (jours) -> facteur pour un équivalent mensuel
+  const CADENCES = [
+    { id:'week',    label:'chaque semaine',   min:5,   max:9,   perMonth:52/12, minOcc:3 },
+    { id:'month',   label:'chaque mois',      min:25,  max:35,  perMonth:1,     minOcc:2 },
+    { id:'quarter', label:'chaque trimestre', min:84,  max:98,  perMonth:1/3,   minOcc:2 },
+    { id:'year',    label:'chaque année',     min:340, max:390, perMonth:1/12,  minOcc:2 }
+  ];
+  const YEAR_KW = /\b(ANNUEL|ANNUELLE|AN|ANNEE|COTISATION)\b/;
+  const DUP_CATS = ['Musique', 'Streaming vidéo', 'Appli / cloud'];
+  const median = a => { const b = a.slice().sort((x, y) => x - y); const m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; };
+  // un écart est « régulier » s'il colle à la cadence, ou à 2-3 fois la cadence (un mois sauté)
+  const fits = (g, c) => [1, 2, 3].some(k => g >= c.min * k && g <= c.max * k);
+  const round2 = x => Math.round(x * 100) / 100;
+
   function detect(accounts, txs, today = new Date()){
     const eurAcc = new Set(accounts.filter(a => !a.currency || (a.currency.id || a.currency) === 'EUR').map(a => a.id));
     const seen = new Set();
-    const debits = txs.filter(t => !t.deleted && t.value < 0 && eurAcc.has(t.id_account) && !EXCLUDE_TYPES.includes(t.type))
-      .map(t => Object.assign({}, t, { _n: norm(t.simplified_wording || t.wording || t.original_wording), _d: dOf(t), _a: -t.value }))
+    const label = t => (t.counterparty && t.counterparty.label) || t.simplified_wording || t.wording || t.original_wording;
+    const all = txs.filter(t => !t.deleted && t.value < 0 && eurAcc.has(t.id_account) && !EXCLUDE_TYPES.includes(t.type))
+      .map(t => Object.assign({}, t, { _n: norm(label(t)), _d: dOf(t), _a: -t.value }))
       .filter(t => t._n && !EXCLUDE_KW.test(t._n))
       .filter(t => { const k = t._n + '|' + t._a + '|' + (t.rdate || t.date); if (seen.has(k)) return false; seen.add(k); return true; });
+    // les opérations « à venir » (coming) servent de prochaine échéance, pas d'historique
+    const debits = all.filter(t => !t.coming && t._d <= today);
+    const upcoming = all.filter(t => t.coming || t._d > today);
     const groups = {};
     debits.forEach(t => (groups[t._n] = groups[t._n] || []).push(t));
     const months = []; for (let i = 5; i >= 0; i--){ const d = new Date(today.getFullYear(), today.getMonth() - i, 1); months.push(d); }
@@ -94,45 +112,80 @@
         if (best.length && best.includes(seed)) return;
         const chain = [seed];
         list.slice(i + 1).forEach(t => { const p = chain[chain.length - 1]._a;
-          if (Math.abs(t._a - p) <= p * 0.10 + 0.01 || (t._a > p && t._a <= p * 1.35)) chain.push(t); });
+          if (days(chain[chain.length - 1]._d, t._d) >= 3 && (Math.abs(t._a - p) <= p * 0.10 + 0.01 || (t._a > p && t._a <= p * 1.35))) chain.push(t); });
         if (chain.length > best.length) best = chain;
       });
       const occ = best;
-      const gaps = occ.slice(1).map((t, i) => days(occ[i]._d, t._d)).filter(g => g >= 3);
-      const monthly = occ.length >= 2 && gaps.length >= 1 && gaps.every(g => g >= 25 && g <= 35);
+      const gaps = occ.slice(1).map((t, k) => days(occ[k]._d, t._d));
+      let cad = null;
+      if (gaps.length){
+        const m = median(gaps);
+        cad = CADENCES.find(c => m >= c.min && m <= c.max && occ.length >= c.minOcc && gaps.every(g => fits(g, c))) || null;
+      }
       const kw = SUB_KW.test(n);
-      if (!monthly && !kw) return;
+      if (!cad && !kw) return;                         // ni régulier, ni mot-clé d'abonnement : on ignore
+      const confirmed = !!cad;
+      const c = cad || (YEAR_KW.test(n) ? CADENCES[3] : CADENCES[1]);   // « probable » : mensuel par défaut
       const last = occ[occ.length - 1];
-      const price = +last._a.toFixed(2);
+      const amount = round2(last._a);
       // hausse : dernier montant > ancien tarif (+2 %) ; l'ancien tarif = dernier montant différent avant la hausse
-      const prevT = occ.slice(0, -1).reverse().find(t => Math.abs(t._a - price) > price * 0.02);
-      const prev = prevT && price > prevT._a * 1.02 ? +prevT._a.toFixed(2) : undefined;
-      const cat = CATS.find(c => c[0].test(n)) || [null, 'Prélèvement', '#3A4458'];
+      // montants qui bougent tout le temps (énergie, panier…) = montant variable, pas une « hausse »
+      const near = (x, y) => Math.abs(x - y) <= y * 0.01 + 0.01;
+      const k0 = occ.slice(0, -1).map(t => Math.abs(t._a - amount) > amount * 0.02).lastIndexOf(true);
+      const prevT = k0 >= 0 ? occ[k0] : null;
+      let run = 0; if (prevT) for (let k = k0; k >= 0 && near(occ[k]._a, prevT._a); k--) run++;
+      const after = occ.slice(k0 + 1);
+      const changes = occ.slice(1).filter((t, k) => !near(t._a, occ[k]._a)).length;   // nb de changements de montant
+      const stable = prevT && changes <= 2 && (occ.length === 2 || (run >= 2 && after.every(t => near(t._a, amount))));
+      const prevAmount = stable && amount > prevT._a * 1.02 ? round2(prevT._a) : undefined;
+      const variable = occ.length >= 3 && changes > 2;
+      const price = round2(amount * c.perMonth);      // l'app raisonne en €/mois
+      const prev = prevAmount !== undefined ? round2(prevAmount * c.perMonth) : undefined;
+      const cat = CATS.find(x => x[0].test(n)) || [null, 'Prélèvement', '#3A4458'];
       const words = title(n).split(' ');
-      const hist = months.map(m => +occ.filter(t => t._d.getFullYear() === m.getFullYear() && t._d.getMonth() === m.getMonth()).reduce((a, t) => a + t._a, 0).toFixed(2));
+      const hist = months.map(m => round2(occ.filter(t => t._d.getFullYear() === m.getFullYear() && t._d.getMonth() === m.getMonth()).reduce((a, t) => a + t._a, 0)));
       const first = occ[0]._d;
+      const nextT = upcoming.filter(t => t._n === n).sort((a, b) => a._d - b._d)[0];
       out.push({
         id: 'pw-' + n.toLowerCase().replace(/[^a-z]+/g, '-'), name: title(n), cat: cat[1], color: cat[2],
         ini: (words[0][0] + (words[1] ? words[1][0] : (words[0][1] || ''))).toUpperCase(),
-        price, prev, day: last._d.getDate(), since: MOIS[first.getMonth()] + ' ' + first.getFullYear(),
-        hist, small: price < 10, live: true, count: occ.length, confirmed: monthly,
-        lastDate: last.rdate || last.date, label: last.original_wording || last.wording,
-        note: monthly ? null : 'Probable · 1 seul prélèvement vu',
+        price, prev, amount, prevAmount, cadence: c.id, cadenceLabel: c.label,
+        day: last._d.getDate(), since: MOIS[first.getMonth()] + ' ' + first.getFullYear(),
+        hist, small: price < 10, variable, live: true, count: occ.length, confirmed,
+        lastDate: last.rdate || last.date, nextDate: nextT ? (nextT.rdate || nextT.date) : null, label: last.original_wording || last.wording,
+        note: confirmed ? null : 'Probable · 1 seul prélèvement vu',
         cancel: { online: false, where: 'Voir l’espace client du fournisseur', notice: 'Conditions à vérifier (données de test)' }
       });
     });
+    // doublons : deux services de la même famille (2 musiques, 2 streamings…) -> le moins cher est signalé
+    DUP_CATS.forEach(cn => {
+      const same = out.filter(s => s.cat === cn).sort((a, b) => b.price - a.price);
+      if (same.length > 1) same.slice(1).forEach(s => { s.duplicate = same[0].id; s.dupOf = same[0].name; });
+    });
     out.sort((a, b) => (b.confirmed - a.confirmed) || (b.price - a.price));
+    const sum = f => round2(out.reduce((a, s) => a + f(s), 0));
+    const savings = {
+      increases: sum(s => s.prev ? s.price - s.prev : 0),
+      small: sum(s => s.small ? s.price : 0),
+      duplicates: sum(s => s.duplicate ? s.price : 0)
+    };
+    savings.total = round2(savings.increases + savings.small + savings.duplicates);
+    // historique disponible : sous ~2 mois, la détection reste partielle (on le dit à l'utilisateur)
+    const hd = debits.map(t => t._d).sort((a, b) => a - b);
+    const histDays = hd.length ? days(hd[0], hd[hd.length - 1]) : 0;
+    const history = { days: histDays, debits: debits.length, total: txs.length, limited: histDays < 60 || debits.length < 20 };
     // chiffres du mois pour le tableau de bord (30 derniers jours, comptes en euros)
-    const recent = txs.filter(t => !t.deleted && eurAcc.has(t.id_account) && days(dOf(t), today) <= 30 && days(dOf(t), today) >= 0);
+    const recent = txs.filter(t => !t.deleted && !t.coming && eurAcc.has(t.id_account) && days(dOf(t), today) <= 30 && days(dOf(t), today) >= 0);
     const credits = recent.filter(t => t.value > 0 && t.type !== 'summary_card');
     const income = credits.reduce((a, t) => a + t.value, 0);
     const subNames = new Set(out.map(s => norm(s.label)));
     const SPEND_TYPES = ['card', 'deferred_card', 'withdrawal', 'check', 'order', 'unknown', 'bank'];
-    const spent = recent.filter(t => t.value < 0 && SPEND_TYPES.includes(t.type) && !t.coming && !subNames.has(norm(t.simplified_wording || t.wording || t.original_wording)))
+    const spent = recent.filter(t => t.value < 0 && SPEND_TYPES.includes(t.type) && !subNames.has(norm(t.simplified_wording || t.wording || t.original_wording)))
       .reduce((a, t) => a - t.value, 0);
     const big = credits.slice().sort((a, b) => b.value - a.value)[0];
     const payIn = big ? Math.max(1, 30 - days(dOf(big), today)) : 30;
-    return { subs: out, months: months.map(m => MOIS[m.getMonth()]), income: +income.toFixed(2), spent: +spent.toFixed(2), payIn,
+    return { subs: out, months: months.map(m => MOIS[m.getMonth()]), income: round2(income), spent: round2(spent), payIn,
+      monthly: sum(s => s.price), savings, history,
       loans: txs.filter(t => t.type === 'loan_repayment' && eurAcc.has(t.id_account)).length };
   }
 
