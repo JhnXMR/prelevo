@@ -162,3 +162,7 @@ h1{font-size:clamp(40px,6vw,64px);line-height:1.03;letter-spacing:-.045em;font-w
 @media (max-width:560px){.trust-grid{grid-template-columns:1fr}.founder{padding-top:80px}.founder-card{padding:28px 22px}.founder blockquote{font-size:16px}.wl-ok .share{width:auto}}
 @media (max-width:420px){.kicker .k2{display:none}}
 .sig>span{display:flex;flex-direction:column}.sig a{word-break:normal}
+
+/* « pas une banque » */
+.not-bank{margin-top:14px;font-size:15px;line-height:1.55;color:var(--ink2,#5B616E);border-left:2px solid var(--accent);padding-left:12px;max-width:34em}
+.not-bank strong{color:var(--ink,#0A0B0D);font-weight:600}
