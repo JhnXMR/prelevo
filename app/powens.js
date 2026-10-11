@@ -209,7 +209,10 @@
     const det = detect(accounts, txs);
     const result = Object.assign(det, {
       bank, at: Date.now(), txCount: txs.length,
-      accounts: accounts.map(a => ({ name: a.name, type: a.type, balance: a.balance, currency: (a.currency && a.currency.id) || a.currency }))
+      // opérations des 35 derniers jours (+ à venir) pour l'accueil
+      recent: txs.filter(t => !t.deleted && new Date(t.date) >= new Date(Date.now() - 35 * 864e5)).slice(0, 400)
+        .map(t => ({ id: t.id, account: t.id_account, date: t.date, value: t.value, wording: t.simplified_wording || t.wording || t.original_wording, type: t.type, coming: !!t.coming })),
+      accounts: accounts.map(a => ({ id: a.id, name: a.name, type: a.type, balance: a.balance, currency: (a.currency && a.currency.id) || a.currency }))
     });
     ss.set(K_RESULT, result);
     return result;

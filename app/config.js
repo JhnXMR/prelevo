@@ -6,4 +6,7 @@ window.APP_CONFIG = {
   priceYear: 29.99,
   trial: '1 mois offert pour essayer',
   supportEmail: 'support@exemple.fr',   // adresse fictive
+  // Adresse de l'API Prelevo (backend). Vide = maquette seule (comportement actuel du site publié).
+  // Ex. en local : 'http://localhost:8795'
+  apiBase: '',
 };
