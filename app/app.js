@@ -1,6 +1,6 @@
 /* Prelevo – maquette cliquable. TOUTES LES DONNÉES SONT DES EXEMPLES FICTIFS. */
 'use strict';
-const CFG = window.APP_CONFIG || { name:'Prelevo', tagline:'l’app qui traque tes abonnements', priceMonth:3.99, priceYear:29.99, trial:'1 mois offert pour essayer', supportEmail:'support@exemple.fr' };
+const CFG = window.APP_CONFIG || { name:'Prelevo', tagline:'l’app qui traque vos abonnements', priceMonth:3.99, priceYear:29.99, trial:'1 mois offert pour essayer', supportEmail:'support@exemple.fr' };
 const APP_NAME = CFG.name;
 document.title = `${APP_NAME} – ${CFG.tagline}`;
 
@@ -80,7 +80,7 @@ function applyLive(r){
   SUBS.splice(0, SUBS.length, ...r.subs);
   MONTHS.splice(0, MONTHS.length, ...r.months);
   INCOME = r.income; RENT = 0; SPENT = r.spent; PAYDAY_IN = r.payIn; PAST_SAVED = 0;
-  Object.assign(USER, { prenom:'', nom:'[Prénom Nom]', adresse:'[Ton adresse]' });
+  Object.assign(USER, { prenom:'', nom:'[Prénom Nom]', adresse:'[Votre adresse]' });
   state.resiliated = state.resiliated.filter(id => SUBS.some(s => s.id === id));
   demoTag = '<span class="demo live">Banque de test Powens</span>';
 }
@@ -109,14 +109,14 @@ function applyServer(me){
   demoTag = '<span class="demo live">Banque de test</span>';
 }
 function apiFail(e){
-  if (e && e.status === 401){ ME = null; LIVE = null; toast('Session expirée : reconnecte-toi'); location.hash = '#/connexion'; return; }
+  if (e && e.status === 401){ ME = null; LIVE = null; toast('Session expirée : reconnectez-vous'); location.hash = '#/connexion'; return; }
   toast(e && e.message ? e.message : 'Erreur');
 }
 async function apiLoadMe(){ try { applyServer(await API.me()); } catch(e){ apiFail(e); } }
 const sandboxNote = () => window.PW && API ? `<div class="pw-note"><b>Banque de test (sandbox Powens)</b>
   ${window.PW.testCreds.map(c=>`<div><span>${c.bank}</span>${c.fields}</div>`).join('')}
   <p>Pendant l’alpha, seules les fausses banques de test sont proposées.</p></div>` : '';
-const notBank = (extra='') => `<p class="notbank ${extra}">⟦shield⟧<span><b>${APP_NAME} n’est pas une banque.</b> C’est une télécommande élégante pour celles que tu as déjà : on s’y branche en lecture seule, via un agrégateur agréé par l’ACPR.</span></p>`;
+const notBank = (extra='') => `<p class="notbank ${extra}">⟦shield⟧<span><b>${APP_NAME} n’est pas une banque.</b> C’est une télécommande élégante pour celles que vous avez déjà : on s’y branche en lecture seule, via un agrégateur agréé par l’ACPR.</span></p>`;
 const pwNote = () => `<div class="pw-note"><b>Identifiants de test Powens</b>
   ${(PWX ? PWX.testCreds : []).map(c=>`<div><span>${c.bank}</span>${c.fields}</div>`).join('')}
   <p>Fausses banques, faux comptes : aucune vraie donnée. Session de test valable 30 min, gardée seulement dans cet onglet.</p></div>`;
@@ -176,7 +176,7 @@ const increase = s => s.prev && s.price > s.prev ? s.price - s.prev : 0;
 const pct = s => Math.round(increase(s) / s.prev * 100);
 let demoTag = '<span class="demo">Données d’exemple</span>';
 const lockBadge = (t='Premium') => `<span class="badge b-lock">⟦lock⟧ ${t}</span>`;
-const neutral = `<div class="neutral"><span class="nic">⟦ban⟧</span><div><b>Zéro pub en Premium · conseils toujours neutres</b>La version gratuite affiche quelques pubs, toujours signalées « Sponsorisé ». Les sponsors n’influencent jamais tes alertes, tes résultats ni nos conseils, et on ne touche aucune commission sur tes résiliations.</div></div>`;
+const neutral = `<div class="neutral"><span class="nic">⟦ban⟧</span><div><b>Zéro pub en Premium · conseils toujours neutres</b>La version gratuite affiche quelques pubs, toujours signalées « Sponsorisé ». Les sponsors n’influencent jamais vos alertes, vos résultats ni nos conseils, et on ne touche aucune commission sur vos résiliations.</div></div>`;
 // Pubs de la version gratuite (annonceurs FICTIFS, publicité contextuelle, sans ciblage)
 const ADS = {
   dash: { ini:'VC', color:'#0A0B0D', brand:'Vélo Clair', tag:'Marque fictive', title:'Le vélo électrique en location, sans engagement', text:'Premier mois à 19 € au lieu de 39 €. Livraison en 48 h.', cta:'Découvrir' },
@@ -208,26 +208,26 @@ function totals(){
 function alerts(){
   const t = totals(); const out = [];
   t.ups.forEach(s => out.push({ id:'up-'+s.id, ic:'⟦trend⟧', bg:'var(--redbg)', title:`${s.name} a augmenté de ${eur(increase(s))}`,
-    text:`Tu paies maintenant ${eur(s.price)}/mois au lieu de ${eur(s.prev)} (+${pct(s)} %). Soit ${eur(increase(s)*12)} de plus par an.`, when: s.id==='flixo'?'Il y a 2 h':'Détecté lors du scan', link:'#/abo/'+s.id }));
+    text:`Vous payez maintenant ${eur(s.price)}/mois au lieu de ${eur(s.prev)} (+${pct(s)} %). Soit ${eur(increase(s)*12)} de plus par an.`, when: s.id==='flixo'?'Il y a 2 h':'Détecté lors du scan', link:'#/abo/'+s.id }));
   t.list.filter(s=>s.trial).forEach(s => out.push({ id:'trial-'+s.id, ic:'⟦clock⟧', bg:'var(--amberbg)', title:`Essai gratuit devenu payant : ${s.name}`,
-    text:`${eur(s.price)} prélevés le 2 sept. Tu l’utilises encore ?`, when:'Il y a 5 j', link:'#/abo/'+s.id }));
+    text:`${eur(s.price)} prélevés le 2 sept. Vous l’utilisez encore ?`, when:'Il y a 5 j', link:'#/abo/'+s.id }));
   t.dups.forEach(s => out.push({ id:'dup-'+s.id, ic:'⟦copy⟧', bg:'var(--bluebg)', title:'Doublon détecté : 2 abonnements musique',
     text:`${s.name} et ${byId(s.duplicate).name} font la même chose. Garder un seul = ${eur(s.price*12)} économisés par an.`, when:'Hier', link:'#/abo/'+s.id }));
   t.list.filter(s=>s.doubleCharge).forEach(s => out.push({ id:'dbl-'+s.id, ic:'⟦alert⟧', bg:'var(--redbg)', title:`Prélevé 2 fois : ${s.name}`,
-    text:`${eur(s.price)} débités deux fois le ${s.doubleCharge}. On t’aide à demander le remboursement.`, when:'Ce matin', link:'#/abo/'+s.id }));
+    text:`${eur(s.price)} débités deux fois le ${s.doubleCharge}. On vous aide à demander le remboursement.`, when:'Ce matin', link:'#/abo/'+s.id }));
   const next = t.list.filter(s=>s.day>=9 && s.day<=12).sort((a,b)=>a.day-b.day);
   next.forEach(s => out.push({ id:'next-'+s.id, ic:'⟦calendar⟧', bg:'var(--mintbg)', title:`Prélèvement le ${s.day} oct. : ${s.name}`,
     text:`${eur(s.price)} seront prélevés ${s.day===10?'demain':'dans '+(s.day-9)+' jours'}.`, when:'Aujourd’hui', link:'#/abo/'+s.id }));
   if (t.reste < 700) out.push({ id:'low', ic:'⟦alert⟧', bg:'var(--amberbg)', title:'Reste à vivre en baisse',
-    text:`Il te reste ${eur(t.reste)} pour ${PAYDAY_IN} jours, soit ${eur(t.reste/PAYDAY_IN)} par jour.`, when:'Aujourd’hui', link:'#/dashboard' });
+    text:`Il vous reste ${eur(t.reste)} pour ${PAYDAY_IN} jours, soit ${eur(t.reste/PAYDAY_IN)} par jour.`, when:'Aujourd’hui', link:'#/dashboard' });
   out.forEach(a => a.premium = true);
   linked().forEach(b => {
     if (b.expiresIn <= 7) out.unshift({ id:'exp-'+b.id, ic:'⟦key⟧', bg:'var(--amberbg)', title:`Accès à ${b.name} : expire dans ${b.expiresIn} jours`,
-      text:`Ta banque demande de renouveler l’accès tous les 180 jours. 30 secondes suffisent, sinon tes données ne se mettront plus à jour.`, when:'Aujourd’hui', link:'#/banques' });
+      text:`Votre banque demande de renouveler l’accès tous les 180 jours. 30 secondes suffisent, sinon vos données ne se mettront plus à jour.`, when:'Aujourd’hui', link:'#/banques' });
     if (b.status==='expired') out.unshift({ id:'pwexp', ic:'⟦key⟧', bg:'var(--amberbg)', title:'Session de test Powens expirée',
-      text:'Le jeton de test dure 30 minutes. Tes résultats restent affichés ; reconnecte la banque de test pour les relire.', when:'Maintenant', link:'#/banques' });
+      text:'Le jeton de test dure 30 minutes. Vos résultats restent affichés ; reconnectez la banque de test pour les relire.', when:'Maintenant', link:'#/banques' });
     if (b.status==='error') out.unshift({ id:'err-'+b.id, ic:'⟦link⟧', bg:'var(--redbg)', title:`${b.name} ne se synchronise plus`,
-      text:`Dernière tentative ${b.sync}. Reconnecte-la pour garder des chiffres justes.`, when:'Hier', link:'#/banques' });
+      text:`Dernière tentative ${b.sync}. Reconnectez-la pour garder des chiffres justes.`, when:'Hier', link:'#/banques' });
   });
   const first = out.filter(a=>!a.premium).concat(out.filter(a=>a.id==='dbl-mobi'||a.id==='up-flixo'));
   const rest = out.filter(a=>!first.includes(a));
@@ -242,13 +242,13 @@ const yearSave = () => Math.round((1 - CFG.priceYear / (CFG.priceMonth*12)) * 10
 screens.onboarding = () => `
 <div class="onb">
   <span class="lg"><img class="logo-xl lg-l" src="icons/logo-mark.svg" alt=""><img class="logo-xl lg-d" src="icons/logo-mark-white.svg" alt="Prelevo"></span>
-  <h1>Arrête de payer pour des abonnements <em>que tu as oubliés.</em></h1>
-  <p class="lead">${APP_NAME} analyse tes comptes, repère tous tes prélèvements récurrents et te prévient quand un prix augmente.</p>
+  <h1>Arrêtez de payer pour des abonnements <em>que vous avez oubliés.</em></h1>
+  <p class="lead">${APP_NAME} analyse vos comptes, repère tous vos prélèvements récurrents et vous prévient quand un prix augmente.</p>
   <ul>
-    <li><span>⟦search⟧</span>Tous tes abonnements détectés en 30 secondes</li>
+    <li><span>⟦search⟧</span>Tous vos abonnements détectés en 30 secondes</li>
     <li><span>⟦trend⟧</span>Alerte dès qu’un prix augmente en douce</li>
     <li><span>⟦scissors⟧</span>Résiliation guidée, lettre prête à envoyer</li>
-    <li><span class="nic">⟦ban⟧</span>Des conseils neutres : les sponsors n’influencent jamais tes résultats</li>
+    <li><span class="nic">⟦ban⟧</span>Des conseils neutres : les sponsors n’influencent jamais vos résultats</li>
     <li><span>⟦user⟧</span>Un support humain qui répond vraiment</li>
   </ul>
   ${notBank('onb-nb')}
@@ -258,21 +258,21 @@ screens.onboarding = () => `
     : `<a class="btn" href="#/connexion">⟦mail⟧ Se connecter avec mon e-mail</a>
   <a class="btn ghost" href="?demo=1#/dashboard" style="margin-top:8px">Voir la démo (données d’exemple)</a>`) : `<a class="btn" href="#/connect">Connecter ma banque</a>
   ${PWX ? `<button class="btn ghost" id="pw-connect" style="margin-top:8px">⟦bank⟧ Connecter une banque de test</button>` : ''}`}
-  <p class="fine">⟦lock⟧ Gratuit pour commencer, Premium à ${prix(CFG.priceMonth)}/mois.<br>Accès en lecture seule via un agrégateur bancaire agréé. ${APP_NAME} ne peut jamais déplacer ton argent.<br>${API ? 'Alpha – banques de test uniquement' : 'Maquette – données d’exemple'}</p>
+  <p class="fine">⟦lock⟧ Gratuit pour commencer, Premium à ${prix(CFG.priceMonth)}/mois.<br>Accès en lecture seule via un agrégateur bancaire agréé. ${APP_NAME} ne peut jamais déplacer votre argent.<br>${API ? 'Alpha – banques de test uniquement' : 'Maquette – données d’exemple'}</p>
 </div>`;
 
 screens.connect = () => `
 <div class="screen">
   <div class="topbar"><a class="back" href="#/onboarding">⟦back⟧</a>${demoTag}</div>
-  <h1 style="font-size:24px;letter-spacing:-.02em">Choisis ta banque</h1>
+  <h1 style="font-size:24px;letter-spacing:-.02em">Choisissez votre banque</h1>
   <p class="muted small" style="margin-top:6px">Connexion sécurisée, en lecture seule (simulation).</p>
   ${notBank()}
   <div class="search" style="margin-top:16px">⟦search⟧ Rechercher une banque</div>
   <div class="banks">${BANKS.map(b=>`<button class="bank ${state.bank===b.id?'on':''}" data-bank="${b.id}">${logo(b)}${b.name}</button>`).join('')}</div>
-  <div class="banner blue"><span class="ic">⟦lock⟧</span><div><b>Tes identifiants restent chez ta banque</b>${APP_NAME} passe par un agrégateur agréé (DSP2). L’accès dure 180 jours : on te prévient avant qu’il expire, et tu peux le retirer à tout moment.</div></div>
+  <div class="banner blue"><span class="ic">⟦lock⟧</span><div><b>Vos identifiants restent chez votre banque</b>${APP_NAME} passe par un agrégateur agréé (DSP2). L’accès dure 180 jours : on vous prévient avant qu’il expire, et vous pouvez le retirer à tout moment.</div></div>
   <button class="btn mint" id="go-scan" ${state.bank?'':'disabled style="opacity:.5"'}>Continuer</button>
-  ${PWX ? `<div class="section-h"><h2>Ou essaie une vraie connexion… de test</h2></div>
-  <p class="muted small" style="margin:-4px 2px 10px">Passe par l’agrégateur Powens avec ses fausses banques : ${APP_NAME} analyse alors de vraies opérations de test.</p>
+  ${PWX ? `<div class="section-h"><h2>Ou essayez une vraie connexion… de test</h2></div>
+  <p class="muted small" style="margin:-4px 2px 10px">Passez par l’agrégateur Powens avec ses fausses banques : ${APP_NAME} analyse alors de vraies opérations de test.</p>
   <button class="btn ghost" id="pw-connect">⟦bank⟧ Connecter une banque de test</button>
   ${pwNote()}` : ''}
 </div>`;
@@ -280,7 +280,7 @@ screens.connect = () => `
 screens.scan = () => `
 <div class="screen"><div class="loader">
   <div class="spin"></div>
-  <h2 style="font-size:20px">Analyse de tes 12 derniers mois…</h2>
+  <h2 style="font-size:20px">Analyse de vos 12 derniers mois…</h2>
   <p class="muted small" style="margin-top:6px">Simulation – aucune vraie banque n’est contactée</p>
   <div class="scanlist" id="scanlist">
     <div>⟦check⟧ Connexion à ${(BANKS.find(b=>b.id===state.bank)||BANKS[0]).name}</div>
@@ -496,7 +496,7 @@ screens.dashboard = () => {
   <div class="panel rise" style="--d:2">
     ${L.up.length ? `<p class="insight">${L.up.length} prélèvement${L.up.length > 1 ? 's' : ''} ${L.up.length > 1 ? 'vont' : 'va'} partir d’ici 7 jours${nextSub ? `, dont <b>${esc(nextSub.name)}</b> ${dayLabel(nextSub.t).toLowerCase()}` : ''}. Rien d’autre de prévu.</p>
       ${L.up.map(x => `<a class="tx up" href="${x.sub ? '#/abo/' + x.sub : '#/operations'}">${catChip(x.cat)}<div class="mid"><div class="name">${esc(x.name)}</div><div class="meta">${dayLabel(x.t)} · ${esc(x.where)}</div></div><div class="amt">${signed(x.amt)}</div></a>`).join('')}`
-      : `<p class="insight">Aucun prélèvement prévu dans les 7 prochains jours. Profites-en.</p>`}
+      : `<p class="insight">Aucun prélèvement prévu dans les 7 prochains jours. Profitez-en.</p>`}
   </div>
 
   <div class="section-h rise" style="--d:3"><h2>Mes comptes</h2><a href="#/banques">Gérer</a></div>
@@ -542,7 +542,7 @@ screens.operations = () => {
   <div class="grid2 sums"><div class="kpi"><div class="lbl">Dépensé · 30 j</div><div class="val">${eur(-out)}</div></div><div class="kpi"><div class="lbl">Reçu · 30 j</div><div class="val t-blue">${eur(inc)}</div></div></div>
   <div class="seg ops-seg" role="tablist">${[['all','Tout'],['out','Dépenses'],['in','Revenus']].map(([k, l]) => `<button type="button" role="tab" class="${opsFilter === k ? 'on' : ''}" data-ops="${k}">${l}</button>`).join('')}</div>
   <div class="panel">${list.length ? txGroups(list) : '<p class="insight">Rien sur cette période.</p>'}</div>
-  <p class="muted small center" style="margin-top:6px">${L.live ? 'Opérations des 35 derniers jours, lues chez ta banque.' : 'Opérations d’exemple des 35 derniers jours.'}</p>
+  <p class="muted small center" style="margin-top:6px">${L.live ? 'Opérations des 35 derniers jours, lues chez votre banque.' : 'Opérations d’exemple des 35 derniers jours.'}</p>
 </div>`;
 };
 
@@ -596,10 +596,10 @@ screens.abo = (q, id) => {
     <div style="margin-top:6px">${P ? `${increase(s)?`<span class="badge b-red">+${eur(increase(s))} (+${pct(s)} %)</span>`:''}${t.dups.includes(s)?'<span class="badge b-blue">Doublon avec '+byId(s.duplicate).name+'</span>':''}${s.small?'<span class="badge b-amber">Petit prélèvement oublié</span>':''}` : (flagged?lockBadge('1 alerte sur cet abonnement'):'')}${done?'<span class="badge b-green">Résiliation envoyée</span>':''}</div>
   </div>
   ${P ? `
-  ${s.doubleCharge?`<div class="banner red"><span class="ic">⟦alert⟧</span><div><b>Prélevé deux fois le ${s.doubleCharge}</b>${eur(s.price)} en trop. On te prépare la demande de remboursement.<br><a href="#" data-toast="Demande de remboursement prête (simulation)" style="font-weight:700;text-decoration:underline">Demander le remboursement</a></div></div>`:''}
-  ${increase(s)?`<div class="banner red"><span class="ic">⟦trend⟧</span><div><b>Hausse de prix détectée</b>Tu payais ${eur(s.prev)}. Cette hausse te coûte ${eur(increase(s)*12)} de plus par an.</div></div>`:''}
-  ${s.note?`<div class="banner amber"><span class="ic">⟦info⟧</span><div><b>${s.note}</b>${eur(s.price*12)} par an pour un service que tu as peut-être oublié.</div></div>`:''}
-  ${s.tip?`<div class="banner blue"><span class="ic">⟦info⟧</span><div>${s.tip} <i>(Conseil neutre : aucun sponsor derrière ce conseil.)</i></div></div>`:''}` : (flagged ? teaser('Une alerte attend sur cet abonnement', 'Hausse, doublon ou oubli : découvre-la en Premium') : '')}
+  ${s.doubleCharge?`<div class="banner red"><span class="ic">⟦alert⟧</span><div><b>Prélevé deux fois le ${s.doubleCharge}</b>${eur(s.price)} en trop. On vous prépare la demande de remboursement.<br><a href="#" data-toast="Demande de remboursement prête (simulation)" style="font-weight:700;text-decoration:underline">Demander le remboursement</a></div></div>`:''}
+  ${increase(s)?`<div class="banner red"><span class="ic">⟦trend⟧</span><div><b>Hausse de prix détectée</b>Vous payiez ${eur(s.prev)}. Cette hausse vous coûte ${eur(increase(s)*12)} de plus par an.</div></div>`:''}
+  ${s.note?`<div class="banner amber"><span class="ic">⟦info⟧</span><div><b>${s.note}</b>${eur(s.price*12)} par an pour un service que vous avez peut-être oublié.</div></div>`:''}
+  ${s.tip?`<div class="banner blue"><span class="ic">⟦info⟧</span><div>${s.tip} <i>(Conseil neutre : aucun sponsor derrière ce conseil.)</i></div></div>`:''}` : (flagged ? teaser('Une alerte attend sur cet abonnement', 'Hausse, doublon ou oubli : découvrez-la en Premium') : '')}
   <div class="card">
     <div style="font-weight:700;margin-bottom:4px">Historique des prélèvements</div>
     <div class="chart">${s.hist.map((v,i)=>`<div class="col ${P&&i>0&&v>s.hist[i-1]?'up':''}"><span>${v?v.toFixed(2).replace('.',','):'–'}</span><i style="height:${Math.max(4,v/max*70)}px"></i>${MONTHS[i]}</div>`).join('')}</div>
@@ -633,7 +633,7 @@ screens.resilier = (q, id, step) => {
   if (step===1) return `
 <div class="screen">${head}${steps}
   <h1 style="font-size:23px;letter-spacing:-.02em">Résilier ${s.name}</h1>
-  <p class="muted small" style="margin:6px 0 16px">Choisis comment tu veux résilier. On prépare tout pour toi.</p>
+  <p class="muted small" style="margin:6px 0 16px">Choisissez comment vous voulez résilier. On prépare tout pour vous.</p>
   ${[
     ['lettre','⟦mail⟧','Lettre de résiliation','Lettre prête à imprimer ou à envoyer en recommandé'],
     ['email','⟦mail⟧','E-mail au service client','Texte prêt à copier-coller'],
@@ -679,27 +679,27 @@ Veuillez agréer, Madame, Monsieur, l’expression de mes salutations distingué
 ${USER.prenom} ${USER.nom}`;
     return `
 <div class="screen">${head}${steps}
-  <h1 style="font-size:23px;letter-spacing:-.02em">Ta ${resil.method==='email'?'demande':'lettre'} est prête</h1>
-  <p class="muted small" style="margin:6px 0 14px">Vérifie les informations, tout est prérempli.</p>
+  <h1 style="font-size:23px;letter-spacing:-.02em">Votre ${resil.method==='email'?'demande':'lettre'} est prête</h1>
+  <p class="muted small" style="margin:6px 0 14px">Vérifiez les informations, tout est prérempli.</p>
   ${resil.method==='enligne'
-    ? `<div class="card"><b>Résilie directement chez ${s.name}</b><p class="muted small" style="margin-top:6px">Chemin : ${s.cancel.where}</p><p class="muted small" style="margin-top:6px">On te guide écran par écran, puis tu reviens confirmer ici.</p></div>`
+    ? `<div class="card"><b>Résiliez directement chez ${s.name}</b><p class="muted small" style="margin-top:6px">Chemin : ${s.cancel.where}</p><p class="muted small" style="margin-top:6px">On vous guide écran par écran, puis vous revenez confirmer ici.</p></div>`
     : `<div class="letter">${letter}</div>`}
   <div class="btn-pair">
     <button class="btn ghost" data-toast="Lettre copiée (simulation)">⟦copy⟧ Copier</button>
     <button class="btn ghost" data-toast="PDF téléchargé (simulation)">⟦download⟧ PDF</button>
   </div>
   <a class="btn" href="#/resilier/${s.id}/3">C’est envoyé</a>
-  <a class="help-link" href="#/chat">⟦user⟧ Un doute ? Un humain t’aide à rédiger</a>
+  <a class="help-link" href="#/chat">⟦user⟧ Un doute ? Un humain vous aide à rédiger</a>
 </div>`;
   }
   if (step===3) return `
 <div class="screen">${head}${steps}
   <h1 style="font-size:23px;letter-spacing:-.02em">Dernière vérification</h1>
-  <p class="muted small" style="margin:6px 0 16px">On surveille ton compte pour toi.</p>
+  <p class="muted small" style="margin:6px 0 16px">On surveille votre compte pour vous.</p>
   <div class="card" style="padding:4px 16px">
     <div class="kv"><span>⟦check⟧ Demande envoyée</span><span>${new Date().toLocaleDateString('fr-FR')}</span></div>
     <div class="kv"><span>⟦clock⟧ Confirmation attendue</span><span>sous 10 jours</span></div>
-    <div class="kv"><span>⟦bell⟧ On t’alerte si</span><span style="text-align:right;max-width:55%">un nouveau prélèvement ${s.name} passe malgré tout</span></div>
+    <div class="kv"><span>⟦bell⟧ On vous alerte si</span><span style="text-align:right;max-width:55%">un nouveau prélèvement ${s.name} passe malgré tout</span></div>
   </div>
   <div class="banner green"><span class="ic">⟦coin⟧</span><div><b>${eur(s.price)} économisés par mois</b>soit ${eur(s.price*12)} sur un an.</div></div>
   <button class="btn mint" id="confirm-resil" data-id="${s.id}">Confirmer la résiliation</button>
@@ -756,7 +756,7 @@ screens.banques = () => {
     <div class="kv"><span>Données lues</span><span>${b.sync}</span></div>
     <div class="kv"><span>${API ? 'Accès bancaire' : 'Session de test'}</span><span class="${b.status==='expired'?'t-amber':''}">${b.expires}</span></div>
     ${LIVE.accounts.map(a=>`<div class="kv"><span class="small">${a.name}</span><span class="nw">${(a.balance||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} ${a.currency==='EUR'||!a.currency?'€':a.currency}</span></div>`).join('')}
-    ${b.status==='expired' ? `<div class="banner amber" style="margin:10px 0 0"><span class="ic">⟦key⟧</span><div><b>Session de test expirée</b>Le jeton Powens de test ne dure que 30 minutes. Les résultats restent affichés ; reconnecte-toi pour relire les comptes.</div></div>` : ''}
+    ${b.status==='expired' ? `<div class="banner amber" style="margin:10px 0 0"><span class="ic">⟦key⟧</span><div><b>Session de test expirée</b>Le jeton Powens de test ne dure que 30 minutes. Les résultats restent affichés ; reconnectez-vous pour relire les comptes.</div></div>` : ''}
     <button class="btn small-btn" id="${API ? 'api-sync' : b.status==='expired'?'pw-connect':'pw-refresh'}" style="margin-top:12px">${b.status==='expired'?'Reconnecter la banque de test':'Relire les opérations'}</button>
   </div>
   <p class="muted small" style="margin:2px 2px 12px">Comptes en euros uniquement. ${LIVE.subs.length} prélèvement${LIVE.subs.length>1?'s':''} retenu${LIVE.subs.length>1?'s':''} sur ${LIVE.txCount} opérations : « confirmé » = au moins 2 prélèvements à ~1 mois d’écart et montant à ±10 % ; « probable » = 1 seul prélèvement au libellé typique d’un abonnement.</p>
@@ -766,7 +766,7 @@ screens.banques = () => {
   return `
 <div class="screen">
   <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a><h1 style="font-size:19px">Mes banques</h1>${demoTag}</div>
-  <p class="muted small" style="margin:-6px 2px 14px">On t’affiche honnêtement l’état de chaque connexion. Si une banque ne se synchronise pas, tes chiffres peuvent être incomplets.</p>
+  <p class="muted small" style="margin:-6px 2px 14px">On vous affiche honnêtement l’état de chaque connexion. Si une banque ne se synchronise pas, vos chiffres peuvent être incomplets.</p>
   ${L.map(b=>`
   <div class="card bankcard">
     <div style="display:flex;gap:12px;align-items:center">${logo(b)}
@@ -775,12 +775,12 @@ screens.banques = () => {
     <div class="kv"><span>Dernière synchro</span><span>${b.sync}</span></div>
     <div class="kv"><span>Accès valable jusqu’au</span><span class="${b.expiresIn<=7?'t-amber':''}">${b.expires} ${b.expiresIn<=7?`(dans ${b.expiresIn} j)`:''}</span></div>
     <div class="meter"><i style="width:${Math.max(3, b.expiresIn/180*100)}%;background:${b.expiresIn<=7?'var(--accent)':'var(--ink)'}"></i></div>
-    ${b.status==='error' ? `<div class="banner err" style="margin:10px 0 0"><span class="ic">⟦link⟧</span><div><b>La banque refuse la connexion</b>Souvent après un changement de mot de passe. Reconnecte-la en 30 secondes.</div></div><button class="btn small-btn" data-toast="Reconnexion lancée (simulation)">Reconnecter</button>`
-      : b.expiresIn<=7 ? `<div class="banner amber" style="margin:10px 0 0"><span class="ic">⟦key⟧</span><div><b>Renouvelle ton accès avant le ${b.expires}</b>Ta banque exige une nouvelle validation tous les 180 jours (règle européenne DSP2). On te le rappellera aussi la veille.</div></div><button class="btn mint small-btn" data-toast="Accès renouvelé pour 180 jours (simulation)">Renouveler l’accès</button>` : ''}
+    ${b.status==='error' ? `<div class="banner err" style="margin:10px 0 0"><span class="ic">⟦link⟧</span><div><b>La banque refuse la connexion</b>Souvent après un changement de mot de passe. Reconnectez-la en 30 secondes.</div></div><button class="btn small-btn" data-toast="Reconnexion lancée (simulation)">Reconnecter</button>`
+      : b.expiresIn<=7 ? `<div class="banner amber" style="margin:10px 0 0"><span class="ic">⟦key⟧</span><div><b>Renouvelez votre accès avant le ${b.expires}</b>Votre banque exige une nouvelle validation tous les 180 jours (règle européenne DSP2). On vous le rappellera aussi la veille.</div></div><button class="btn mint small-btn" data-toast="Accès renouvelé pour 180 jours (simulation)">Renouveler l’accès</button>` : ''}
   </div>`).join('')}
   ${P ? `<button class="btn ghost" data-toast="Ajout d’une banque (simulation)">⟦plus⟧ Ajouter une banque</button>`
       : `<a class="btn ghost" href="#/premium">⟦lock⟧ Ajouter une autre banque · Premium</a><p class="muted small center" style="margin-top:8px">La version gratuite inclut 1 banque.</p>`}
-  <div class="banner blue" style="margin-top:14px"><span class="ic">⟦lock⟧</span><div><b>Lecture seule</b>${APP_NAME} ne voit jamais tes identifiants et ne peut faire aucun virement. Tu peux couper l’accès ici à tout moment.</div></div>
+  <div class="banner blue" style="margin-top:14px"><span class="ic">⟦lock⟧</span><div><b>Lecture seule</b>${APP_NAME} ne voit jamais vos identifiants et ne peut faire aucun virement. Vous pouvez couper l’accès ici à tout moment.</div></div>
   ${PWX ? `<button class="btn ghost" id="pw-connect" style="margin-top:4px">⟦bank⟧ Connecter une banque de test (Powens)</button>${pwNote()}` : ''}
 </div>`;
 };
@@ -791,8 +791,8 @@ screens.aide = () => `
   <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a><h1 style="font-size:19px">Aide et réglages</h1>${demoTag}</div>
   <div class="card support">
     <div class="sup-head"><div class="avatars"><span style="background:#F59E0B">S</span><span style="background:#3B82F6">K</span><span style="background:#10B981">M</span></div>
-      <div><b>Support humain</b><div class="muted small">De vraies personnes te répondent, pas un robot.</div></div></div>
-    <p class="small" style="color:var(--ink2);margin:10px 0 12px;line-height:1.45">Sarah, Karim et Marie (exemple) répondent du lundi au samedi, de 9 h à 19 h. Réponse moyenne : moins de 2 h${isP()?' · prioritaire pour toi':''}.</p>
+      <div><b>Support humain</b><div class="muted small">De vraies personnes vous répondent, pas un robot.</div></div></div>
+    <p class="small" style="color:var(--ink2);margin:10px 0 12px;line-height:1.45">Sarah, Karim et Marie (exemple) répondent du lundi au samedi, de 9 h à 19 h. Réponse moyenne : moins de 2 h${isP()?' · prioritaire pour vous':''}.</p>
     <div class="btn-pair" style="margin:0">
       <a class="btn mint" href="#/chat">⟦chat⟧ Chat</a>
       <button class="btn ghost" data-toast="E-mail à ${CFG.supportEmail} (simulation)">⟦mail⟧ E-mail</button>
@@ -806,7 +806,7 @@ screens.aide = () => `
   </div>
   <div class="card theme-card">
     <div style="font-weight:700">Apparence</div>
-    <div class="muted small">Automatique suit le réglage de ton téléphone.</div>
+    <div class="muted small">Automatique suit le réglage de votre téléphone.</div>
     <div class="seg" role="radiogroup" aria-label="Thème">${[['light','sun','Jour'],['dark','moon','Nuit'],['auto','auto','Automatique']].map(([v,ic,l])=>`<button type="button" role="radio" aria-checked="${themePref()===v}" class="${themePref()===v?'on':''}" data-theme-set="${v}">⟦${ic}⟧${l}</button>`).join('')}</div>
   </div>
   ${API && API.loggedIn() ? `<div class="card account-card">
@@ -817,8 +817,8 @@ screens.aide = () => `
   </div>` : ''}
   <div class="card about">
     <div style="font-weight:700">À propos de ${APP_NAME}</div>
-    <p>${APP_NAME} n’est pas une banque : c’est une belle interface qui se branche sur tes banques actuelles, comme une télécommande. Tu gardes tes comptes, tes cartes et ton conseiller.</p>
-    <p>L’accès est en lecture seule, via un agrégateur agréé par l’ACPR (norme européenne DSP2) : ${APP_NAME} voit tes opérations, mais ne peut jamais déplacer ton argent.</p>
+    <p>${APP_NAME} n’est pas une banque : c’est une belle interface qui se branche sur vos banques actuelles, comme une télécommande. Vous gardez vos comptes, vos cartes et votre conseiller.</p>
+    <p>L’accès est en lecture seule, via un agrégateur agréé par l’ACPR (norme européenne DSP2) : ${APP_NAME} voit vos opérations, mais ne peut jamais déplacer votre argent.</p>
   </div>
   ${neutral}
   <div class="card">
@@ -829,15 +829,15 @@ screens.aide = () => `
 </div>`;
 
 const CHAT = [
-  { me:false, t:'Bonjour Camille Je suis Sarah, de l’équipe support. Comment je peux t’aider ?', h:'14:02' },
+  { me:false, t:'Bonjour Camille Je suis Sarah, de l’équipe support. Comment je peux vous aider ?', h:'14:02' },
   { me:true,  t:'FibreBox me dit que je dois envoyer un recommandé, c’est obligatoire ?', h:'14:03' },
-  { me:false, t:'Pas forcément ! Si tu as souscrit en ligne, ils doivent te proposer la résiliation en ligne. Sinon, la lettre préparée dans l’app suffit : je peux la relire avec toi.', h:'14:05' },
+  { me:false, t:'Pas forcément ! Si vous avez souscrit en ligne, ils doivent vous proposer la résiliation en ligne. Sinon, la lettre préparée dans l’app suffit : je peux la relire avec vous.', h:'14:05' },
 ];
 screens.chat = () => `
 <div class="screen chat-screen">
   <div class="topbar"><a class="back" href="#/aide">⟦back⟧</a><div class="chat-who"><span class="av" style="background:#F59E0B">S</span><div><b>Sarah</b><div class="muted small">Équipe support · humaine · en ligne</div></div></div>${demoTag}</div>
   <div class="chat">${CHAT.map(m=>`<div class="msg ${m.me?'me':''}"><div class="bubble">${m.t}</div><div class="h">${m.h}</div></div>`).join('')}</div>
-  <form class="chat-input" id="chat-form"><input id="chat-text" placeholder="Écris ton message…" autocomplete="off"><button class="send" aria-label="Envoyer">⟦send⟧</button></form>
+  <form class="chat-input" id="chat-form"><input id="chat-text" placeholder="Écrivez votre message…" autocomplete="off"><button class="send" aria-label="Envoyer">⟦send⟧</button></form>
   <p class="muted small center" style="margin-top:8px">Conversation simulée – aucun message n’est envoyé.</p>
 </div>`;
 
@@ -850,7 +850,7 @@ screens.premium = () => {
   <div class="center" style="margin-bottom:6px">
     
     <h1 style="font-size:25px;letter-spacing:-.02em;margin-top:4px">${APP_NAME} Premium</h1>
-    <p class="muted" style="margin-top:6px;font-size:14.5px">L’app qui te fait économiser plus qu’elle ne coûte.</p>
+    <p class="muted" style="margin-top:6px;font-size:14.5px">L’app qui vous fait économiser plus qu’elle ne coûte.</p>
   </div>
   <div class="banner green" style="margin-top:14px"><span class="ic">⟦coin⟧</span><div><b>Chez ${USER.prenom} (exemple) : ${eur(t.found)}/mois d’économies trouvées</b>Premium coûte ${prix(CFG.priceMonth)}/mois. Il est remboursé dès la première résiliation.</div></div>
   <div class="plans" role="radiogroup" aria-label="Formules">
@@ -873,11 +873,11 @@ screens.premium = () => {
       <tr><td>Reste à vivre et suivi des économies</td><td class="n">—</td><td class="y">⟦check⟧</td></tr>
       <tr><td>Support humain</td><td class="y">⟦check⟧</td><td><b>Prioritaire</b></td></tr>
       <tr><td>Sans publicité</td><td class="n">—</td><td class="y">⟦check⟧</td></tr>
-      <tr><td>Conseils neutres (aucun sponsor n’influence tes résultats)</td><td class="y">⟦check⟧</td><td class="y">⟦check⟧</td></tr>
+      <tr><td>Conseils neutres (aucun sponsor n’influence vos résultats)</td><td class="y">⟦check⟧</td><td class="y">⟦check⟧</td></tr>
     </table>
   </div>
   ${neutral}
-  <a class="card sup-mini" href="#/chat"><span class="avatars"><span style="background:#F59E0B">S</span><span style="background:#3B82F6">K</span></span><div><b>Une question avant de t’abonner ?</b><span>Un humain te répond, pas un robot.</span></div><span class="chev">⟦chev⟧</span></a>
+  <a class="card sup-mini" href="#/chat"><span class="avatars"><span style="background:#F59E0B">S</span><span style="background:#3B82F6">K</span></span><div><b>Une question avant de vous abonner ?</b><span>Un humain vous répond, pas un robot.</span></div><span class="chev">⟦chev⟧</span></a>
   <button class="btn mint" id="go-premium">${state.premium?'Premium actif (démo)':'Commencer : '+CFG.trial}</button>
   <p class="muted small center" style="margin-top:10px">Formule ${Y?'Annuelle':'Mensuelle'} : puis ${Y?prix(CFG.priceYear)+'/an (soit '+prix(CFG.priceYear/12)+'/mois)':prix(CFG.priceMonth)+'/mois'} après l’essai. Annulable en 1 clic, à tout moment. Paiement simulé dans cette maquette.</p>
 </div>`;
@@ -1042,8 +1042,8 @@ document.addEventListener('click', e => {
 screens.pwscan = () => `
 <div class="screen"><div class="loader">
   <div class="spin"></div>
-  <h2 style="font-size:20px">Lecture de tes comptes de test…</h2>
-  <p class="muted small" style="margin-top:6px">Banque de test Powens · analyse faite dans ton navigateur</p>
+  <h2 style="font-size:20px">Lecture de vos comptes de test…</h2>
+  <p class="muted small" style="margin-top:6px">Banque de test Powens · analyse faite dans votre navigateur</p>
   <div class="scanlist" id="pwlist"><div class="done">⟦check⟧ Connexion à la banque de test</div><div id="pw-step">⟦clock⟧ Récupération des opérations…</div></div>
   <div id="pw-err"></div>
 </div></div>`;
@@ -1054,19 +1054,19 @@ async function runPwScan(){
   history.replaceState(null, '', location.pathname + '#/pwscan');
   if (err) return fail('Connexion annulée', `Powens a renvoyé : ${String(err).replace(/</g,'&lt;')}`);
   const tk = PWX.tokenInfo();
-  if (!tk || tk.expired) return fail('Session de test expirée', 'Le jeton Powens ne dure que 30 minutes. Relance la connexion.');
+  if (!tk || tk.expired) return fail('Session de test expirée', 'Le jeton Powens ne dure que 30 minutes. Relancez la connexion.');
   try {
     const r = await PWX.fetchAll();
     applyLive(r); state.connected = true; save();
     location.hash = '#/dashboard';
     toast(`${r.subs.length} prélèvement${r.subs.length>1?'s':''} récurrent${r.subs.length>1?'s':''} détecté${r.subs.length>1?'s':''} sur ${r.txCount} opérations${r.history && r.history.limited ? ' (historique court)' : ''}`);
   } catch(e){
-    if (e.status === 401 || e.status === 403) fail('Session de test expirée', 'Le jeton Powens n’est plus valable. Relance la connexion.');
+    if (e.status === 401 || e.status === 403) fail('Session de test expirée', 'Le jeton Powens n’est plus valable. Relancez la connexion.');
     else fail('Lecture impossible', String(e.message).replace(/</g,'&lt;'));
   }
 }
 async function pwRefresh(){
-  const tk = PWX.tokenInfo(); if (!tk || tk.expired) { render(); return toast('Session de test expirée : reconnecte la banque de test'); }
+  const tk = PWX.tokenInfo(); if (!tk || tk.expired) { render(); return toast('Session de test expirée : reconnectez la banque de test'); }
   toast('Relecture des opérations…');
   try { applyLive(await PWX.fetchAll()); render(); toast('Opérations relues'); }
   catch(e){ if (e.status===401||e.status===403){ const t = PWX.tokenInfo(); if (t) sessionStorage.setItem('prelevo-pw-token', JSON.stringify({...t, exp:0})); render(); toast('Session de test expirée'); } else toast('Erreur Powens : ' + e.message); }
@@ -1075,29 +1075,29 @@ async function pwRefresh(){
 // ---------- compte Prelevo (API) ----------
 let loginSent = null;
 screens.connexion = (q) => {
-  if (q.get('token')) return `<div class="screen"><div class="loader"><div class="spin"></div><h2 style="font-size:20px">Connexion…</h2><p class="muted small" style="margin-top:6px">Vérification de ton lien</p></div></div>`;
+  if (q.get('token')) return `<div class="screen"><div class="loader"><div class="spin"></div><h2 style="font-size:20px">Connexion…</h2><p class="muted small" style="margin-top:6px">Vérification de votre lien</p></div></div>`;
   if (!API) return screens.onboarding();
   return `
 <div class="screen login">
   <div class="topbar"><a class="back" href="#/onboarding">⟦back⟧</a></div>
   <span class="lg"><img class="logo-l lg-l" src="icons/logo-mark.svg" alt=""><img class="logo-l lg-d" src="icons/logo-mark-white.svg" alt="Prelevo"></span>
-  <h1 style="font-size:26px;letter-spacing:-.02em;margin-top:18px">${loginSent ? 'Regarde tes e-mails' : 'Connexion'}</h1>
-  ${loginSent ? `<p class="muted" style="margin-top:8px;line-height:1.5">Si l’adresse <b>${esc(loginSent)}</b> est valide, tu viens de recevoir un lien de connexion. Il est valable 15 minutes et ne sert qu’une fois.</p>
+  <h1 style="font-size:26px;letter-spacing:-.02em;margin-top:18px">${loginSent ? 'Regardez vos e-mails' : 'Connexion'}</h1>
+  ${loginSent ? `<p class="muted" style="margin-top:8px;line-height:1.5">Si l’adresse <b>${esc(loginSent)}</b> est valide, vous venez de recevoir un lien de connexion. Il est valable 15 minutes et ne sert qu’une fois.</p>
   <button class="btn ghost" id="login-again" style="margin-top:22px">Utiliser une autre adresse</button>`
-  : `<p class="muted" style="margin-top:8px;line-height:1.5">Pas de mot de passe : on t’envoie un lien de connexion par e-mail.</p>
+  : `<p class="muted" style="margin-top:8px;line-height:1.5">Pas de mot de passe : on vous envoie un lien de connexion par e-mail.</p>
   <form id="login-form" class="login-form" novalidate>
     <label for="login-email" class="small" style="font-weight:600">Adresse e-mail</label>
-    <input id="login-email" type="email" inputmode="email" autocomplete="email" required placeholder="toi@exemple.fr">
+    <input id="login-email" type="email" inputmode="email" autocomplete="email" required placeholder="nom@exemple.fr">
     <button class="btn" type="submit" id="login-submit">Recevoir mon lien</button>
   </form>
-  <p class="fine" style="margin-top:14px">⟦lock⟧ Ton e-mail sert uniquement à te connecter et à t’envoyer tes alertes. Aucune publicité par e-mail.</p>`}
+  <p class="fine" style="margin-top:14px">⟦lock⟧ Votre e-mail sert uniquement à vous connecter et à vous envoyer vos alertes. Aucune publicité par e-mail.</p>`}
 </div>`;
 };
 screens.apiwait = () => `
 <div class="screen"><div class="loader">
   <div class="spin"></div>
-  <h2 style="font-size:20px">Lecture de tes comptes…</h2>
-  <p class="muted small" style="margin-top:6px">La banque transmet tes opérations, cela peut prendre jusqu’à 30 secondes.</p>
+  <h2 style="font-size:20px">Lecture de vos comptes…</h2>
+  <p class="muted small" style="margin-top:6px">La banque transmet vos opérations, cela peut prendre jusqu’à 30 secondes.</p>
   <div id="api-err"></div>
 </div></div>`;
 screens.supprimer = () => !API || !API.loggedIn() ? screens.onboarding() : `
@@ -1106,11 +1106,11 @@ screens.supprimer = () => !API || !API.loggedIn() ? screens.onboarding() : `
   <div class="card">
     <div style="font-weight:700;margin-bottom:6px">Ce qui sera effacé, définitivement :</div>
     <ul class="del-list">
-      <li>⟦check⟧<span>ton compte${ME ? ` <b class="brk">${esc(ME.email)}</b>` : ''} et tes sessions</span></li>
-      <li>⟦check⟧<span>l’accès à ta banque, aussi chez notre agrégateur (Powens)</span></li>
-      <li>⟦check⟧<span>tes opérations, abonnements détectés et alertes</span></li>
+      <li>⟦check⟧<span>votre compte${ME ? ` <b class="brk">${esc(ME.email)}</b>` : ''} et vos sessions</span></li>
+      <li>⟦check⟧<span>l’accès à votre banque, aussi chez notre agrégateur (Powens)</span></li>
+      <li>⟦check⟧<span>vos opérations, abonnements détectés et alertes</span></li>
     </ul>
-    <p class="muted small" style="margin-top:8px">Rien n’est conservé chez ${APP_NAME}. Tu pourras recréer un compte plus tard, en repartant de zéro.</p>
+    <p class="muted small" style="margin-top:8px">Rien n’est conservé chez ${APP_NAME}. Vous pourrez recréer un compte plus tard, en repartant de zéro.</p>
   </div>
   <label class="del-confirm"><input type="checkbox" id="del-check"> Je comprends que c’est irréversible</label>
   <button class="btn danger" id="api-delete" disabled>Supprimer définitivement</button>
@@ -1125,7 +1125,7 @@ async function apiFinish(){
   const p = API.returnParams();
   history.replaceState(null, '', location.pathname + '#/apiwait');
   const fail = (t, x) => { const e = $('#api-err'); if (e) e.innerHTML = icons(`<div class="banner amber" style="margin-top:18px;text-align:left"><span class="ic">⟦alert⟧</span><div><b>${t}</b>${esc(x)}</div></div><button class="btn" id="api-connect">Réessayer</button><a class="btn ghost" href="#/onboarding">Plus tard</a>`); };
-  if (!p) return fail('Retour de connexion incomplet', 'Relance la connexion de ta banque.');
+  if (!p) return fail('Retour de connexion incomplet', 'Relancez la connexion de votre banque.');
   try {
     const r = await API.finishConnect(p);
     await apiLoadMe();
@@ -1186,7 +1186,7 @@ document.addEventListener('click', e => {
   else if (el.id==='pw-refresh'){ pwRefresh(); }
   else if (el.id==='pw-quit'){ e.preventDefault(); PWX && PWX.clear(); location.replace(location.pathname + (state.connected ? '#/dashboard' : '#/onboarding')); location.reload(); }
   else if (el.id==='go-scan'){ if(state.bank) location.hash = '#/scan'; }
-  else if (el.id==='keep'){ toast('OK, on ne t’alertera plus pour celui-ci'); }
+  else if (el.id==='keep'){ toast('OK, on ne vous alertera plus pour celui-ci'); }
   else if (el.id==='confirm-resil'){ const id = el.dataset.id; if(!state.resiliated.includes(id)) state.resiliated.push(id); save(); location.hash = '#/resilier/'+id+'/4'; }
   else if (el.id==='go-premium'){ state.premium = true; save(); toast(CFG.trial + ' : Premium activé (simulation)'); render(); }
   else if (el.id==='reset'){ localStorage.removeItem(KEY); location.href = location.pathname + '#/onboarding'; location.reload(); }
@@ -1205,7 +1205,7 @@ document.addEventListener('submit', e => {
   const h = new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
   CHAT.push({ me:true, t:v.replace(/</g,'&lt;'), h });
   render();
-  setTimeout(()=>{ CHAT.push({ me:false, t:'Merci, je regarde ça et je te réponds dans quelques minutes (réponse simulée)', h }); if (location.hash.startsWith('#/chat')) render(); }, 1200);
+  setTimeout(()=>{ CHAT.push({ me:false, t:'Merci, je regarde ça et je vous réponds dans quelques minutes (réponse simulée)', h }); if (location.hash.startsWith('#/chat')) render(); }, 1200);
 });
 
 if (PWX && !QS.has('demo')) {
@@ -1216,8 +1216,8 @@ if (PWX && !QS.has('demo')) {
 setInterval(() => { if (LIVE && /banques|dashboard|alertes/.test(location.hash)) { const tk = PWX.tokenInfo(); if (tk && tk.expired && !tk._shown) { sessionStorage.setItem('prelevo-pw-token', JSON.stringify({...tk, _shown:1})); render(); toast('Session de test Powens expirée (30 min)'); } } }, 30000);
 window.addEventListener('hashchange', render);
 if (API){
-  if (sessionStorage.getItem('prelevo-deleted')){ sessionStorage.removeItem('prelevo-deleted'); setTimeout(()=>toast('Compte supprimé. Toutes tes données ont été effacées.'), 300); }
+  if (sessionStorage.getItem('prelevo-deleted')){ sessionStorage.removeItem('prelevo-deleted'); setTimeout(()=>toast('Compte supprimé. Toutes vos données ont été effacées.'), 300); }
   if (API.returnParams()){ render(); apiFinish(); }
-  else if (API.loggedIn()){ $('#app').innerHTML = icons(screens.apiwait().replace('Lecture de tes comptes…','Chargement…').replace(/<p class="muted small"[^>]*>.*?<\/p>/,'')); apiLoadMe().then(render); }
+  else if (API.loggedIn()){ $('#app').innerHTML = icons(screens.apiwait().replace('Lecture de vos comptes…','Chargement…').replace(/<p class="muted small"[^>]*>.*?<\/p>/,'')); apiLoadMe().then(render); }
   else render();
 } else render();

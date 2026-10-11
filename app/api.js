@@ -20,7 +20,7 @@
       res = await fetch(base + path, { method, cache: 'no-store', credentials: 'omit',
         headers: Object.assign({ 'Accept': 'application/json' }, body ? { 'Content-Type': 'application/json' } : {}, s ? { 'Authorization': 'Bearer ' + s } : {}),
         body: body ? JSON.stringify(body) : undefined });
-    } catch(e){ throw new ApiError('Serveur Prelevo injoignable. Vérifie ta connexion.', 0); }
+    } catch(e){ throw new ApiError('Serveur Prelevo injoignable. Vérifiez votre connexion.', 0); }
     let data = null; try { data = res.status === 204 ? null : await res.json(); } catch(e){}
     if (res.status === 401 && s) session.clear();
     if (!res.ok) throw new ApiError((data && data.error) || ('Erreur ' + res.status), res.status);

@@ -223,6 +223,6 @@
   window.PW = { start, fetchAll, detect, norm, clear, tokenInfo, isReturn, returnError,
     result: () => ss.get(K_RESULT), config: PW_CFG, PwError,
     testCreds: [
-      { bank: 'Demo Institution', fields: 'Cherche « demo » · Usecase : bank · Mot de passe : n’importe lequel (ex. 1234) · puis « Tout sélectionner » et « Connecter »' }
+      { bank: 'Demo Institution', fields: 'Cherchez « demo » · Usecase : bank · Mot de passe : n’importe lequel (ex. 1234) · puis « Tout sélectionner » et « Connecter »' }
     ] };
 })();

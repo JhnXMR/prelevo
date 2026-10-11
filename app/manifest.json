@@ -1,7 +1,7 @@
 {
-  "name": "Prelevo – l'app qui traque tes abonnements",
+  "name": "Prelevo – l'app qui traque vos abonnements",
   "short_name": "Prelevo",
-  "description": "Repère tes abonnements, détecte les hausses de prix et t'aide à résilier. Maquette avec données d'exemple.",
+  "description": "Repère vos abonnements, détecte les hausses de prix et vous aide à résilier. Maquette avec données d'exemple.",
   "lang": "fr",
   "start_url": "./index.html",
   "scope": "./",
