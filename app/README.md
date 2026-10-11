@@ -23,7 +23,7 @@ Prix et essai : config.js (priceMonth, priceYear, trial).
 Écrans : #/onboarding, #/connect, #/scan, #/dashboard, #/abonnements (?f=up|small|eco), #/abo/<id>,
 #/resilier/<id>/<1-4> (Premium), #/alertes, #/premium, #/aide, #/chat, #/banques
 
-Identité visuelle stricte Bleu / Blanc / Noir : accent Bleu Radar #2A5BF6 (mode sombre : Bleu Signal #5B86FF),
+Identité visuelle stricte Bleu / Blanc / Noir : accent Bleu Radar #0066FF (mode Nuit : Bleu Signal #4D94FF ; thème Jour / Nuit / Automatique dans Aide et réglages),
 Noir Radar #0A0B0D, Blanc #FFFFFF + gris neutres. Succès/synchro OK = bleu ; alertes (hausse, double prélèvement) = noir + icône ;
 rouge sourd #C2372F réservé aux seules erreurs techniques (banque déconnectée). Variables CSS en tête de styles.css.
 Icônes : icons/icon.svg (app), favicon.svg, logo-mark.svg, logo-horizontal(-white).svg, PNG 192/512/maskable 512/apple-touch 180.

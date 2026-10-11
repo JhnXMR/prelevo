@@ -1,11 +1,11 @@
 /* Prelevo – direction minimaliste noir + bleu (v4) */
 :root{
-  /* Palette Prelevo : Noir Radar #0A0B0D, Graphite #16181D, Bleu Radar #2A5BF6, Bleu Signal #5B86FF, Bleu Brume #EAF0FF */
+  /* Palette Prelevo : Noir Radar #0A0B0D, Graphite #16181D, Bleu Radar #0066FF, Bleu Signal #4D94FF, Bleu Brume #E6F0FF */
   --bg:#FFFFFF; --surface:#FFFFFF; --soft:#F5F6F8; --chip:#F0F2F5;
   --ink:#0A0B0D; --ink2:#5B616E; --muted:#8A909C; --line:#E4E7EC; --line2:#D3D7DE;
-  --accent:#2A5BF6;            /* Bleu Radar : unique couleur d'accent (actions, économies) */
+  --accent:#0066FF;            /* Bleu Radar : unique couleur d'accent (actions, économies) */
   --accent-ink:#FFFFFF;        /* texte sur l'accent */
-  --tint:#EAF0FF;              /* Bleu Brume */
+  --tint:#E6F0FF;              /* Bleu Brume */
   /* Palette stricte Bleu / Blanc / Noir */
   --ok:var(--accent);          /* succès, synchro OK, confirmations = bleu */
   --warn:var(--ink);           /* alertes (hausse de prix, double prélèvement) = noir + icône */
@@ -16,10 +16,15 @@
   --r:14px;
   --font:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
 }
-@media (prefers-color-scheme: dark){
-  :root{ --bg:#0A0B0D; --surface:#0A0B0D; --soft:#16181D; --chip:#1C1F25;
+:root{color-scheme:light}
+:root[data-theme="dark"]{color-scheme:dark; --bg:#0A0B0D; --surface:#0A0B0D; --soft:#16181D; --chip:#1C1F25;
     --ink:#F3F4F6; --ink2:#AEB3BD; --muted:#7D838F; --line:#23262D; --line2:#30343C;
-    --accent:#5B86FF; --accent-ink:#0A0B0D; --tint:#152241; --err:#F07167; }
+    --accent:#4D94FF; --accent-ink:#0A0B0D; --tint:#152241; --err:#F07167; }
+/* sans JS : on suit le système */
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme]){color-scheme:dark; --bg:#0A0B0D; --surface:#0A0B0D; --soft:#16181D; --chip:#1C1F25;
+    --ink:#F3F4F6; --ink2:#AEB3BD; --muted:#7D838F; --line:#23262D; --line2:#30343C;
+    --accent:#4D94FF; --accent-ink:#0A0B0D; --tint:#152241; --err:#F07167; }
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:var(--bg);color:var(--ink);font-family:var(--font);-webkit-font-smoothing:antialiased;font-feature-settings:"tnum" 1,"cv11" 1}
@@ -35,7 +40,7 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .topbar h1{font-size:24px;font-weight:650;letter-spacing:-.025em}
 .back,.gear{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;color:var(--ink)}
 .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:16px;letter-spacing:-.01em}
-.brand picture{display:flex}.brand img{width:auto;height:28px}
+.brand .lg{display:flex}.brand img{width:auto;height:28px}
 .demo{font-size:10.5px;color:var(--muted);letter-spacing:.02em;white-space:nowrap}
 .hello{color:var(--ink2);font-size:14px;margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .hello .demo{margin-left:auto}
@@ -155,7 +160,7 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 
 /* accueil */
 .onb{min-height:100vh;display:flex;flex-direction:column;padding:calc(40px + env(safe-area-inset-top)) 26px 30px;background:var(--bg);color:var(--ink)}
-.onb picture{display:block}.onb .logo-xl{width:auto;height:60px;margin-bottom:34px}
+.onb .lg{display:block}.onb .logo-xl{width:auto;height:60px;margin-bottom:34px}
 .onb h1{font-size:34px;line-height:1.1;font-weight:650;letter-spacing:-.035em;margin-bottom:14px}
 .onb h1 em{font-style:normal;color:var(--muted)}
 .onb p.lead{color:var(--ink2);font-size:15.5px;line-height:1.55}
@@ -296,17 +301,18 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .g-pill{font-size:12px;font-weight:600;color:#8A909C;padding:6px 9px;border-radius:99px;letter-spacing:.01em}
 .g-pill.on{background:#1F2430;color:#F3F4F6}
 .g-date{font-size:12px;color:#8A909C;margin-top:14px;min-height:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.g-sub{color:#5B86FF}
+.g-sub{color:#4D94FF}
 .g-big{font-size:30px;font-weight:600;letter-spacing:-.03em;color:#FFFFFF;margin:2px 0 10px;font-variant-numeric:tabular-nums}
 .g-svg{display:block;width:100%;height:auto;overflow:visible;touch-action:pan-y}
 .g-grid{stroke:#4A505C;stroke-width:1;stroke-dasharray:1 4;opacity:.7}
 .g-ax{fill:#6F7683;font-size:9px;font-family:var(--font)}
-.g-line{fill:none;stroke:#5B86FF;stroke-width:1.3;stroke-linejoin:round}
-.g-dot{fill:#5B86FF;opacity:.95}
+.g-line{fill:none;stroke:#4D94FF;stroke-width:1.3;stroke-linejoin:round}
+.g-dot{fill:#4D94FF;opacity:.95}
 .g-cur{stroke:#5B616E;stroke-width:1;stroke-dasharray:2 3}
-.g-sel{fill:#FFFFFF;stroke:#5B86FF;stroke-width:1.5}
+.g-sel{fill:#FFFFFF;stroke:#4D94FF;stroke-width:1.5}
 .g-hit{fill:transparent;cursor:crosshair}
-@media (prefers-color-scheme: dark){ .gcard{background:#16181D} }
+[data-theme="dark"] .gcard{background:#16181D}
+@media (prefers-color-scheme: dark){ :root:not([data-theme]) .gcard{background:#16181D} }
 
 /* pubs (version gratuite uniquement) */
 .ad{margin:22px 0 6px}
@@ -322,10 +328,24 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .ad-cta{font-size:12.5px;font-weight:600;color:var(--ink);border:1px solid var(--line);border-radius:99px;padding:6px 11px;white-space:nowrap}
 
 /* Banque de test Powens (sandbox) */
-.demo.live{color:#fff;background:var(--accent,#2A5BF6);padding:3px 8px;border-radius:999px;font-weight:650;letter-spacing:0}
+.demo.live{color:#fff;background:var(--accent,#0066FF);padding:3px 8px;border-radius:999px;font-weight:650;letter-spacing:0}
 .pw-note{margin:12px 0 4px;padding:12px 14px;border:1px dashed var(--line,#D9DEE7);border-radius:14px;font-size:12.5px;line-height:1.45;color:var(--ink2,#3A4458)}
 .pw-note b{display:block;color:var(--ink,#0A0B0D);font-size:13px;margin-bottom:6px}
 .pw-note div{margin:3px 0}
 .pw-note div span{display:inline-block;min-width:118px;font-weight:650;color:var(--ink,#0A0B0D)}
 .pw-note p{margin:8px 0 0;color:var(--muted,#6B7280);font-size:11.5px}
 .kv .nw{white-space:nowrap;margin-left:10px}
+
+/* logo : jambe noire (jour) / blanche (nuit) */
+.lg .lg-d{display:none}
+[data-theme="dark"] .lg .lg-l{display:none}
+[data-theme="dark"] .lg .lg-d{display:block}
+@media (prefers-color-scheme: dark){ :root:not([data-theme]) .lg .lg-l{display:none} :root:not([data-theme]) .lg .lg-d{display:block} }
+/* sélecteur de thème (Aide et réglages) */
+.theme-card .seg{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;background:var(--chip);border-radius:12px;padding:3px;margin-top:10px}
+.seg button{height:40px;border-radius:9px;font-weight:550;font-size:13.5px;white-space:nowrap;min-width:0;color:var(--ink2);display:flex;align-items:center;justify-content:center;gap:7px;transition:background .15s,color .15s}
+.seg button .i{width:16px;height:16px;margin-right:-1px}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(10,11,13,.12),0 0 0 1px var(--line)}
+.seg button.on .i{color:var(--accent)}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+@media (max-width:359px){.seg button .i{display:none}.seg button{font-size:12px;padding:0 1px;letter-spacing:-.01em}}

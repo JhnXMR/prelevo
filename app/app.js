@@ -85,7 +85,7 @@ function liveBank(){
   const tk = PWX && PWX.tokenInfo(); const expired = !tk || tk.expired;
   const mins = tk ? Math.max(0, Math.round((tk.exp - Date.now())/60000)) : 0;
   const n = LIVE.accounts.length;
-  return { id:'pw', name:LIVE.bank, color:'#2A5BF6', ini:'PW', live:true,
+  return { id:'pw', name:LIVE.bank, color:'#0066FF', ini:'PW', live:true,
     accounts:`${n} compte${n>1?'s':''} de test · ${LIVE.txCount} opérations`,
     status: expired ? 'expired' : 'ok', sync: 'il y a ' + Math.max(0, Math.round((Date.now()-LIVE.at)/60000)) + ' min',
     expiresIn: 999, expires: expired ? 'expirée' : `encore ${mins} min`, mins };
@@ -118,6 +118,9 @@ const ICONS = {
   mail:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',
   copy:'<rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V5a1 1 0 0 1 1-1h10"/>',
   calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+  sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon:'<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z"/>',
+  auto:'<circle cx="12" cy="12" r="9"/><path d="M12 3v18"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/>',
   settings:'<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
   globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
   download:'<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
@@ -150,7 +153,7 @@ const neutral = `<div class="neutral"><span class="nic">⟦ban⟧</span><div><b>
 // Pubs de la version gratuite (annonceurs FICTIFS, publicité contextuelle, sans ciblage)
 const ADS = {
   dash: { ini:'VC', color:'#0A0B0D', brand:'Vélo Clair', tag:'Marque fictive', title:'Le vélo électrique en location, sans engagement', text:'Premier mois à 19 € au lieu de 39 €. Livraison en 48 h.', cta:'Découvrir' },
-  subs: { ini:'PM', color:'#2A5BF6', brand:'Papeterie Mirabelle', tag:'Marque fictive', title:'Carnets et agendas 2027', text:'−15 % sur la collection d’automne, livraison offerte dès 25 €.', cta:'Voir l’offre' }
+  subs: { ini:'PM', color:'#0066FF', brand:'Papeterie Mirabelle', tag:'Marque fictive', title:'Carnets et agendas 2027', text:'−15 % sur la collection d’automne, livraison offerte dès 25 €.', cta:'Voir l’offre' }
 };
 const adSlot = k => { if (isP()) return ''; const a = ADS[k]; return `<div class="ad" role="complementary" aria-label="Publicité">
   <div class="ad-h"><span class="ad-tag">Sponsorisé</span><a href="#/premium">Retirer les pubs · Premium ${prix(CFG.priceMonth)}/mois</a></div>
@@ -206,12 +209,12 @@ function alerts(){
 
 // ---------- écrans ----------
 const screens = {};
-const brandBar = (right=demoTag) => `<div class="topbar"><div class="brand"><picture><source srcset="icons/logo-mark-white.svg" media="(prefers-color-scheme: dark)"><img src="icons/logo-mark.svg" alt=""></picture>${APP_NAME}</div>${right}</div>`;
+const brandBar = (right=demoTag) => `<div class="topbar"><div class="brand"><span class="lg"><img class="lg-l" src="icons/logo-mark.svg" alt=""><img class="lg-d" src="icons/logo-mark-white.svg" alt=""></span>${APP_NAME}</div>${right}</div>`;
 const yearSave = () => Math.round((1 - CFG.priceYear / (CFG.priceMonth*12)) * 100);
 
 screens.onboarding = () => `
 <div class="onb">
-  <picture><source srcset="icons/logo-mark-white.svg" media="(prefers-color-scheme: dark)"><img class="logo-xl" src="icons/logo-mark.svg" alt=""></picture>
+  <span class="lg"><img class="logo-xl lg-l" src="icons/logo-mark.svg" alt=""><img class="logo-xl lg-d" src="icons/logo-mark-white.svg" alt="Prelevo"></span>
   <h1>Arrête de payer pour des abonnements <em>que tu as oubliés.</em></h1>
   <p class="lead">${APP_NAME} analyse tes comptes, repère tous tes prélèvements récurrents et te prévient quand un prix augmente.</p>
   <ul>
@@ -553,6 +556,7 @@ screens.banques = () => {
 </div>`;
 };
 
+const themePref = () => (window.PrelevoTheme ? PrelevoTheme.get() : 'auto');
 screens.aide = () => `
 <div class="screen">
   <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a><h1 style="font-size:19px">Aide et réglages</h1>${demoTag}</div>
@@ -570,6 +574,11 @@ screens.aide = () => `
     <a class="kv lnk" href="#/alertes"><span>⟦bell⟧ Alertes</span><span>›</span></a>
     <a class="kv lnk" href="#/premium"><span>⟦star⟧ Mon abonnement</span><span>${isP()?'Premium':'Gratuit'} ›</span></a>
     <div class="kv"><span>⟦shield⟧ Mes données</span><span class="muted">Jamais revendues</span></div>
+  </div>
+  <div class="card theme-card">
+    <div style="font-weight:700">Apparence</div>
+    <div class="muted small">Automatique suit le réglage de ton téléphone.</div>
+    <div class="seg" role="radiogroup" aria-label="Thème">${[['light','sun','Jour'],['dark','moon','Nuit'],['auto','auto','Automatique']].map(([v,ic,l])=>`<button type="button" role="radio" aria-checked="${themePref()===v}" class="${themePref()===v?'on':''}" data-theme-set="${v}">⟦${ic}⟧${l}</button>`).join('')}</div>
   </div>
   ${neutral}
   <div class="card">
@@ -749,7 +758,7 @@ function balanceChart(){
     <div class="g-date" id="bc-date">${fDate(last.t)}</div>
     <div class="g-big" id="bc-val">${eur(last.bal)}</div>
     <svg class="g-svg" viewBox="0 0 ${CW} ${CH}" role="img" aria-label="Évolution du solde">
-      <defs><linearGradient id="gfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5B86FF" stop-opacity=".34"/><stop offset=".7" stop-color="#2A5BF6" stop-opacity=".06"/><stop offset="1" stop-color="#2A5BF6" stop-opacity="0"/></linearGradient></defs>
+      <defs><linearGradient id="gfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4D94FF" stop-opacity=".34"/><stop offset=".7" stop-color="#0066FF" stop-opacity=".06"/><stop offset="1" stop-color="#0066FF" stop-opacity="0"/></linearGradient></defs>
       ${grid}
       <path d="${area}" fill="url(#gfill)"/>
       <path class="g-line" d="${line}"/>
@@ -849,6 +858,8 @@ function runScan(){
 }
 
 document.addEventListener('click', e => {
+  const th = e.target.closest('[data-theme-set]');
+  if (th){ if (window.PrelevoTheme) PrelevoTheme.set(th.dataset.themeSet); document.querySelectorAll('[data-theme-set]').forEach(b=>{ const on=b===th; b.classList.toggle('on',on); b.setAttribute('aria-checked',on); }); return; }
   const el = e.target.closest('[data-bank],[data-method],[data-toast],[data-billing],[data-alert],[data-plan],#go-scan,#keep,#confirm-resil,#go-premium,#reset,#pw-connect,#pw-quit,#pw-refresh');
   if (!el) return;
   if (el.dataset.toast){ e.preventDefault(); toast(el.dataset.toast); }

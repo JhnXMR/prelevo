@@ -3,8 +3,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0A0B0D" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#FFFFFF">
+  <script>/* thème Jour / Nuit / Automatique, appliqué avant le CSS : pas de flash */
+  (function(){var K='prelevo-theme',t,d=document.documentElement,m=window.matchMedia&&matchMedia('(prefers-color-scheme: dark)');
+  try{t=localStorage.getItem(K)}catch(e){} if(t!=='light'&&t!=='dark')t='auto';
+  function a(){var n=t==='dark'||(t==='auto'&&m&&m.matches);d.setAttribute('data-theme',n?'dark':'light');d.setAttribute('data-theme-pref',t);
+    var c=document.querySelector('meta[name="theme-color"]');if(c)c.setAttribute('content',n?'#0A0B0D':'#FFFFFF')}
+  window.PrelevoTheme={get:function(){return t},set:function(v){t=(v==='light'||v==='dark')?v:'auto';try{t==='auto'?localStorage.removeItem(K):localStorage.setItem(K,t)}catch(e){}a()}};
+  if(m){m.addEventListener?m.addEventListener('change',function(){if(t==='auto')a()}):m.addListener&&m.addListener(function(){if(t==='auto')a()})}
+  a()})();</script>
   <meta name="color-scheme" content="light dark">
   <meta name="description" content="Prelevo – l'app qui traque tes abonnements. Maquette cliquable (données d'exemple).">
   <meta name="apple-mobile-web-app-capable" content="yes">
