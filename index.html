@@ -31,13 +31,13 @@
 <body>
 <header class="nav wrap">
   <a class="brand" href="./" aria-label="Prelevo, accueil"><img src="assets/logo-mark.svg" alt="" width="26" height="32"><span>Prelevo</span></a>
-  <nav class="nav-links"><a href="#fonctions">Fonctions</a><a href="#prix">Prix</a><a href="#faq">FAQ</a><a class="btn-sm" href="app/?demo=1">Voir la démo</a></nav>
+  <nav class="nav-links"><a href="#fonctions">Fonctions</a><a href="#securite">Sécurité</a><a href="#prix">Prix</a><a href="#faq">FAQ</a><a class="btn-sm" href="app/?demo=1">Voir la démo</a></nav>
 </header>
 
 <main>
 <section class="hero wrap">
   <div class="hero-txt">
-    <p class="kicker"><span class="pulse"></span>Bientôt disponible · Liste d’attente ouverte</p>
+    <p class="kicker"><span class="pulse"></span>Projet indépendant français<span class="k2"> · Liste d’attente ouverte</span></p>
     <h1>Tes abonnements,<br><span class="blue">sous contrôle.</span></h1>
     <p class="lead">Prelevo traque tes prélèvements récurrents : il t’alerte quand un prix augmente, débusque les petits prélèvements oubliés et t’aide à résilier en quelques minutes.</p>
     <form class="wl" data-source="hero" novalidate>
@@ -47,9 +47,11 @@
         <button type="submit">Rejoindre la liste d’attente</button>
       </div>
       <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
-      <label class="consent"><input type="checkbox" name="consent" required><span>J’accepte de recevoir des e-mails de Prelevo sur son lancement. Désinscription en 1 clic. <a href="#confidentialite">Confidentialité</a></span></label>
+      <p class="reassure"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Pas de spam. Désinscription en 1 clic. Ton e-mail n’est jamais revendu.</p>
+      <label class="consent"><input type="checkbox" name="consent" required><span>J’accepte de recevoir des e-mails de Prelevo sur son lancement. <a href="#confidentialite">Confidentialité</a></span></label>
       <p class="incentive" data-incentive>🎁 Les 500 premiers inscrits : 3 mois de Premium offerts</p>
       <p class="wl-msg" role="status" aria-live="polite"></p>
+      <div class="wl-ok" hidden tabindex="-1"><span class="ok-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span><div><b>C’est noté, tu es sur la liste !</b><p>On t’écrit dès l’ouverture de la bêta, rien d’autre. Si tu fais partie des 500 premiers, tes 3 mois de Premium sont réservés.</p><button type="button" class="share">Partager Prelevo à un ami</button></div></div>
     </form>
     <p class="demo-link"><a href="app/?demo=1">Voir la démo interactive →</a> <span>données d’exemple</span></p>
   </div>
@@ -58,10 +60,10 @@
 
 <section class="strip wrap" aria-label="En bref">
   <div><b>Lecture seule</b><span>aucun mouvement d’argent possible</span></div>
+  <div><b>Aucun identifiant bancaire</b><span>stocké par Prelevo</span></div>
   <div><b>Zéro pub en Premium</b><span>conseils toujours neutres</span></div>
   <div><b>3,99 €/mois</b><span>ou gratuit pour commencer</span></div>
-  <div><b>Support humain</b><span>pas un robot</span></div>
-</section>
+  </section>
 
 <section id="fonctions" class="features wrap">
   <h2 class="h2">Ce que Prelevo fait pour toi</h2>
@@ -93,24 +95,36 @@
   </div>
 </section>
 
-<section class="trust wrap">
-  <h2 class="h2">Ton argent reste ton argent</h2>
+<section id="securite" class="trust wrap">
+  <h2 class="h2">Ton argent et tes données, protégés</h2>
+  <p class="sub">On préfère être clairs dès maintenant sur ce que Prelevo fera… et ne fera jamais.</p>
   <div class="trust-grid">
-    <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><h3>Lecture seule</h3><p>Prelevo voit tes opérations, mais ne peut jamais déplacer ton argent ni faire de paiement.</p></div>
-    <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg><h3>Partenaire agréé</h3><p>La connexion bancaire passera par un partenaire agréé (norme européenne DSP2). Tu peux couper l’accès à tout moment.</p></div>
-    <div><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg><h3>Conseils neutres</h3><p>La version gratuite affiche quelques pubs, toujours signalées « Sponsorisé » ; Premium n’en a aucune. Les sponsors n’influencent jamais tes alertes ni nos conseils, et on ne touche aucune commission sur tes résiliations.</p></div>
-    <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg><h3>Support humain</h3><p>Une question ? Une vraie personne te répond, pas un robot.</p></div>
+    <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><h3>Lecture seule</h3><p>Prelevo pourra lire tes opérations pour repérer tes abonnements. Aucun virement, aucun paiement : c’est techniquement impossible.</p></div>
+    <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg><h3>Agrégateur agréé par l’ACPR</h3><p>Pour se connecter à ta banque, nous utiliserons un agrégateur agréé par l’ACPR (Banque de France), selon la norme européenne DSP2. Nos tests actuels se font sur l’environnement de test de Powens, établissement de paiement agréé ; aucun contrat n’est encore signé.</p></div>
+    <div><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><h3>Aucun identifiant bancaire chez nous</h3><p>Tu te connectes sur la page sécurisée de l’agrégateur ou de ta banque. Prelevo ne voit et ne stocke jamais ton identifiant ni ton mot de passe.</p></div>
+    <div><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg><h3>RGPD, données en Europe</h3><p>Objectif pour l’app : données hébergées dans l’Union européenne, sous le RGPD. Seul le formulaire de cette page passe aujourd’hui par un service hors UE (détails dans la <a href="#confidentialite">confidentialité</a>).</p></div>
+    <div><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg><h3>Suppression en un clic</h3><p>Un lien de désinscription dans chaque e-mail. Dans l’app, tu pourras couper l’accès à ta banque et supprimer ton compte et tes données à tout moment.</p></div>
+    <div><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg><h3>Pas de revente de données</h3><p>Tes données ne sont jamais vendues. Les pubs de la version gratuite sont non ciblées, toujours signalées « Sponsorisé », et n’influencent jamais nos conseils. Premium : zéro pub.</p></div>
+  </div>
+</section>
+
+<section class="founder wrap" aria-labelledby="founder-h">
+  <div class="founder-card">
+    <p class="kicker-s">Un projet indépendant français</p>
+    <h2 id="founder-h">Le mot du créateur</h2>
+    <blockquote>« Les abonnements s’accumulent vite, les prix montent sans prévenir et les petits prélèvements passent sous le radar. J’ai voulu une app simple, honnête et vraiment utile pour reprendre la main. Prelevo est en cours de création : rejoindre la liste d’attente, c’est m’aider à le construire avec toi. Une question, une idée ? Écris-moi, je réponds personnellement. »</blockquote>
+    <p class="sig"><img src="assets/logo-mark.svg" alt="" width="21" height="26"><span><b><span data-publisher>Jhn Dlt</span></b>, créateur de Prelevo · <a data-contact-link href="mailto:jhn.dlt@mail.grokbot.com"><span data-contact>jhn.dlt@mail.grokbot.com</span></a></span></p>
   </div>
 </section>
 
 <section id="faq" class="faq wrap">
   <h2 class="h2">Questions fréquentes</h2>
-  <details><summary>Prelevo peut-il toucher à mon argent ?</summary><p>Non. L’accès est en lecture seule : Prelevo peut lire tes opérations pour repérer tes abonnements, mais il est techniquement impossible de faire un virement ou un paiement.</p></details>
-  <details><summary>Comment Prelevo se connecte à ma banque ?</summary><p>Via un partenaire agréé, selon la norme européenne DSP2, comme les autres applis de gestion de budget. Tu choisis tes banques, tu ne donnes jamais tes identifiants à Prelevo, et tu peux révoquer l’accès quand tu veux.</p></details>
-  <details><summary>Qu’est-ce qui est gratuit, qu’est-ce qui est Premium ?</summary><p>Le scan de tes comptes et la liste de tes abonnements avec le total sont gratuits, avec quelques pubs. Premium (3,99 €/mois ou 29,99 €/an) supprime toutes les pubs et ajoute les alertes de hausse de prix, les petits prélèvements oubliés, la résiliation guidée, le reste à vivre et les banques illimitées. 1 mois offert pour essayer.</p></details>
-  <details><summary>Pourquoi des pubs dans la version gratuite ?</summary><p>Elles financent la version gratuite. Elles sont toujours signalées « Sponsorisé », séparées de tes résultats, et contextuelles : pas de traceur publicitaire, pas de ciblage à partir de tes opérations bancaires, et tes données ne sont jamais transmises aux annonceurs. Les sponsors n’influencent jamais tes alertes ni nos conseils. Tu n’en veux pas ? Premium, c’est zéro pub.</p></details>
-  <details><summary>Prelevo résilie à ma place ?</summary><p>Prelevo te prépare tout : lettre de résiliation prête, démarches pas à pas pour chaque service et suivi jusqu’à l’arrêt du prélèvement. Tu valides et tu envoies : tu gardes toujours la main.</p></details>
-  <details><summary>Quand sort l’application ?</summary><p>Prelevo est en cours de création. Les inscrits sur la liste d’attente seront prévenus en premier, et pourront tester avant tout le monde. L’app fonctionnera sur iPhone et Android.</p></details>
+  <details open><summary>Est-ce que c’est sûr ?</summary><p>Oui, c’est notre priorité. La connexion bancaire passera par un agrégateur agréé par l’ACPR (norme européenne DSP2), en lecture seule : Prelevo ne pourra jamais déplacer ton argent, et ne verra jamais tes identifiants bancaires. Tu pourras couper l’accès quand tu veux.</p></details>
+  <details><summary>C’est gratuit ?</summary><p>Oui, la version gratuite permet de scanner tes comptes et de voir tous tes abonnements avec le total, avec quelques pubs non ciblées (signalées « Sponsorisé »). Premium, à 3,99 €/mois ou 29,99 €/an, supprime les pubs et ajoute les alertes de hausse de prix, les petits prélèvements oubliés, la résiliation guidée et le reste à vivre. 1 mois de Premium offert pour essayer, et 3 mois offerts pour les 500 premiers inscrits.</p></details>
+  <details><summary>Quand sort l’application ?</summary><p>Prelevo est en cours de création et nous n’avons pas encore de date de sortie. Les inscrits seront prévenus en premier et pourront tester la bêta avant tout le monde, sur iPhone et Android. En attendant, tu peux essayer la <a href="app/?demo=1">démo interactive</a> (données d’exemple).</p></details>
+  <details><summary>Que se passe-t-il avec mon e-mail ?</summary><p>Il sert uniquement à te prévenir du lancement et de ton offre d’inscrit. Pas de newsletter quotidienne, pas de revente, pas de partage avec des annonceurs. Tu peux te désinscrire en 1 clic ou demander la suppression de ton adresse à tout moment.</p></details>
+  <details><summary>Pourquoi des pubs dans la version gratuite ?</summary><p>Elles financent la version gratuite. Elles sont contextuelles : pas de traceur publicitaire, pas de ciblage à partir de tes opérations, et tes données ne sont jamais transmises aux annonceurs. Les sponsors n’influencent jamais tes alertes ni nos conseils. Premium, c’est zéro pub.</p></details>
+  <details><summary>Prelevo résilie à ma place ?</summary><p>Prelevo te prépare tout : lettre de résiliation prête, démarches pas à pas et suivi jusqu’à l’arrêt du prélèvement. Tu valides et tu envoies : tu gardes toujours la main.</p></details>
 </section>
 
 <section class="cta wrap">
@@ -123,9 +137,11 @@
       <button type="submit">Rejoindre la liste d’attente</button>
     </div>
     <input class="hp" type="text" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
-    <label class="consent"><input type="checkbox" name="consent" required><span>J’accepte de recevoir des e-mails de Prelevo sur son lancement. Désinscription en 1 clic. <a href="#confidentialite">Confidentialité</a></span></label>
+    <p class="reassure"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>Pas de spam. Désinscription en 1 clic. Ton e-mail n’est jamais revendu.</p>
+    <label class="consent"><input type="checkbox" name="consent" required><span>J’accepte de recevoir des e-mails de Prelevo sur son lancement. <a href="#confidentialite">Confidentialité</a></span></label>
     <p class="incentive" data-incentive>🎁 Les 500 premiers inscrits : 3 mois de Premium offerts</p>
     <p class="wl-msg" role="status" aria-live="polite"></p>
+    <div class="wl-ok" hidden tabindex="-1"><span class="ok-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span><div><b>C’est noté, tu es sur la liste !</b><p>On t’écrit dès l’ouverture de la bêta, rien d’autre. Si tu fais partie des 500 premiers, tes 3 mois de Premium sont réservés.</p><button type="button" class="share">Partager Prelevo à un ami</button></div></div>
   </form>
   <p class="demo-link"><a href="app/?demo=1">Voir la démo interactive →</a></p>
 </section>
@@ -138,7 +154,7 @@
   </div>
   <details id="confidentialite"><summary>Confidentialité (RGPD)</summary>
     <p><b>Responsable du traitement :</b> <span data-publisher>Jhn Dlt</span> (particulier). Contact : <span data-contact>jhn.dlt@mail.grokbot.com</span>.</p>
-    <p><b>Données collectées :</b> uniquement ton adresse e-mail, avec ton consentement (case à cocher).</p>
+    <p><b>Données collectées :</b> ton adresse e-mail, avec ton consentement (case à cocher), et la provenance de ta visite (paramètres du lien comme utm_source ou utm_campaign, et le site d’où tu viens) pour savoir quels canaux fonctionnent. Aucun cookie n’est utilisé pour cela.</p>
     <p><b>Finalité :</b> te prévenir du lancement de Prelevo et de l’offre réservée aux inscrits. Ton e-mail n’est jamais vendu ni partagé à des fins commerciales.</p>
     <p><b>Sous-traitant :</b> le formulaire est transmis par FormSubmit (formsubmit.co), qui envoie l’inscription par e-mail à l’éditeur. Ce service est situé hors de l’Union européenne : ton e-mail peut donc être transféré et traité hors UE.</p>
     <p><b>Conservation :</b> jusqu’au lancement, puis 12 mois maximum, ou jusqu’à ta désinscription si elle intervient avant.</p>

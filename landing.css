@@ -133,3 +133,32 @@ h1{font-size:clamp(40px,6vw,64px);line-height:1.03;letter-spacing:-.045em;font-w
 @media (prefers-reduced-motion:reduce){.pulse{animation:none}html{scroll-behavior:auto}}
 .plan li.ads{color:var(--muted)}
 .plan li.ads:before{border:0;width:8px;height:1.6px;background:var(--muted);transform:none;top:10px}
+/* v3 : réassurance, confirmation, sécurité, mot du créateur */
+.reassure{display:flex;align-items:center;gap:7px;font-size:13px;color:var(--ink2);margin-top:12px;font-weight:500}
+.reassure svg{width:15px;height:15px;flex:none;fill:none;stroke:var(--accent);stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.wl.dark .reassure{color:#C9CDD4}.wl.dark .reassure svg{stroke:#7FA0FF}
+.wl.done .reassure,.wl.done .incentive{display:none}
+.wl-ok{display:flex;gap:14px;align-items:flex-start;border:1.5px solid var(--accent);background:var(--tint);border-radius:16px;padding:18px 18px 18px 16px;outline:0;animation:okin .35s ease-out}
+.wl-ok[hidden]{display:none}
+.wl-ok b{font-size:17px;letter-spacing:-.01em;display:block}
+.wl-ok p{font-size:14.5px;color:var(--ink2);margin-top:4px}
+.ok-ic{flex:none;width:34px;height:34px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center}
+.ok-ic svg{width:18px;height:18px;fill:none;stroke:#fff;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+.wl-ok .share{margin-top:12px;height:38px;padding:0 14px;font-size:14px;background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:10px;width:auto}
+.wl-ok .share:hover{background:#fff;border-color:var(--ink)}
+.wl.dark .wl-ok{background:#16181C;border-color:#7FA0FF}.wl.dark .wl-ok p{color:#C9CDD4}
+@keyframes okin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.trust-grid{grid-template-columns:repeat(3,1fr)}
+.trust p a{color:var(--accent)}
+.founder{padding-top:96px}
+.founder-card{max-width:760px;margin:0 auto;border:1px solid var(--line);border-radius:24px;padding:40px 44px}
+.kicker-s{font-size:13px;font-weight:600;color:var(--accent);letter-spacing:.02em}
+.founder h2{font-size:clamp(24px,3vw,30px);letter-spacing:-.03em;margin:6px 0 16px}
+.founder blockquote{font-size:17.5px;line-height:1.6;color:var(--ink2)}
+.sig{display:flex;align-items:center;gap:12px;margin-top:22px;font-size:14.5px;color:var(--muted)}
+.sig b{color:var(--ink)}.sig a{color:var(--accent);text-decoration:none;word-break:break-all}
+.faq details p a{color:var(--accent)}
+@media (max-width:900px){.trust-grid{grid-template-columns:1fr 1fr}}
+@media (max-width:560px){.trust-grid{grid-template-columns:1fr}.founder{padding-top:80px}.founder-card{padding:28px 22px}.founder blockquote{font-size:16px}.wl-ok .share{width:auto}}
+@media (max-width:420px){.kicker .k2{display:none}}
+.sig>span{display:flex;flex-direction:column}.sig a{word-break:normal}

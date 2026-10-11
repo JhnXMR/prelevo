@@ -8,6 +8,34 @@
   if (C.contactEmail) document.querySelectorAll('[data-contact]').forEach(el => el.textContent = C.contactEmail);
   if (C.publisher) document.querySelectorAll('[data-publisher]').forEach(el => el.textContent = C.publisher);
 
+  if (C.contactEmail) document.querySelectorAll('[data-contact-link]').forEach(el => el.href = 'mailto:' + C.contactEmail);
+
+  // Provenance de la visite (UTM + site d'origine), gardée le temps de l'onglet, sans cookie.
+  const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
+  const VKEY = 'prelevo-visit';
+  const visit = (() => {
+    let v = {}; try { v = JSON.parse(sessionStorage.getItem(VKEY) || '{}'); } catch (e) {}
+    const q = new URLSearchParams(location.search);
+    const fresh = {};
+    UTM_KEYS.forEach(k => { const x = (q.get(k) || '').trim().slice(0, 100); if (x) fresh[k] = x; });
+    if (!fresh.utm_source && q.get('ref')) fresh.utm_source = q.get('ref').trim().slice(0, 100);
+    if (Object.keys(fresh).length) v = fresh;              // un nouveau lien tracé remplace l'ancien
+    if (!v.referrer) { try { const r = document.referrer && new URL(document.referrer); if (r && r.host !== location.host) v.referrer = r.host; } catch (e) {} }
+    try { sessionStorage.setItem(VKEY, JSON.stringify(v)); } catch (e) {}
+    return v;
+  
+  // Partage : lien tracé utm_source=partage
+  document.querySelectorAll('.wl .share').forEach(b => b.addEventListener('click', async () => {
+    const url = location.origin + location.pathname + '?utm_source=partage&utm_medium=ami';
+    const data = { title: 'Prelevo', text: 'Prelevo repère tes abonnements, les hausses de prix et t’aide à résilier. Liste d’attente :', url };
+    try {
+      if (navigator.share) { await navigator.share(data); return; }
+      await navigator.clipboard.writeText(url); b.textContent = 'Lien copié ✓';
+    } catch (e) { if (e && e.name !== 'AbortError') { b.textContent = url; } }
+  }));
+})();
+  window.PRELEVO_VISIT = visit;
+
   const KEY = 'prelevo-waitlist';
   const valid = e => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);
 
@@ -23,7 +51,10 @@
     if (p === 'formsubmit') {                    // https://formsubmit.co/ajax/<alias ou e-mail>
       const r = await fetch(W.endpoint, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ email, source, date, _subject: 'Nouvelle inscription Prelevo', _captcha: 'false', _template: 'table', _honey: '' })
+        body: JSON.stringify(Object.assign({ email, source, date },
+          { utm_source: visit.utm_source || '(direct)', utm_medium: visit.utm_medium || '', utm_campaign: visit.utm_campaign || '',
+            utm_content: visit.utm_content || '', utm_term: visit.utm_term || '', referrer: visit.referrer || '' },
+          { _subject: 'Nouvelle inscription Prelevo' + (visit.utm_source ? ' · ' + visit.utm_source : ''), _captcha: 'false', _template: 'table', _honey: '' }))
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok || String(j.success) !== 'true') throw new Error(j.message || 'HTTP ' + r.status);
@@ -57,13 +88,24 @@
     btn.disabled = true; msg.textContent = 'Inscription…';
     try {
       const how = await send(email, f.dataset.source || '');
-      f.classList.add('done'); msg.classList.add('ok');
-      msg.textContent = how === 'local'
-        ? 'Merci ! (Aperçu : la liste d’attente n’est pas encore branchée, ton e-mail est seulement gardé sur cet appareil.)'
-        : 'C’est noté ! On te prévient dès que Prelevo est prêt.';
+      f.classList.add('done'); msg.textContent = '';
+      const ok = f.querySelector('.wl-ok');
+      if (how === 'local') ok.querySelector('p').textContent = 'Aperçu : la liste d’attente n’est pas encore branchée, ton e-mail est seulement gardé sur cet appareil.';
+      ok.hidden = false; ok.focus({ preventScroll: true });
+      ok.scrollIntoView({ block: 'center', behavior: 'smooth' });
     } catch (e) {
       btn.disabled = false; msg.classList.add('err');
       msg.textContent = 'Oups, l’inscription n’est pas passée. Réessaie dans un instant.';
     }
+  }));
+
+  // Partage : lien tracé utm_source=partage
+  document.querySelectorAll('.wl .share').forEach(b => b.addEventListener('click', async () => {
+    const url = location.origin + location.pathname + '?utm_source=partage&utm_medium=ami';
+    const data = { title: 'Prelevo', text: 'Prelevo repère tes abonnements, les hausses de prix et t’aide à résilier. Liste d’attente :', url };
+    try {
+      if (navigator.share) { await navigator.share(data); return; }
+      await navigator.clipboard.writeText(url); b.textContent = 'Lien copié ✓';
+    } catch (e) { if (e && e.name !== 'AbortError') { b.textContent = url; } }
   }));
 })();
