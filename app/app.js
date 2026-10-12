@@ -517,18 +517,20 @@ function homeCurve(){
 function spark(curve){
   if (!curve || curve.length < 2) return '';
   const tf = homeTfMeta();
-  const W = 340, H = 70, vs = curve.map(p => p.v), lo = Math.min(...vs), hi = Math.max(...vs), r = hi - lo || 1;
-  const x = i => (i / (curve.length - 1)) * W, y = v => 6 + (hi - v) / r * (H - 14);
+  const W = 340, H = 118, PADL = 6, PADR = 16, PADT = 14, PADB = 12;
+  const vs = curve.map(p => p.v), lo = Math.min(...vs), hi = Math.max(...vs), r = hi - lo || 1;
+  const x = i => PADL + (i / (curve.length - 1)) * (W - PADL - PADR);
+  const y = v => PADT + (hi - v) / r * (H - PADT - PADB);
   const pts = curve.map((p, i) => [x(i), y(p.v)]);
   const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
-  const last = pts[pts.length - 1];
+  const last = pts[pts.length - 1], first = pts[0];
   const track = curve.map((p, i) => ({ x: pts[i][0] / W * 100, y: pts[i][1] / H * 100, v: p.v, t: p.t }));
   SPARK = { pts: track, first: curve[0].v, tf: homeTf };
   return `<div class="spark" role="img" aria-label="Évolution du solde sur ${tf[2]}. Glissez pour voir le détail."><div class="spark-plot"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
-    <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".16"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
-    <path class="sp-area" d="${d} L${W},${H} L0,${H} Z" fill="url(#spk)"/>
-    <path class="sp-line" d="${d}" pathLength="1" fill="none" stroke="var(--accent)" stroke-width="1.8" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
-  </svg><i class="sp-vline" hidden></i><i class="sp-dot" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%"></i>
+    <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".18"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+    <path class="sp-area" d="${d} L${last[0].toFixed(1)},${H} L${first[0].toFixed(1)},${H} Z" fill="url(#spk)"/>
+    <path class="sp-line" d="${d}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg><i class="sp-vline" hidden></i><i class="sp-dot" hidden style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%"></i>
   <div class="sp-hit" aria-hidden="true"></div></div>
   <div class="sp-legend"><span>${tf[3]}</span><span>aujourd’hui</span></div></div>`;
 }
@@ -1584,12 +1586,13 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     const amt = document.querySelector('.total [data-count]'), dl = document.getElementById('sp-delta');
     if (amt) { delete amt.dataset.scrub; amt.innerHTML = o.a; }
     if (dl) dl.innerHTML = o.d;
-    const dot = el.querySelector('.sp-dot'); if (dot) { dot.style.left = o.l; dot.style.top = o.t; }
+    const dot = el.querySelector('.sp-dot'); if (dot) { dot.hidden = true; dot.style.left = o.l; dot.style.top = o.t; }
     const vl = el.querySelector('.sp-vline'); if (vl) vl.hidden = true;
   };
   const paint = () => {
     if (!st || !SPARK || st.axis === 'y' || st.f == null) return;
-    const P = SPARK.pts, f = st.f;
+    const P = SPARK.pts;
+    const f = Math.min(P[P.length - 1].x, Math.max(P[0].x, st.f));
     let i = 1;
     while (i < P.length - 1 && P[i].x < f) i++;
     const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i)];
@@ -1599,7 +1602,7 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     const amt = document.querySelector('.total [data-count]'), dl = document.getElementById('sp-delta');
     st.el.classList.add('scrub');
     if (st.vl) { st.vl.hidden = false; st.vl.style.left = f + '%'; }
-    if (st.dot) { st.dot.style.left = f + '%'; st.dot.style.top = y + '%'; }
+    if (st.dot) { st.dot.hidden = false; st.dot.style.left = f + '%'; st.dot.style.top = y + '%'; }
     if (amt && !state.hideBalance) { amt.dataset.scrub = '1'; amt.innerHTML = money(v); }
     if (dl && !state.hideBalance) {
       const hh = String(t.getHours()).padStart(2, '0'), mm = String(t.getMinutes()).padStart(2, '0');
@@ -1656,18 +1659,16 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     if (!t || e.touches.length > 1) { end(); return; }
     if (!st.axis) {
       const dx = t.clientX - st.x0, dy = t.clientY - st.y0;
-      if (dx * dx + dy * dy >= 36) st.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+      if (dx * dx + dy * dy >= 64) st.axis = Math.abs(dx) >= Math.abs(dy) * 0.85 ? 'x' : 'y';
     }
-    // Tant que le doigt est sur la courbe, le navigateur ne doit ni défiler
-    // tout seul ni lancer le rafraîchissement (tirer pour actualiser).
-    if (e.cancelable) e.preventDefault();
     if (st.axis === 'y') {
       const dy = t.clientY - st.lastY; st.lastY = t.clientY;
       if (raf) cancelAnimationFrame(raf), raf = 0;
-      const el = st.el; st.i = -1; restore(el);
+      const el = st.el; st.i = -1; st.f = null; restore(el);
       window.scrollBy(0, -dy);
       return;
     }
+    if (e.cancelable) e.preventDefault();
     syncDay(t.clientX, st.axis === 'x');
     sched();
   }, { passive: false, capture: true });
