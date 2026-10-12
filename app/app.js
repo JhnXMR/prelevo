@@ -525,11 +525,13 @@ function spark(curve){
   const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
   const last = pts[pts.length - 1], first = pts[0];
   const track = curve.map((p, i) => ({ x: pts[i][0] / W * 100, y: pts[i][1] / H * 100, v: p.v, t: p.t }));
-  SPARK = { pts: track, first: curve[0].v, tf: homeTf };
+  const line = d, area = `${d} L${last[0].toFixed(1)},${H} L${first[0].toFixed(1)},${H} Z`;
+  SPARK = { pts: track, poly: pts, H, line, area, first: curve[0].v, tf: homeTf };
   return `<div class="spark" role="img" aria-label="Évolution du solde sur ${tf[2]}. Glissez pour voir le détail."><div class="spark-plot"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
-    <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".18"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
-    <path class="sp-area" d="${d} L${last[0].toFixed(1)},${H} L${first[0].toFixed(1)},${H} Z" fill="url(#spk)"/>
-    <path class="sp-line" d="${d}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+    <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".5"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+    <path class="sp-area" d="${area}" fill="url(#spk)"/>
+    <path class="sp-dim" d="" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+    <path class="sp-line" d="${line}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
   </svg><i class="sp-vline" hidden></i><i class="sp-dot" hidden style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%"></i>
   <div class="sp-hit" aria-hidden="true"></div></div>
   <div class="sp-legend"><span>${tf[3]}</span><span>aujourd’hui</span></div></div>`;
@@ -1588,6 +1590,12 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     if (dl) dl.innerHTML = o.d;
     const dot = el.querySelector('.sp-dot'); if (dot) { dot.hidden = true; dot.style.left = o.l; dot.style.top = o.t; }
     const vl = el.querySelector('.sp-vline'); if (vl) vl.hidden = true;
+    if (SPARK) {
+      const line = el.querySelector('.sp-line'), dim = el.querySelector('.sp-dim'), area = el.querySelector('.sp-area');
+      if (line) line.setAttribute('d', SPARK.line);
+      if (area) area.setAttribute('d', SPARK.area);
+      if (dim) dim.setAttribute('d', '');
+    }
   };
   const paint = () => {
     if (!st || !SPARK || st.axis === 'y' || st.f == null) return;
@@ -1603,6 +1611,16 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     st.el.classList.add('scrub');
     if (st.vl) { st.vl.hidden = false; st.vl.style.left = f + '%'; }
     if (st.dot) { st.dot.hidden = false; st.dot.style.left = f + '%'; st.dot.style.top = y + '%'; }
+    const poly = SPARK.poly, ai = Math.max(0, i - 1), bi = Math.min(poly.length - 1, i);
+    const pa = poly[ai], pb = poly[bi];
+    const sx = pa[0] + (pb[0] - pa[0]) * u, sy = pa[1] + (pb[1] - pa[1]) * u;
+    const seg = arr => arr.map((p, n) => (n ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+    const left = poly.slice(0, ai + 1).concat([[sx, sy]]);
+    const right = [[sx, sy]].concat(poly.slice(bi));
+    const line = st.el.querySelector('.sp-line'), dim = st.el.querySelector('.sp-dim'), area = st.el.querySelector('.sp-area');
+    if (line) line.setAttribute('d', seg(left));
+    if (dim) dim.setAttribute('d', seg(right));
+    if (area) area.setAttribute('d', seg(left) + ` L${sx.toFixed(1)},${SPARK.H} L${poly[0][0].toFixed(1)},${SPARK.H} Z`);
     if (amt && !state.hideBalance) { amt.dataset.scrub = '1'; amt.innerHTML = money(v); }
     if (dl && !state.hideBalance) {
       const hh = String(t.getHours()).padStart(2, '0'), mm = String(t.getMinutes()).padStart(2, '0');
