@@ -517,7 +517,7 @@ function homeCurve(){
 function spark(curve){
   if (!curve || curve.length < 2) return '';
   const tf = homeTfMeta();
-  const W = 340, H = 118, PADL = 6, PADR = 16, PADT = 14, PADB = 12;
+  const W = 340, H = 156, PADL = 6, PADR = 16, PADT = 16, PADB = 8;
   const vs = curve.map(p => p.v), lo = Math.min(...vs), hi = Math.max(...vs), r = hi - lo || 1;
   const x = i => PADL + (i / (curve.length - 1)) * (W - PADL - PADR);
   const y = v => PADT + (hi - v) / r * (H - PADT - PADB);
@@ -571,80 +571,57 @@ function animateHome(){
 }
 
 screens.dashboard = () => {
-  const t = totals(), P = isP(), L = ledger(), al = alerts();
-  const unread = al.filter(a => !state.readAlerts.includes(a.id)).length;
+  const t = totals(), P = isP(), L = ledger();
   const curve = homeCurve();
   const first = curve.length ? curve[0].v : L.total, delta = L.total - first;
   const tf = homeTfMeta();
   const upSum = L.up.reduce((a, x) => a + x.amt, 0);
   const nextSub = L.up.find(x => x.sub);
-  const banksN = L.banks.length;
-  const prenom = USER.prenom ? ' ' + USER.prenom : '';
   return `
 <div class="screen home ${_homeAnimated ? 'static' : ''}">
   ${brandBar(`<a class="gear" href="#/compte" aria-label="Mon compte">⟦user⟧</a>`)}
   <div class="home-body">
-  <div class="greet rise" style="--d:0"><div class="g-row"><p class="g-day">${cap(JOURS[nowRef().getDay()])} ${nowRef().getDate()} ${MOIS[nowRef().getMonth()]}</p>
-    <div class="g-tags"><span class="plan-pill ${P ? 'p' : ''}">${P ? 'Premium' : 'Gratuit'}</span>${demoTag}</div></div><h1>Bonjour${prenom}</h1></div>
-
-  <section class="total rise" style="--d:1">
-    <button type="button" class="sync-btn" id="home-sync" aria-label="Synchroniser vos comptes">⟦refresh⟧<span>Synchroniser</span></button>
-    <div class="lbl">Solde total · ${L.nAcc} compte${L.nAcc > 1 ? 's' : ''}${banksN > 1 ? ' dans ' + banksN + ' banques' : ''}</div>
+  <section class="total rise" style="--d:0">
+    <div class="hero-kicker"><span>${cap(JOURS[nowRef().getDay()])} ${nowRef().getDate()} ${MOIS[nowRef().getMonth()]} · ${L.nAcc} compte${L.nAcc > 1 ? 's' : ''}</span><span class="kicker-tags"><span class="plan-pill ${P ? 'p' : ''}">${P ? 'Premium' : 'Gratuit'}</span>${demoTag}</span></div>
     <div class="amount-row">
       <div class="amount" data-count="${L.total.toFixed(2)}" ${state.hideBalance ? 'data-hidden="1"' : ''}>${state.hideBalance ? '<span class="masked">••••</span>' : money(L.total)}</div>
       <button type="button" class="eye" id="toggle-balance" aria-pressed="${state.hideBalance ? 'true' : 'false'}" aria-label="${state.hideBalance ? 'Afficher le solde' : 'Masquer le solde'}">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</button>
     </div>
     <div class="delta" id="sp-delta">${state.hideBalance ? 'Solde masqué' : `${delta >= 0 ? '⟦trend⟧' : ''}<b class="${delta >= 0 ? 'pos' : ''}">${signed(delta)}</b> ${homeTf === 'TOUT' ? 'depuis le début' : 'sur ' + tf[2]}`}</div>
-    <div class="tf" role="tablist" aria-label="Période du graphique">${HOME_TF.map(([k, lab]) => `<button type="button" role="tab" data-tf="${k}" aria-selected="${k === homeTf ? 'true' : 'false'}" class="${k === homeTf ? 'on' : ''}">${lab}</button>`).join('')}</div>
     ${spark(curve)}
-    ${P ? `<a class="rav" href="#/abonnements"><span>Reste à vivre jusqu’à la paie</span><b>${state.hideBalance ? '<span class="masked">••••</span>' : eur(t.reste)}</b></a>`
-        : `<a class="rav locked" href="#/premium"><span>⟦lock⟧ Reste à vivre jusqu’à la paie</span><b>Premium</b></a>`}
+    <div class="tf" role="tablist" aria-label="Période du graphique">${HOME_TF.map(([k, lab]) => `<button type="button" role="tab" data-tf="${k}" aria-selected="${k === homeTf ? 'true' : 'false'}" class="${k === homeTf ? 'on' : ''}">${lab}</button>`).join('')}</div>
   </section>
 
-  <div class="section-h rise" style="--d:2"><h2>Mes banques</h2><a href="#/banques">Gérer</a></div>
+  <div class="hero-actions rise" style="--d:1">
+    <button type="button" class="sync-btn" id="home-sync" aria-label="Synchroniser vos comptes">⟦refresh⟧<span>Synchroniser</span></button>
+    ${P ? `<a class="rav" href="#/abonnements"><span>Reste à vivre</span><b>${state.hideBalance ? '<span class="masked">••••</span>' : eur(t.reste)}</b></a>`
+        : `<a class="rav locked" href="#/premium"><span>⟦lock⟧ Reste à vivre</span><b>Premium</b></a>`}
+  </div>
+
+  <div class="section-h rise" style="--d:2"><h2>Banques</h2><a href="#/banques">Gérer</a></div>
   <div class="bk-cards rise" style="--d:2">
     ${L.banks.map(b => `<a class="bk-card" href="#/banques" style="--bk:${/^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '#0066FF'}">
       <div class="bc-top">${bankTile(b, 'bk-ini', b.status === 'error' ? '<i class="st err"></i>' : b.status === 'expired' ? '<i class="st warn"></i>' : '')}<span class="bc-n">${b.accs.length} compte${b.accs.length > 1 ? 's' : ''}</span></div>
       <div class="bc-name">${esc(b.name)}</div><div class="bc-bal">${state.hideBalance ? '<span class="masked">••••</span>' : eur(b.total)}</div>
-      <div class="bc-meta ${b.status === 'error' ? 't-red' : ''}">${b.status === 'error' ? 'Synchro en échec' : b.status === 'expired' ? 'Session expirée' : 'À jour · ' + b.sync}</div></a>`).join('')}
+      <div class="bc-meta ${b.status === 'error' ? 't-red' : ''}">${b.status === 'error' ? 'Synchro en échec' : b.status === 'expired' ? 'Session expirée' : 'À jour'}</div></a>`).join('')}
     ${!LIVE && !P ? `<a class="bk-card add" href="#/premium">⟦plus⟧<span>Ajouter une banque</span><b>Premium</b></a>` : ''}
   </div>
 
-  <div class="section-h rise" style="--d:3"><h2>Dernières opérations</h2><a href="#/operations">Tout voir</a></div>
-  <div class="panel rise" style="--d:3">${L.tx.length ? txGroups(L.tx, 3, 8) : '<p class="insight">Aucune opération ces derniers jours.</p>'}</div>
+  <div class="section-h rise" style="--d:3"><h2>Activité</h2><a href="#/operations">Tout voir</a></div>
+  <div class="feed rise" style="--d:3">${L.tx.length ? L.tx.slice(0, 5).map(x => txRow(x, true)).join('') : '<p class="insight">Aucune opération ces derniers jours.</p>'}</div>
 
-  <div class="section-h rise" style="--d:2"><h2>À venir cette semaine</h2>${L.up.length ? `<span class="sec-sum">${signed(upSum)}</span>` : ''}</div>
-  <div class="panel rise" style="--d:2">
-    ${L.up.length ? `<p class="insight">${L.up.length} prélèvement${L.up.length > 1 ? 's' : ''} ${L.up.length > 1 ? 'vont' : 'va'} partir d’ici 7 jours${nextSub ? `, dont <b>${esc(nextSub.name)}</b> ${dayLabel(nextSub.t).toLowerCase()}` : ''}. Rien d’autre de prévu.</p>
-      ${L.up.map(x => `<a class="tx up" href="${x.sub ? '#/abo/' + x.sub : '#/operations'}">${catChip(x.cat)}<div class="mid"><div class="name">${esc(x.name)}</div><div class="meta">${dayLabel(x.t)} · ${esc(x.where)}</div></div><div class="amt">${signed(x.amt)}</div></a>`).join('')}`
-      : `<p class="insight">Aucun prélèvement prévu dans les 7 prochains jours. Profitez-en.</p>`}
+  <div class="section-h rise" style="--d:4"><h2>Cette semaine</h2>${L.up.length ? `<span class="sec-sum">${signed(upSum)}</span>` : ''}</div>
+  <div class="feed rise" style="--d:4">
+    ${L.up.length ? L.up.slice(0, 4).map(x => `<a class="tx up" href="${x.sub ? '#/abo/' + x.sub : '#/operations'}">${catChip(x.cat)}<div class="mid"><div class="name">${esc(x.name)}</div><div class="meta">${dayLabel(x.t)} · ${esc(x.where)}</div></div><div class="amt">${signed(x.amt)}</div></a>`).join('')
+      : `<p class="insight">Aucun prélèvement ces 7 prochains jours.</p>`}
   </div>
 
-  <div class="section-h rise" style="--d:3"><h2>Mes comptes</h2><a href="#/banques">Gérer</a></div>
-  <div class="panel accts rise" style="--d:3">
-    ${L.banks.map(b => `<div class="bank-g">
-      <a class="bank-h" href="#/banques">${bankTile(b, 'bk-ini', b.status === 'error' ? '<i class="st err"></i>' : b.status === 'expired' ? '<i class="st warn"></i>' : '')}
-        <div class="mid"><div class="name">${esc(b.name)}</div><div class="meta ${b.status === 'error' ? 't-red' : ''}">${b.status === 'error' ? 'Synchro en échec · reconnecter' : b.status === 'expired' ? 'Session expirée' : 'À jour · ' + b.sync}</div></div>
-        <div class="amt">${eur(b.total)}</div></a>
-      ${b.accs.map(a => `<div class="acc ${a.counted === false ? 'off' : ''}"><span>${esc(a.name)}</span><span>${state.hideBalance ? '<span class="masked">••••</span>' : (a.currency && a.currency !== 'EUR' ? (a.balance || 0).toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' ' + esc(a.currency) : eur(a.balance))}</span></div>`).join('')}
-    </div>`).join('')}
-    ${!LIVE && !P ? `<a class="bank-add" href="#/premium">⟦plus⟧<span>Ajouter une banque</span><b>Premium</b></a>` : ''}
-  </div>
-
-  <a class="subs-card rise" style="--d:4" href="#/abonnements">
-    <div class="sc-top">${catChip('abo')}<div class="mid"><div class="name">Transactions</div><div class="meta">${t.list.length} actif${t.list.length > 1 ? 's' : ''}${nextSub ? ' · prochain : ' + esc(nextSub.name) + ', ' + dayLabel(nextSub.t).toLowerCase() : ''}</div></div>
+  <a class="subs-card rise" style="--d:5" href="#/abonnements">
+    <div class="sc-top">${catChip('abo')}<div class="mid"><div class="name">Transactions</div><div class="meta">${t.list.length} actif${t.list.length > 1 ? 's' : ''}${nextSub ? ' · prochain : ' + esc(nextSub.name) : ''}</div></div>
       <div class="amt">${eur(t.monthly)}<small>/mois</small></div></div>
-    <div class="hchips">
-      ${t.ups.length ? `<span class="hchip">⟦trend⟧ ${t.ups.length} hausse${t.ups.length > 1 ? 's' : ''}</span>` : ''}
-      ${t.smalls.length ? `<span class="hchip">⟦search⟧ ${t.smalls.length} oublié${t.smalls.length > 1 ? 's' : ''}</span>` : ''}
-      ${t.dups.length ? `<span class="hchip">⟦copy⟧ ${t.dups.length} doublon${t.dups.length > 1 ? 's' : ''}</span>` : ''}
-      ${unread ? `<span class="hchip dark">⟦bell⟧ ${unread} alerte${unread > 1 ? 's' : ''}</span>` : ''}
-      ${t.found ? (P ? `<span class="hchip blue">${eur(t.found)}/mois à économiser</span>` : `<span class="hchip blue">⟦lock⟧ ${eur(t.found)}/mois d’économies repérées</span>`) : ''}
-    </div>
   </a>
 
   ${adSlot('dash')}
-
   ${neutral}
   </div>
 </div>`;

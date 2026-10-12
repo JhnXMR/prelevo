@@ -714,3 +714,32 @@ input,select,textarea{font-size:16px}
 @media (prefers-reduced-motion: reduce){
   .screen,.sk i,.btn,.sync-btn,.tx,.row,.bk-card,.ptr.on img,.ptr.on::after{animation:none!important;transition:none!important}
 }
+
+/* ---------- Accueil v59 ---------- */
+.screen.home:not(.act) .total{background:transparent;border-radius:0;padding:2px 0 0;margin:0;box-shadow:none;overflow:visible}
+.screen.home:not(.act) .hero-kicker{display:flex;align-items:center;justify-content:space-between;gap:10px;color:var(--muted);font-size:14px;font-weight:500}
+.screen.home:not(.act) .kicker-tags{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.screen.home:not(.act) .rav span{white-space:nowrap}
+.screen.home:not(.act) .rav{font-size:13.5px;padding:0 12px;gap:6px}
+.screen.home:not(.act) .amount{font-size:54px;font-weight:640;letter-spacing:-.055em;margin:8px 0 2px}
+.screen.home:not(.act) .eye{border:1px solid color-mix(in srgb,#fff 22%,transparent);background:color-mix(in srgb,var(--bg) 35%,transparent);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:inset 0 1px 0 color-mix(in srgb,#fff 35%,transparent)}
+.screen.home:not(.act) .delta{font-size:15px;margin-top:2px}
+.screen.home:not(.act) .delta b.pos{color:var(--accent)}
+.screen.home:not(.act) .spark{margin:8px -8px 0}
+.screen.home:not(.act) .spark-plot,.screen.home:not(.act) .spark svg{height:156px}
+.screen.home:not(.act) .tf{display:flex;gap:2px;margin:4px 0 0;padding:0;background:transparent;overflow:visible}
+.screen.home:not(.act) .tf button{flex:1;min-height:36px;border-radius:99px;font-size:13px;font-weight:600;color:var(--muted);background:transparent;box-shadow:none}
+.screen.home:not(.act) .tf button.on{color:var(--ink);background:color-mix(in srgb,#fff 14%,transparent);box-shadow:inset 0 1px 0 color-mix(in srgb,#fff 32%,transparent)}
+.screen.home:not(.act) .hero-actions{display:flex;gap:8px;margin:18px 0 6px}
+.screen.home:not(.act) .sync-btn{position:static;flex:1;justify-content:center;min-height:52px;border-radius:18px;font-size:14.5px}
+.screen.home:not(.act) .rav{flex:1;margin:0;padding:0 14px;min-height:52px;border-radius:18px;border:1px solid color-mix(in srgb,#fff 24%,transparent);background:color-mix(in srgb,var(--bg) 30%,transparent);-webkit-backdrop-filter:blur(16px) saturate(1.6);backdrop-filter:blur(16px) saturate(1.6);box-shadow:inset 0 1px 0 color-mix(in srgb,#fff 35%,transparent);font-size:14.5px}
+.screen.home:not(.act) .section-h{margin:28px 0 8px}
+.screen.home:not(.act) .section-h h2{font-size:22px;font-weight:650;letter-spacing:-.03em;text-transform:none;color:var(--ink)}
+.screen.home:not(.act) .section-h a{color:var(--accent);font-size:15px;font-weight:600}
+.screen.home:not(.act) .bk-card{background:var(--soft);border:0}
+.screen.home:not(.act) .bk-card::before{display:none}
+.screen.home:not(.act) .feed .tx:first-child{border-top:0}
+.screen.home:not(.act) .subs-card{margin-top:26px}
+:root[data-theme="light"] .screen.home:not(.act) .tf button.on{background:#fff;box-shadow:0 1px 3px rgba(10,11,13,.12)}
+:root[data-theme="light"] .screen.home:not(.act) .eye,:root[data-theme="light"] .screen.home:not(.act) .rav{background:rgba(255,255,255,.7)}
+
