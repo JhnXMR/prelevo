@@ -111,6 +111,7 @@ const ago = t => { const m = Math.max(0, Math.round((Date.now()-t)/60000)); retu
 const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function applyServer(me){
   ME = me;
+  if (me.billing){ state.premium = me.billing.plan === 'premium'; save(); }
   if (!me.bankConnected || !me.stats) return;
   const st = me.stats || {};
   applyLive({ subs: me.subscriptions, months: st.months && st.months.length ? st.months : MONTHS.slice(), income: st.income || 0, spent: st.spent || 0,
@@ -919,6 +920,12 @@ screens.chat = () => `
 let billing = 'year';
 screens.premium = () => {
   const t = totals(); const Y = billing==='year';
+  const B = API && ME ? ME.billing : null, P = isP();
+  const fd = d => d ? new Date(d).toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' }) : '';
+  const status = !P ? '' : B ? `<div class="card plan-status"><div class="ps-h"><span class="plan-pill p">Premium</span><b>${B.interval === 'year' ? 'Formule annuelle' : 'Formule mensuelle'}</b></div>
+      <p class="muted small">${B.status === 'trialing' ? `Période d’essai gratuite jusqu’au ${fd(B.periodEnd)}.` : B.cancelAtPeriodEnd ? `Résilié : Premium reste actif jusqu’au ${fd(B.periodEnd)}.` : B.status === 'past_due' ? '<span class="t-red">Paiement en échec : mettez à jour votre carte.</span>' : `Prochain renouvellement le ${fd(B.periodEnd)}.`}</p>
+      ${B.manageable ? `<button class="btn ghost" id="billing-portal">Gérer mon abonnement</button>` : ''}</div>`
+    : `<div class="card plan-status"><div class="ps-h"><span class="plan-pill p">Premium</span><b>Formule annuelle (exemple)</b></div><p class="muted small">Période d’essai gratuite jusqu’au ${fd(new Date(nowRef().getTime() + 30 * DAY_MS))}. Factures, carte et résiliation : en 1 clic depuis « Gérer mon abonnement ».</p><button class="btn ghost" data-toast="Portail de paiement (simulation)">Gérer mon abonnement</button></div>`;
   return `
 <div class="screen">
   <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a>${demoTag}</div>
@@ -927,6 +934,7 @@ screens.premium = () => {
     <h1 style="font-size:25px;letter-spacing:-.02em;margin-top:4px">${APP_NAME} Premium</h1>
     <p class="muted" style="margin-top:6px;font-size:14.5px">L’app qui vous fait économiser plus qu’elle ne coûte.</p>
   </div>
+  ${status}
   <div class="banner green" style="margin-top:14px"><span class="ic">⟦coin⟧</span><div><b>Chez ${USER.prenom} (exemple) : ${eur(t.found)}/mois d’économies trouvées</b>Premium coûte ${prix(CFG.priceMonth)}/mois. Il est remboursé dès la première résiliation.</div></div>
   <div class="plans" role="radiogroup" aria-label="Formules">
     <div class="plan free"><div class="pl-l"><h3>Gratuit</h3><span>Scan + liste · avec pubs</span></div><div class="pl-r"><div class="p">0 €</div></div></div>
@@ -953,7 +961,8 @@ screens.premium = () => {
   </div>
   ${neutral}
   <a class="card sup-mini" href="#/chat"><span class="avatars"><span style="background:#F59E0B">S</span><span style="background:#3B82F6">K</span></span><div><b>Une question avant de vous abonner ?</b><span>Un humain vous répond, pas un robot.</span></div><span class="chev">⟦chev⟧</span></a>
-  <button class="btn mint" id="go-premium">${state.premium?'Premium actif (démo)':'Commencer : '+CFG.trial}</button>
+  ${P ? '' : `<button class="btn mint" id="go-premium">Commencer : ${CFG.trial}</button>`}
+  ${P ? '' : `<p class="muted small center" style="margin:10px 0 0">${API && ME ? 'Paiement sécurisé par Stripe (mode test : aucune carte réelle débitée). Les 500 premiers inscrits ont 3 mois offerts.' : 'Les 500 premiers inscrits ont 3 mois offerts.'}</p>`}
   <p class="muted small center" style="margin-top:10px">Formule ${Y?'Annuelle':'Mensuelle'} : puis ${Y?prix(CFG.priceYear)+'/an (soit '+prix(CFG.priceYear/12)+'/mois)':prix(CFG.priceMonth)+'/mois'} après l’essai. Annulable en 1 clic, à tout moment. Paiement simulé dans cette maquette.</p>
 </div>`;
 };
@@ -1252,7 +1261,7 @@ document.addEventListener('click', e => {
   const ops = e.target.closest('[data-ops]'); if (ops){ opsFilter = ops.dataset.ops; render(); return; }
   const th = e.target.closest('[data-theme-set]');
   if (th){ if (window.PrelevoTheme) PrelevoTheme.set(th.dataset.themeSet); document.querySelectorAll('[data-theme-set]').forEach(b=>{ const on=b===th; b.classList.toggle('on',on); b.setAttribute('aria-checked',on); }); return; }
-  const el = e.target.closest('[data-bank],[data-method],[data-toast],[data-billing],[data-alert],[data-plan],#go-scan,#keep,#confirm-resil,#go-premium,#reset,#pw-connect,#pw-quit,#pw-refresh,#api-connect,#api-sync,#api-logout,#api-delete,#login-again,#del-check,#copy-letter,#print-letter');
+  const el = e.target.closest('[data-bank],[data-method],[data-toast],[data-billing],[data-alert],[data-plan],#go-scan,#keep,#confirm-resil,#go-premium,#reset,#pw-connect,#pw-quit,#pw-refresh,#api-connect,#api-sync,#api-logout,#api-delete,#login-again,#del-check,#copy-letter,#print-letter,#billing-portal');
   if (!el) return;
   if (el.dataset.toast){ e.preventDefault(); toast(el.dataset.toast); }
   else if (el.dataset.bank){ state.bank = el.dataset.bank; save(); render(); }
@@ -1277,7 +1286,10 @@ document.addEventListener('click', e => {
   else if (el.id==='go-scan'){ if(state.bank) location.hash = '#/scan'; }
   else if (el.id==='keep'){ toast('OK, on ne vous alertera plus pour celui-ci'); }
   else if (el.id==='confirm-resil'){ const id = el.dataset.id; if(!state.resiliated.includes(id)) state.resiliated.push(id); save(); location.hash = '#/resilier/'+id+'/4'; }
-  else if (el.id==='go-premium'){ state.premium = true; save(); toast(CFG.trial + ' : Premium activé (simulation)'); render(); }
+  else if (el.id==='go-premium'){
+    if (API && ME){ el.disabled = true; el.textContent = 'Ouverture du paiement…'; API.checkout(billing).then(r => location.assign(r.url)).catch(e => { el.disabled = false; render(); toast(e.message || 'Paiement indisponible'); }); }
+    else { state.premium = true; save(); toast(CFG.trial + ' : Premium activé (simulation)'); render(); } }
+  else if (el.id==='billing-portal'){ el.disabled = true; API.portal().then(r => location.assign(r.url)).catch(e => { el.disabled = false; toast(e.message || 'Portail indisponible'); }); }
   else if (el.id==='reset'){ localStorage.removeItem(KEY); location.href = location.pathname + '#/onboarding'; location.reload(); }
 });
 
@@ -1327,3 +1339,7 @@ async function homeSync(){
   addEventListener('touchmove', e => { if (y0 == null) return; d = Math.max(0, e.touches[0].clientY - y0); ptr.style.transform = `translate(-50%,${Math.min(d, 90) - 40}px) rotate(${d * 3}deg)`; ptr.classList.toggle('ready', d > 70); }, { passive:true });
   addEventListener('touchend', () => { if (y0 != null && d > 70) homeSync(); y0 = null; ptr.style.transform = ''; ptr.classList.remove('ready'); });
 })();
+
+// retour de Stripe Checkout
+if (QS.get('billing') === 'success'){ toast('Merci ! Votre Premium s’active…'); history.replaceState(null, '', location.pathname + '#/premium'); if (API && API.loggedIn()) setTimeout(() => apiLoadMe().then(render), 2500); }
+else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a été débité'); history.replaceState(null, '', location.pathname + '#/premium'); }

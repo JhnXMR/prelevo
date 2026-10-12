@@ -48,6 +48,8 @@
     },
     async finishConnect(p){ sessionStorage.removeItem(K_STATE); return call('POST', '/bank/callback', p); },
     sync: () => call('POST', '/bank/sync'),
+    checkout: interval => call('POST', '/billing/checkout', { interval }),
+    portal: () => call('POST', '/billing/portal'),
     async deleteAccount(){ const r = await call('DELETE', '/me'); session.clear(); return r; }
   };
 })();

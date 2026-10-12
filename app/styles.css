@@ -514,3 +514,6 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .cancel-steps li{counter-increment:st;position:relative;padding:10px 0 10px 40px;border-top:1px solid var(--line);font-size:14.5px;line-height:1.4}
 .cancel-steps li:first-child{border-top:0}
 .cancel-steps li::before{content:counter(st);position:absolute;left:0;top:9px;width:26px;height:26px;border-radius:50%;background:var(--tint);color:var(--accent);font-weight:700;font-size:13px;display:grid;place-items:center}
+.plan-status{margin-top:14px}
+.plan-status .ps-h{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.plan-status .btn{margin-top:12px}
