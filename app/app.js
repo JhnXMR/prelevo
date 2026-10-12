@@ -522,13 +522,13 @@ function spark(curve){
     if (daily.length && daily[daily.length - 1].k === k) daily[daily.length - 1] = { k, ...o }; else daily.push({ k, ...o });
   });
   SPARK = { daily, first: curve[0].v, tf: homeTf };
-  return `<div class="spark" role="img" aria-label="Évolution du solde sur ${tf[2]}. Glissez pour voir le détail."><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+  return `<div class="spark" role="img" aria-label="Évolution du solde sur ${tf[2]}. Glissez pour voir le détail."><div class="spark-plot"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
     <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".16"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
     <path class="sp-area" d="${d} L${W},${H} L0,${H} Z" fill="url(#spk)"/>
     <path class="sp-line" d="${d}" pathLength="1" fill="none" stroke="var(--accent)" stroke-width="1.8" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
   </svg><i class="sp-vline" hidden></i><i class="sp-dot" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%"></i>
-  <div class="sp-legend"><span>${tf[3]}</span><span>aujourd’hui</span></div>
-  <div class="sp-hit" aria-hidden="true"></div></div>`;
+  <div class="sp-hit" aria-hidden="true"></div></div>
+  <div class="sp-legend"><span>${tf[3]}</span><span>aujourd’hui</span></div></div>`;
 }
 const catChip = c => `<span class="cat cat-${c}" aria-hidden="true">⟦${(CATS[c] || CATS.autre).ic}⟧</span>`;
 const txRow = x => `<a class="tx" href="${x.sub ? '#/abo/' + x.sub : '#/operations'}">${catChip(x.cat)}
