@@ -504,7 +504,7 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .bk-tile.tx-bk{width:18px;height:18px;border-radius:6px}
 .bk-tile.tx-bk b{font-size:7.5px}
 .bk-tile.tx-bk img{max-width:100%}
-.ptr{position:fixed;left:50%;top:calc(env(safe-area-inset-top, 0px) + 8px);width:76px;z-index:40;opacity:0;transform:translate(-50%,0) scale(.72);pointer-events:none}
+.ptr{position:fixed;left:50%;top:calc(env(safe-area-inset-top, 0px) + 18px);width:76px;z-index:40;opacity:0;transform:translate(-50%,0) scale(.72);pointer-events:none}
 .ptr img{width:76px;height:auto;display:block;transform-origin:50% 40%}
 .ptr .lg-d{display:none}
 [data-theme="dark"] .ptr .lg-l{display:none}

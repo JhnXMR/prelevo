@@ -1340,6 +1340,11 @@ async function homeSync(){
   if (_syncing) return; _syncing = true;
   document.querySelector('#home-sync')?.classList.add('on');
   const ptr = document.querySelector('.ptr');
+  const app = document.querySelector('.app');
+  if (app) {
+    app.style.transition = 'transform .34s cubic-bezier(.2,.7,.2,1)';
+    app.style.transform = 'translateY(calc(env(safe-area-inset-top, 0px) + 128px))';
+  }
   if (ptr) {
     ptr.classList.add('on');
     ptr.style.transition = 'opacity .2s ease, transform .2s ease';
@@ -1357,6 +1362,11 @@ async function homeSync(){
     if (wait) await new Promise(r => setTimeout(r, wait));
     _syncing = false;
     document.querySelector('#home-sync')?.classList.remove('on');
+    const app = document.querySelector('.app');
+    if (app) {
+      app.style.transition = 'transform .34s cubic-bezier(.2,.7,.2,1)';
+      app.style.transform = '';
+    }
     const p = document.querySelector('.ptr');
     if (p) {
       p.classList.remove('on');
