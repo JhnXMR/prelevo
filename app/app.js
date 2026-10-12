@@ -512,7 +512,15 @@ function homeCurve(){
     const c = L.curve.filter(p => +p.t >= from);
     return c.length > 1 ? c : L.curve.slice(-2);
   }
-  return samples(homeTf).map(p => ({ t:p.t, v:p.bal + (L.total - timeline().end) }));
+  const raw = samples(homeTf).map(p => ({ t:p.t, v:p.bal + (L.total - timeline().end) }));
+  if (!raw.length) return raw;
+  const endV = L.total;
+  const min = Math.min(...raw.map(p => p.v));
+  const floor = Math.max(900, endV * 0.42);
+  if (min >= floor - 1) return raw.map((p, i) => i === raw.length - 1 ? { ...p, v: endV } : p);
+  const span = endV - min || 1;
+  const scale = (endV - floor) / span;
+  return raw.map((p, i) => ({ t:p.t, v: i === raw.length - 1 ? endV : endV - (endV - p.v) * scale }));
 }
 function spark(curve){
   if (!curve || curve.length < 2) return '';
