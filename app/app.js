@@ -174,6 +174,7 @@ const ICONS = {
   user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   star:'<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
   back:'<path d="M15 5l-7 7 7 7"/>',
+  chev:'<path d="M9 6l6 6-6 6"/>',
   eye:'<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
   eyeoff:'<path d="M3 3l18 18"/><path d="M10.6 6.2A10 10 0 0 1 12 6c6.5 0 10 6 10 6a18 18 0 0 1-3.2 3.8"/><path d="M6.1 6.7C3.6 8.4 2 12 2 12s3.5 6 10 6c1.5 0 2.8-.3 4-.8"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
 };
@@ -898,37 +899,38 @@ screens.banques = () => {
 const themePref = () => (window.PrelevoTheme ? PrelevoTheme.get() : 'auto');
 screens.compte = () => {
   const P = isP(), unread = alerts().filter(a => !state.readAlerts.includes(a.id)).length;
-  const ini = (USER.prenom || 'P').charAt(0).toUpperCase();
+  const look = [['light','Claire'],['dark','Sombre'],['auto','Automatique']];
+  const row = (href, ic, lab, aside='') => `<a class="acct-row" href="${href}"><span class="acct-ic">⟦${ic}⟧</span><span class="acct-lab">${lab}</span>${aside ? `<span class="acct-aside">${aside}</span>` : ''}<span class="acct-go">⟦chev⟧</span></a>`;
   return `
 <div class="screen account">
-  <div class="acct-top"><a class="back" href="#/dashboard" aria-label="Fermer">⟦back⟧</a><a class="back" href="#/aide" aria-label="Aide">⟦info⟧</a></div>
-  <a class="who" href="#/aide">
-    <span class="ava">${ini}</span>
-    <span class="who-t"><b>${esc(USER.prenom)} ${esc(USER.nom)}</b><small>Compte et paramètres</small></span>
-    <span class="who-go">⟦chev⟧</span>
-  </a>
-  <a class="prem-card" href="#/premium">
-    <span><b>${P ? 'Premium est actif' : APP_NAME + ' Premium'}</b><p>${P ? 'Sans pub, alertes en avance, support prioritaire.' : 'Sans pub, des alertes en avance, et un support qui vous répond en priorité.'}</p></span>
-    <span class="lg"><img class="lg-l" src="icons/logo-mark.svg" alt=""><img class="lg-d" src="icons/logo-mark-white.svg" alt=""></span>
-  </a>
-  <p class="acct-k">Encore plus d’options</p>
-  <button type="button" class="acct-row" id="toggle-balance" aria-pressed="${state.hideBalance ? 'true' : 'false'}"><span class="acct-ic">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</span><span class="acct-lab">Masquer le solde</span><span class="sw ${state.hideBalance ? 'on' : ''}"></span></button>
-  <a class="acct-row" href="#/banques"><span class="acct-ic">⟦bank⟧</span><span class="acct-lab">Mes banques</span></a>
-  <a class="acct-row" href="#/abonnements"><span class="acct-ic">⟦scissors⟧</span><span class="acct-lab">Abonnements</span></a>
-  <a class="acct-row" href="#/operations"><span class="acct-ic">⟦calendar⟧</span><span class="acct-lab">Opérations</span></a>
-  <a class="acct-row" href="#/alertes"><span class="acct-ic">⟦bell⟧</span><span class="acct-lab">Alertes</span>${unread ? `<span class="acct-aside">${unread}</span>` : ''}</a>
-  <a class="acct-row" href="#/premium"><span class="acct-ic">⟦star⟧</span><span class="acct-lab">${APP_NAME} Premium</span><span class="acct-aside">${P ? 'Actif' : 'Gratuit'}</span></a>
-  <button type="button" class="acct-row" data-toast="Le parrainage n’est pas encore ouvert."><span class="acct-ic">⟦user⟧</span><span class="acct-lab">Inviter un proche</span></button>
-  <a class="help-card" href="#/aide">
-    <span><b>Obtenir de l’aide</b><p>Réglages, questions fréquentes, ou le support humain.</p></span>
-    <span class="help-bub">⟦chat⟧</span>
-  </a>
-  <div class="acct-foot">
-    <span class="lg"><img class="lg-l" src="icons/logo-mark.svg" alt=""><img class="lg-d" src="icons/logo-mark-white.svg" alt="${APP_NAME}"></span>
-    <a href="#/aide">Aide et réglages</a>
-    <p>${APP_NAME} n’est pas une banque. L’accès est en lecture seule : aucun virement n’est possible.</p>
-    ${demoTag}
+  <div class="acct-top"><a class="back" href="#/dashboard" aria-label="Fermer">⟦back⟧</a></div>
+  <div class="acct-head">
+    <h1>${esc(USER.prenom)}</h1>
+    <span class="logo-chip lg" aria-hidden="true"><img class="lg-l" src="icons/logo-mark.svg" alt=""><img class="lg-d" src="icons/logo-mark-white.svg" alt=""></span>
   </div>
+  <p class="acct-k">Services</p>
+  <div class="menu-card">
+    ${row('#/banques','bank','Mes banques')}
+    ${row('#/abonnements','scissors','Abonnements')}
+    ${row('#/operations','calendar','Opérations')}
+    ${row('#/alertes','bell','Alertes', unread ? String(unread) : '')}
+  </div>
+  <p class="acct-k">Paramètres</p>
+  <div class="menu-card">
+    <button type="button" class="acct-row" id="toggle-balance" aria-pressed="${state.hideBalance ? 'true' : 'false'}"><span class="acct-ic">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</span><span class="acct-lab">Masquer le solde</span><span class="sw ${state.hideBalance ? 'on' : ''}"></span></button>
+    <div class="look-block">
+      <div class="acct-row look-lab"><span class="acct-ic">⟦auto⟧</span><span class="acct-lab">Apparence</span></div>
+      <p class="look-note">Claire, sombre ou automatique. Le logo de l’application suit le même choix.</p>
+      <div class="look" role="radiogroup" aria-label="Apparence">${look.map(([v,l])=>`<button type="button" role="radio" aria-checked="${themePref()===v}" class="${themePref()===v?'on':''}" data-theme-set="${v}">${l}</button>`).join('')}</div>
+    </div>
+    ${row('#/premium','star',APP_NAME+' Premium', P ? 'Actif' : 'Gratuit')}
+  </div>
+  <p class="acct-k">${APP_NAME}</p>
+  <div class="menu-card">
+    ${row('#/aide','chat','Aide')}
+    ${row('#/aide','info','À propos')}
+  </div>
+  <p class="acct-foot">${APP_NAME} n’est pas une banque. Lecture seule, aucun virement. ${demoTag}</p>
 </div>`;
 };
 screens.aide = () => `
@@ -952,7 +954,7 @@ screens.aide = () => `
   <div class="card theme-card">
     <div style="font-weight:700">Apparence</div>
     <div class="muted small">Automatique suit le réglage de votre téléphone.</div>
-    <div class="seg" role="radiogroup" aria-label="Thème">${[['light','sun','Jour'],['dark','moon','Nuit'],['auto','auto','Automatique']].map(([v,ic,l])=>`<button type="button" role="radio" aria-checked="${themePref()===v}" class="${themePref()===v?'on':''}" data-theme-set="${v}">⟦${ic}⟧${l}</button>`).join('')}</div>
+    <div class="seg" role="radiogroup" aria-label="Thème">${[['light','sun','Claire'],['dark','moon','Sombre'],['auto','auto','Automatique']].map(([v,ic,l])=>`<button type="button" role="radio" aria-checked="${themePref()===v}" class="${themePref()===v?'on':''}" data-theme-set="${v}">⟦${ic}⟧${l}</button>`).join('')}</div>
   </div>
   ${API && API.loggedIn() ? `<div class="card account-card">
     <div style="font-weight:700">Mon compte</div>
