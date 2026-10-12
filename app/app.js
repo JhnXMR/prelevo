@@ -566,7 +566,7 @@ screens.dashboard = () => {
   const prenom = USER.prenom ? ' ' + USER.prenom : '';
   return `
 <div class="screen home ${_homeAnimated ? 'static' : ''}">
-  ${brandBar(`<a class="gear" href="#/aide" aria-label="Aide et réglages">⟦settings⟧</a>`)}
+  ${brandBar(`<a class="gear" href="#/compte" aria-label="Mon compte">⟦user⟧</a>`)}
   <div class="home-body">
   <div class="greet rise" style="--d:0"><div class="g-row"><p class="g-day">${cap(JOURS[nowRef().getDay()])} ${nowRef().getDate()} ${MOIS[nowRef().getMonth()]}</p>
     <div class="g-tags"><span class="plan-pill ${P ? 'p' : ''}">${P ? 'Premium' : 'Gratuit'}</span>${demoTag}</div></div><h1>Bonjour${prenom}</h1></div>
@@ -896,9 +896,44 @@ screens.banques = () => {
 };
 
 const themePref = () => (window.PrelevoTheme ? PrelevoTheme.get() : 'auto');
+screens.compte = () => {
+  const P = isP(), unread = alerts().filter(a => !state.readAlerts.includes(a.id)).length;
+  const ini = (USER.prenom || 'P').charAt(0).toUpperCase();
+  return `
+<div class="screen account">
+  <div class="acct-top"><a class="back" href="#/dashboard" aria-label="Fermer">⟦back⟧</a><a class="back" href="#/aide" aria-label="Aide">⟦info⟧</a></div>
+  <a class="who" href="#/aide">
+    <span class="ava">${ini}</span>
+    <span class="who-t"><b>${esc(USER.prenom)} ${esc(USER.nom)}</b><small>Compte et paramètres</small></span>
+    <span class="who-go">⟦chev⟧</span>
+  </a>
+  <a class="prem-card" href="#/premium">
+    <span><b>${P ? 'Premium est actif' : APP_NAME + ' Premium'}</b><p>${P ? 'Sans pub, alertes en avance, support prioritaire.' : 'Sans pub, des alertes en avance, et un support qui vous répond en priorité.'}</p></span>
+    <span class="lg"><img class="lg-l" src="icons/logo-mark.svg" alt=""><img class="lg-d" src="icons/logo-mark-white.svg" alt=""></span>
+  </a>
+  <p class="acct-k">Encore plus d’options</p>
+  <button type="button" class="acct-row" id="toggle-balance" aria-pressed="${state.hideBalance ? 'true' : 'false'}"><span class="acct-ic">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</span><span class="acct-lab">Masquer le solde</span><span class="sw ${state.hideBalance ? 'on' : ''}"></span></button>
+  <a class="acct-row" href="#/banques"><span class="acct-ic">⟦bank⟧</span><span class="acct-lab">Mes banques</span></a>
+  <a class="acct-row" href="#/abonnements"><span class="acct-ic">⟦scissors⟧</span><span class="acct-lab">Abonnements</span></a>
+  <a class="acct-row" href="#/operations"><span class="acct-ic">⟦calendar⟧</span><span class="acct-lab">Opérations</span></a>
+  <a class="acct-row" href="#/alertes"><span class="acct-ic">⟦bell⟧</span><span class="acct-lab">Alertes</span>${unread ? `<span class="acct-aside">${unread}</span>` : ''}</a>
+  <a class="acct-row" href="#/premium"><span class="acct-ic">⟦star⟧</span><span class="acct-lab">${APP_NAME} Premium</span><span class="acct-aside">${P ? 'Actif' : 'Gratuit'}</span></a>
+  <button type="button" class="acct-row" data-toast="Le parrainage n’est pas encore ouvert."><span class="acct-ic">⟦user⟧</span><span class="acct-lab">Inviter un proche</span></button>
+  <a class="help-card" href="#/aide">
+    <span><b>Obtenir de l’aide</b><p>Réglages, questions fréquentes, ou le support humain.</p></span>
+    <span class="help-bub">⟦chat⟧</span>
+  </a>
+  <div class="acct-foot">
+    <span class="lg"><img class="lg-l" src="icons/logo-mark.svg" alt=""><img class="lg-d" src="icons/logo-mark-white.svg" alt="${APP_NAME}"></span>
+    <a href="#/aide">Aide et réglages</a>
+    <p>${APP_NAME} n’est pas une banque. L’accès est en lecture seule : aucun virement n’est possible.</p>
+    ${demoTag}
+  </div>
+</div>`;
+};
 screens.aide = () => `
 <div class="screen">
-  <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a><h1 style="font-size:19px">Aide et réglages</h1>${demoTag}</div>
+  <div class="topbar"><a class="back" href="#/compte">⟦back⟧</a><h1 style="font-size:19px">Aide et réglages</h1>${demoTag}</div>
   <div class="card support">
     <div class="sup-head"><div class="avatars"><span class="avc a">S</span><span class="avc b">K</span><span class="avc c">M</span></div>
       <div><b>Support humain</b><div class="muted small">De vraies personnes vous répondent, pas un robot.</div></div></div>
@@ -1288,7 +1323,7 @@ function render(){
   const [name, ...args] = path.split('/');
   const fn = screens[name] || screens.dashboard;
   $('#app').innerHTML = icons(fn(new URLSearchParams(qs||''), ...args));
-  const tabbed = ['dashboard','operations','abonnements','alertes','premium','abo','aide','banques'].includes(name) || (!screens[name]);
+  const tabbed = ['dashboard','operations','abonnements','alertes','premium','abo','aide','banques','compte'].includes(name) || (!screens[name]);
   $('#tabbar').hidden = !tabbed;
   if (API && ['onboarding','connexion','dashboard','connect','banques'].includes(name)){ const sc = $('#app').firstElementChild; if (sc && !sc.querySelector('.alpha-note')) sc.insertAdjacentHTML('afterbegin', '<div class="alpha-note" role="note"><b>Alpha</b> — banques de test uniquement pour l’instant</div>'); }
   const tabName = name==='abo' ? 'abonnements' : name==='operations' || !screens[name] ? 'dashboard' : name;
