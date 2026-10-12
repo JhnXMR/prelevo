@@ -1,6 +1,6 @@
 /* Prelevo – maquette cliquable. TOUTES LES DONNÉES SONT DES EXEMPLES FICTIFS. */
 'use strict';
-const CFG = window.APP_CONFIG || { name:'Prelevo', tagline:'l’app qui traque vos abonnements', priceMonth:3.99, priceYear:29.99, trial:'1 mois offert pour essayer', supportEmail:'support@exemple.fr' };
+const CFG = window.APP_CONFIG || { name:'Prelevo', tagline:'l’app qui traque vos abonnements', priceMonth:1.99, priceYear:14.99, trial:'1 mois offert pour essayer', supportEmail:'support@exemple.fr' };
 const APP_NAME = CFG.name;
 document.title = `${APP_NAME} – ${CFG.tagline}`;
 
