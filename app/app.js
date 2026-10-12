@@ -897,16 +897,20 @@ screens.banques = () => {
 };
 
 const themePref = () => (window.PrelevoTheme ? PrelevoTheme.get() : 'auto');
+const themeLabel = () => ({ light:'Clair', dark:'Sombre', auto:'Automatique' }[themePref()] || 'Automatique');
+function appIcon(){ try { const v = localStorage.getItem('prelevo-icon'); if (v === 'noir' || v === 'bleu') return v; } catch (e) {} return 'defaut'; }
+function setAppIcon(v){ try { if (v === 'noir' || v === 'bleu') localStorage.setItem('prelevo-icon', v); else localStorage.removeItem('prelevo-icon'); } catch (e) {} document.documentElement.setAttribute('data-icon', appIcon()); }
+setAppIcon(appIcon());
 screens.compte = () => {
   const P = isP(), unread = alerts().filter(a => !state.readAlerts.includes(a.id)).length;
-  const look = [['light','Claire'],['dark','Sombre'],['auto','Automatique']];
   const row = (href, ic, lab, aside='') => `<a class="acct-row" href="${href}"><span class="acct-ic">⟦${ic}⟧</span><span class="acct-lab">${lab}</span>${aside ? `<span class="acct-aside">${aside}</span>` : ''}<span class="acct-go">⟦chev⟧</span></a>`;
+  const chip = { defaut:['icons/logo-mark.svg','t-defaut'], noir:['icons/logo-mark-white.svg','t-noir'], bleu:['icons/logo-mark.svg','t-bleu'] }[appIcon()];
   return `
 <div class="screen account">
   <div class="acct-top"><a class="back" href="#/dashboard" aria-label="Fermer">⟦back⟧</a></div>
   <div class="acct-head">
     <h1>${esc(USER.prenom)}</h1>
-    <span class="logo-chip lg" aria-hidden="true"><img class="lg-l" src="icons/logo-mark.svg" alt=""><img class="lg-d" src="icons/logo-mark-white.svg" alt=""></span>
+    <span class="logo-chip ${chip[1]}" aria-hidden="true"><img src="${chip[0]}" alt=""></span>
   </div>
   <p class="acct-k">Services</p>
   <div class="menu-card">
@@ -918,11 +922,7 @@ screens.compte = () => {
   <p class="acct-k">Paramètres</p>
   <div class="menu-card">
     <button type="button" class="acct-row" id="toggle-balance" aria-pressed="${state.hideBalance ? 'true' : 'false'}"><span class="acct-ic">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</span><span class="acct-lab">Masquer le solde</span><span class="sw ${state.hideBalance ? 'on' : ''}"></span></button>
-    <div class="look-block">
-      <div class="acct-row look-lab"><span class="acct-ic">⟦auto⟧</span><span class="acct-lab">Apparence</span></div>
-      <p class="look-note">Claire, sombre ou automatique. Le logo de l’application suit le même choix.</p>
-      <div class="look" role="radiogroup" aria-label="Apparence">${look.map(([v,l])=>`<button type="button" role="radio" aria-checked="${themePref()===v}" class="${themePref()===v?'on':''}" data-theme-set="${v}">${l}</button>`).join('')}</div>
-    </div>
+    ${row('#/apparence','auto','Apparence', themeLabel())}
     ${row('#/premium','star',APP_NAME+' Premium', P ? 'Actif' : 'Gratuit')}
   </div>
   <p class="acct-k">${APP_NAME}</p>
@@ -931,6 +931,29 @@ screens.compte = () => {
     ${row('#/aide','info','À propos')}
   </div>
   <p class="acct-foot">${APP_NAME} n’est pas une banque. Lecture seule, aucun virement. ${demoTag}</p>
+</div>`;
+};
+screens.apparence = () => {
+  const t = themePref(), icon = appIcon();
+  const radio = (v, lab) => `<button type="button" class="th-radio" data-theme-set="${v}" role="radio" aria-checked="${t===v}"><span class="rdot"></span>${lab}</button>`;
+  const tiles = [['defaut','Défaut','icons/logo-mark.svg'],['noir','Noir','icons/logo-mark-white.svg'],['bleu','Bleu','icons/logo-mark.svg']];
+  return `
+<div class="screen look-page">
+  <div class="topbar look-bar"><a class="back" href="#/compte" aria-label="Retour">⟦back⟧</a><h1>Apparence</h1><span></span></div>
+  <p class="acct-k">Thème</p>
+  <div class="menu-card th-card">
+    ${radio('light','Clair')}
+    ${radio('dark','Sombre')}
+    <button type="button" class="th-auto" data-theme-auto aria-pressed="${t==='auto'}">
+      <span><b>Automatique</b><small>Le thème utilisera la valeur par défaut de votre appareil</small></span>
+      <span class="sw ${t==='auto'?'on':''}"></span>
+    </button>
+  </div>
+  <p class="acct-k">Icône de l’app</p>
+  <div class="menu-card icon-card">
+    <div class="icon-grid">${tiles.map(([id,lab,src])=>`<button type="button" class="icon-opt ${icon===id?'on':''}" data-app-icon="${id}" aria-pressed="${icon===id}"><span class="tile t-${id}"><img src="${src}" alt=""></span>${icon===id?'<i class="ibadge">⟦check⟧</i>':''}<span class="ilab">${lab}</span></button>`).join('')}</div>
+    <p class="icon-note">Le logo en haut de Mon compte suit ce choix. L’icône sur l’écran d’accueil de l’iPhone, elle, reste celle installée.</p>
+  </div>
 </div>`;
 };
 screens.aide = () => `
@@ -954,7 +977,7 @@ screens.aide = () => `
   <div class="card theme-card">
     <div style="font-weight:700">Apparence</div>
     <div class="muted small">Automatique suit le réglage de votre téléphone.</div>
-    <div class="seg" role="radiogroup" aria-label="Thème">${[['light','sun','Claire'],['dark','moon','Sombre'],['auto','auto','Automatique']].map(([v,ic,l])=>`<button type="button" role="radio" aria-checked="${themePref()===v}" class="${themePref()===v?'on':''}" data-theme-set="${v}">⟦${ic}⟧${l}</button>`).join('')}</div>
+    <div class="seg" role="radiogroup" aria-label="Thème">${[['light','sun','Clair'],['dark','moon','Sombre'],['auto','auto','Automatique']].map(([v,ic,l])=>`<button type="button" role="radio" aria-checked="${themePref()===v}" class="${themePref()===v?'on':''}" data-theme-set="${v}">⟦${ic}⟧${l}</button>`).join('')}</div>
   </div>
   ${API && API.loggedIn() ? `<div class="card account-card">
     <div style="font-weight:700">Mon compte</div>
@@ -1325,7 +1348,7 @@ function render(){
   const [name, ...args] = path.split('/');
   const fn = screens[name] || screens.dashboard;
   $('#app').innerHTML = icons(fn(new URLSearchParams(qs||''), ...args));
-  const tabbed = ['dashboard','operations','abonnements','alertes','premium','abo','aide','banques','compte'].includes(name) || (!screens[name]);
+  const tabbed = ['dashboard','operations','abonnements','alertes','premium','abo','aide','banques','compte','apparence'].includes(name) || (!screens[name]);
   $('#tabbar').hidden = !tabbed;
   if (API && ['onboarding','connexion','dashboard','connect','banques'].includes(name)){ const sc = $('#app').firstElementChild; if (sc && !sc.querySelector('.alpha-note')) sc.insertAdjacentHTML('afterbegin', '<div class="alpha-note" role="note"><b>Alpha</b> — banques de test uniquement pour l’instant</div>'); }
   const tabName = name==='abo' ? 'abonnements' : name==='operations' || !screens[name] ? 'dashboard' : name;
@@ -1349,7 +1372,15 @@ function runScan(){
 document.addEventListener('click', e => {
   const ops = e.target.closest('[data-ops]'); if (ops){ opsFilter = ops.dataset.ops; render(); return; }
   const th = e.target.closest('[data-theme-set]');
-  if (th){ if (window.PrelevoTheme) PrelevoTheme.set(th.dataset.themeSet); document.querySelectorAll('[data-theme-set]').forEach(b=>{ const on=b===th; b.classList.toggle('on',on); b.setAttribute('aria-checked',on); }); return; }
+  if (th){ if (window.PrelevoTheme) PrelevoTheme.set(th.dataset.themeSet); render(); return; }
+  const thAuto = e.target.closest('[data-theme-auto]');
+  if (thAuto && window.PrelevoTheme){
+    if (PrelevoTheme.get() === 'auto') PrelevoTheme.set(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
+    else PrelevoTheme.set('auto');
+    render(); return;
+  }
+  const appIco = e.target.closest('[data-app-icon]');
+  if (appIco){ setAppIcon(appIco.dataset.appIcon); render(); return; }
   const el = e.target.closest('[data-bank],[data-method],[data-toast],[data-billing],[data-alert],[data-plan],#go-scan,#keep,#confirm-resil,#go-premium,#reset,#pw-connect,#pw-quit,#pw-refresh,#api-connect,#api-sync,#api-logout,#api-delete,#login-again,#del-check,#copy-letter,#print-letter,#billing-portal,#toggle-balance');
   if (!el) return;
   if (el.dataset.toast){ e.preventDefault(); toast(el.dataset.toast); }
