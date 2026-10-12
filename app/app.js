@@ -1152,7 +1152,17 @@ async function apiFinish(){
     await apiLoadMe();
     location.hash = '#/dashboard';
     toast(`${r.subscriptions} prélèvement${r.subscriptions>1?'s':''} récurrent${r.subscriptions>1?'s':''} détecté${r.subscriptions>1?'s':''}${r.history && r.history.limited ? ' (historique court)' : ''}`);
-  } catch(e){ if (e.status === 401) return apiFail(e); fail(p.error ? 'Connexion annulée' : 'Lecture impossible', e.message); }
+  } catch(e){
+    if (e.status === 401) return apiFail(e);
+    if (p.error) return fail('Connexion annulée', e.message);
+    // la banque met parfois quelques secondes à transmettre les comptes : on retente via une synchro (le retour n'est valable qu'une fois)
+    for (const wait of [4000, 8000, 15000]) {
+      await new Promise(ok => setTimeout(ok, wait));
+      try { const r = await API.sync(); await apiLoadMe(); if (ME && ME.accounts && ME.accounts.length) { location.hash = '#/dashboard'; toast(`${r.subscriptions} prélèvement${r.subscriptions>1?'s':''} récurrent${r.subscriptions>1?'s':''} détecté${r.subscriptions>1?'s':''}`); return; } }
+      catch(e2){ if (e2.status === 401) return apiFail(e2); }
+    }
+    fail('Lecture impossible', e.message);
+  }
 }
 
 // ---------- routeur ----------
@@ -1165,6 +1175,7 @@ function render(){
   $('#app').innerHTML = icons(fn(new URLSearchParams(qs||''), ...args));
   const tabbed = ['dashboard','operations','abonnements','alertes','premium','abo','aide','banques'].includes(name) || (!screens[name]);
   $('#tabbar').hidden = !tabbed;
+  if (API && ['onboarding','connexion','dashboard','connect','banques'].includes(name)){ const sc = $('#app').firstElementChild; if (sc && !sc.querySelector('.alpha-note')) sc.insertAdjacentHTML('afterbegin', '<div class="alpha-note" role="note"><b>Alpha</b> — banques de test uniquement pour l’instant</div>'); }
   const tabName = name==='abo' ? 'abonnements' : name==='operations' || !screens[name] ? 'dashboard' : name;
   document.querySelectorAll('#tabbar a').forEach(a=>a.classList.toggle('on', a.dataset.tab===tabName));
   $('#alert-dot').classList.toggle('show', alerts().some(a=>!state.readAlerts.includes(a.id)));

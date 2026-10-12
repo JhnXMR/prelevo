@@ -475,3 +475,8 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .bk-tile.bs-l.has-logo{background:#fff!important}
 .bk-tile.bs-l b{font-size:9.5px}.bk-tile.bs-l.x3 b{font-size:8px}
 .bk-tile.bs-l .st{width:8px;height:8px;right:-2px;bottom:-2px;border-width:1.5px;border-color:var(--bg)}
+
+/* bandeau alpha (API branchée) */
+.alpha-note{margin:0 0 12px;padding:8px 12px;border-radius:10px;background:rgba(255,170,0,.14);color:inherit;font-size:13px;line-height:1.35;border:1px solid rgba(255,170,0,.35)}
+.alpha-note b{color:#B76E00;margin-right:2px}
+[data-theme=dark] .alpha-note b{color:#FFB84D}

@@ -8,5 +8,5 @@ window.APP_CONFIG = {
   supportEmail: 'support@exemple.fr',   // adresse fictive
   // Adresse de l'API Prelevo (backend). Vide = maquette seule (comportement actuel du site publié).
   // Ex. en local : 'http://localhost:8795'
-  apiBase: '',
+  apiBase: 'https://app-109fa828-abfc-432e-921d-a6ec8590c26c.cleverapps.io',
 };
