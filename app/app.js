@@ -69,7 +69,7 @@ const LINKED = [
 
 // ---------- état (localStorage) ----------
 const KEY = 'prelevo-demo';
-const state = Object.assign({ connected:false, bank:null, resiliated:[], premium:false, readAlerts:[] }, JSON.parse(localStorage.getItem(KEY) || '{}'));
+const state = Object.assign({ connected:false, bank:null, resiliated:[], premium:false, readAlerts:[], hideBalance:false }, JSON.parse(localStorage.getItem(KEY) || '{}'));
 const save = () => localStorage.setItem(KEY, JSON.stringify(state));
 // URL ?demo=1 => démarre directement connecté (pratique pour les captures)
 const QS = new URLSearchParams(location.search);
@@ -174,7 +174,8 @@ const ICONS = {
   user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
   star:'<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
   back:'<path d="M15 5l-7 7 7 7"/>',
-  chev:'<path d="M9 5l7 7-7 7"/>',
+  eye:'<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  eyeoff:'<path d="M3 3l18 18"/><path d="M10.6 6.2A10 10 0 0 1 12 6c6.5 0 10 6 10 6a18 18 0 0 1-3.2 3.8"/><path d="M6.1 6.7C3.6 8.4 2 12 2 12s3.5 6 10 6c1.5 0 2.8-.3 4-.8"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
 };
 const icons = html => html.replace(/⟦(\w+)⟧/g, (_, n) => ICONS[n] ? SVG(ICONS[n]) : '').replace(/<a class="back"(?![^>]*aria-label)/g, '<a class="back" aria-label="Retour"');
 const emptyState = (ic, title, text) => `<div class="empty" role="status"><span class="empty-ic">⟦${ic}⟧</span><b>${title}</b><p>${text}</p></div>`;
@@ -545,7 +546,7 @@ function txGroups(list, maxDays = 99, maxRows = 999){
 }
 let _homeAnimated = QS.has('static');  // ?static=1 : sans animation (captures)
 function animateHome(){
-  const el = document.querySelector('[data-count]'); if (!el) return;
+  const el = document.querySelector('[data-count]'); if (!el || state.hideBalance) return;
   if (_homeAnimated || matchMedia('(prefers-reduced-motion: reduce)').matches){ document.querySelector('.home')?.classList.add('static'); return; }
   _homeAnimated = true;
   const target = +el.dataset.count, t0 = performance.now(), dur = 750;
@@ -573,11 +574,14 @@ screens.dashboard = () => {
   <section class="total rise" style="--d:1">
     <button type="button" class="sync-btn" id="home-sync" aria-label="Synchroniser vos comptes">⟦refresh⟧<span>Synchroniser</span></button>
     <div class="lbl">Solde total · ${L.nAcc} compte${L.nAcc > 1 ? 's' : ''}${banksN > 1 ? ' dans ' + banksN + ' banques' : ''}</div>
-    <div class="amount" data-count="${L.total.toFixed(2)}">${money(L.total)}</div>
-    <div class="delta" id="sp-delta">${delta >= 0 ? '⟦trend⟧' : ''}<b class="${delta >= 0 ? 'pos' : ''}">${signed(delta)}</b> ${homeTf === 'TOUT' ? 'depuis le début' : 'sur ' + tf[2]}</div>
+    <div class="amount-row">
+      <div class="amount" data-count="${L.total.toFixed(2)}" ${state.hideBalance ? 'data-hidden="1"' : ''}>${state.hideBalance ? '<span class="masked">••••</span>' : money(L.total)}</div>
+      <button type="button" class="eye" id="toggle-balance" aria-pressed="${state.hideBalance ? 'true' : 'false'}" aria-label="${state.hideBalance ? 'Afficher le solde' : 'Masquer le solde'}">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</button>
+    </div>
+    <div class="delta" id="sp-delta">${state.hideBalance ? 'Solde masqué' : `${delta >= 0 ? '⟦trend⟧' : ''}<b class="${delta >= 0 ? 'pos' : ''}">${signed(delta)}</b> ${homeTf === 'TOUT' ? 'depuis le début' : 'sur ' + tf[2]}`}</div>
     <div class="tf" role="tablist" aria-label="Période du graphique">${HOME_TF.map(([k, lab]) => `<button type="button" role="tab" data-tf="${k}" aria-selected="${k === homeTf ? 'true' : 'false'}" class="${k === homeTf ? 'on' : ''}">${lab}</button>`).join('')}</div>
     ${spark(curve)}
-    ${P ? `<a class="rav" href="#/abonnements"><span>Reste à vivre jusqu’à la paie</span><b>${eur(t.reste)}</b></a>`
+    ${P ? `<a class="rav" href="#/abonnements"><span>Reste à vivre jusqu’à la paie</span><b>${state.hideBalance ? '<span class="masked">••••</span>' : eur(t.reste)}</b></a>`
         : `<a class="rav locked" href="#/premium"><span>⟦lock⟧ Reste à vivre jusqu’à la paie</span><b>Premium</b></a>`}
   </section>
 
@@ -585,7 +589,7 @@ screens.dashboard = () => {
   <div class="bk-cards rise" style="--d:2">
     ${L.banks.map(b => `<a class="bk-card" href="#/banques" style="--bk:${/^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '#0066FF'}">
       <div class="bc-top">${bankTile(b, 'bk-ini', b.status === 'error' ? '<i class="st err"></i>' : b.status === 'expired' ? '<i class="st warn"></i>' : '')}<span class="bc-n">${b.accs.length} compte${b.accs.length > 1 ? 's' : ''}</span></div>
-      <div class="bc-name">${esc(b.name)}</div><div class="bc-bal">${eur(b.total)}</div>
+      <div class="bc-name">${esc(b.name)}</div><div class="bc-bal">${state.hideBalance ? '<span class="masked">••••</span>' : eur(b.total)}</div>
       <div class="bc-meta ${b.status === 'error' ? 't-red' : ''}">${b.status === 'error' ? 'Synchro en échec' : b.status === 'expired' ? 'Session expirée' : 'À jour · ' + b.sync}</div></a>`).join('')}
     ${!LIVE && !P ? `<a class="bk-card add" href="#/premium">⟦plus⟧<span>Ajouter une banque</span><b>Premium</b></a>` : ''}
   </div>
@@ -606,7 +610,7 @@ screens.dashboard = () => {
       <a class="bank-h" href="#/banques">${bankTile(b, 'bk-ini', b.status === 'error' ? '<i class="st err"></i>' : b.status === 'expired' ? '<i class="st warn"></i>' : '')}
         <div class="mid"><div class="name">${esc(b.name)}</div><div class="meta ${b.status === 'error' ? 't-red' : ''}">${b.status === 'error' ? 'Synchro en échec · reconnecter' : b.status === 'expired' ? 'Session expirée' : 'À jour · ' + b.sync}</div></div>
         <div class="amt">${eur(b.total)}</div></a>
-      ${b.accs.map(a => `<div class="acc ${a.counted === false ? 'off' : ''}"><span>${esc(a.name)}</span><span>${a.currency && a.currency !== 'EUR' ? (a.balance || 0).toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' ' + esc(a.currency) : eur(a.balance)}</span></div>`).join('')}
+      ${b.accs.map(a => `<div class="acc ${a.counted === false ? 'off' : ''}"><span>${esc(a.name)}</span><span>${state.hideBalance ? '<span class="masked">••••</span>' : (a.currency && a.currency !== 'EUR' ? (a.balance || 0).toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' ' + esc(a.currency) : eur(a.balance))}</span></div>`).join('')}
     </div>`).join('')}
     ${!LIVE && !P ? `<a class="bank-add" href="#/premium">⟦plus⟧<span>Ajouter une banque</span><b>Premium</b></a>` : ''}
   </div>
@@ -905,7 +909,7 @@ screens.aide = () => `
     </div>
   </div>
   <div class="card" style="padding:4px 16px">
-    <a class="kv lnk" href="#/banques"><span>⟦bank⟧ Mes banques et synchronisation</span><span>›</span></a>
+    <button type="button" class="kv lnk" id="toggle-balance"><span>⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧ ${state.hideBalance ? 'Afficher le solde' : 'Masquer le solde'}</span><span>${state.hideBalance ? 'Masqué' : 'Visible'} ›</span></button>
     <a class="kv lnk" href="#/alertes"><span>⟦bell⟧ Alertes</span><span>›</span></a>
     <a class="kv lnk" href="#/premium"><span>⟦star⟧ Mon abonnement</span><span>${isP()?'Premium':'Gratuit'} ›</span></a>
     <div class="kv"><span>⟦shield⟧ Mes données</span><span class="muted">Jamais revendues</span></div>
@@ -1040,7 +1044,10 @@ function timeline(){
     k = +k; const isCur = k === curKey;
     const fixed = []; 
     ds.forEach(d => {
-      if (d.getDate() === 21) fixed.push({ t:new Date(d.getFullYear(), d.getMonth(), 21, 7, 30), amt:INCOME, name:'Salaire', k:'in' });
+      if (d.getDate() === 21) {
+        const prime = d.getMonth() === 4 ? 3800 : d.getMonth() === 11 ? 4500 : 0;
+        fixed.push({ t:new Date(d.getFullYear(), d.getMonth(), 21, 7, 30), amt:INCOME + prime, name: prime ? 'Salaire et prime' : 'Salaire', k:'in' });
+      }
       if (d.getDate() === 5) fixed.push({ t:new Date(d.getFullYear(), d.getMonth(), 5, 6, 10), amt:-RENT, name:'Loyer', k:'rent' });
       t.list.forEach(s => { if (s.day === d.getDate()) fixed.push({ t:new Date(d.getFullYear(), d.getMonth(), d.getDate(), 5 + (s.price*7 % 4), 0), amt:-s.price, name:s.name, k:'sub' }); });
     });
@@ -1306,7 +1313,7 @@ document.addEventListener('click', e => {
   const ops = e.target.closest('[data-ops]'); if (ops){ opsFilter = ops.dataset.ops; render(); return; }
   const th = e.target.closest('[data-theme-set]');
   if (th){ if (window.PrelevoTheme) PrelevoTheme.set(th.dataset.themeSet); document.querySelectorAll('[data-theme-set]').forEach(b=>{ const on=b===th; b.classList.toggle('on',on); b.setAttribute('aria-checked',on); }); return; }
-  const el = e.target.closest('[data-bank],[data-method],[data-toast],[data-billing],[data-alert],[data-plan],#go-scan,#keep,#confirm-resil,#go-premium,#reset,#pw-connect,#pw-quit,#pw-refresh,#api-connect,#api-sync,#api-logout,#api-delete,#login-again,#del-check,#copy-letter,#print-letter,#billing-portal');
+  const el = e.target.closest('[data-bank],[data-method],[data-toast],[data-billing],[data-alert],[data-plan],#go-scan,#keep,#confirm-resil,#go-premium,#reset,#pw-connect,#pw-quit,#pw-refresh,#api-connect,#api-sync,#api-logout,#api-delete,#login-again,#del-check,#copy-letter,#print-letter,#billing-portal,#toggle-balance');
   if (!el) return;
   if (el.dataset.toast){ e.preventDefault(); toast(el.dataset.toast); }
   else if (el.dataset.bank){ state.bank = el.dataset.bank; save(); render(); }
@@ -1315,7 +1322,7 @@ document.addEventListener('click', e => {
   else if (el.dataset.plan){ state.premium = el.dataset.plan==='premium'; save(); toast('Mode démo : ' + (state.premium?'Premium':'Gratuit')); render(); }
   else if (el.dataset.alert){ if(!state.readAlerts.includes(el.dataset.alert)){ state.readAlerts.push(el.dataset.alert); save(); } }
   else if (el.id==='api-connect'){ e.preventDefault(); toast('Ouverture de la connexion bancaire…'); API.connectBank().catch(apiFail); }
-  else if (el.id==='home-sync') homeSync();
+  else if (el.id==='toggle-balance'){ state.hideBalance = !state.hideBalance; save(); render(); }
   else if (el.id==='copy-letter'){ const l = $('.letter'); navigator.clipboard && l ? navigator.clipboard.writeText(l.innerText).then(()=>toast('Lettre copiée'), ()=>toast('Copie impossible')) : toast('Copie impossible'); }
   else if (el.id==='print-letter'){ const l = $('.letter'); if (!l) return; const w = open('', '_blank'); if (!w) return toast('Autorisez les fenêtres pour imprimer'); w.document.write('<pre style="font:14px/1.5 Georgia,serif;white-space:pre-wrap;max-width:640px;margin:40px auto">' + esc(l.innerText) + '</pre>'); w.document.close(); w.print(); }
   else if (el.id==='api-sync'){ toast('Synchronisation…'); API.sync().then(apiLoadMe).then(()=>{ render(); toast('Comptes à jour'); }).catch(apiFail); }
@@ -1506,8 +1513,8 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     st.el.classList.add('scrub');
     if (st.vl) { st.vl.hidden = false; st.vl.style.left = p.x + '%'; }
     if (st.dot) { st.dot.style.left = p.x + '%'; st.dot.style.top = p.y + '%'; }
-    if (amt) { amt.dataset.scrub = '1'; amt.innerHTML = money(p.v); }
-    if (dl) {
+    if (amt && !state.hideBalance) { amt.dataset.scrub = '1'; amt.innerHTML = money(p.v); }
+    if (dl && !state.hideBalance) {
       const when = SPARK.tf === '24H'
         ? `${String(p.t.getHours()).padStart(2,'0')} h`
         : `${JC[p.t.getDay()]} ${p.t.getDate()} ${MOIS[p.t.getMonth()]}`;
@@ -1535,7 +1542,7 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     const amt = document.querySelector('.total [data-count]'), dl = document.getElementById('sp-delta'), dot = el.querySelector('.sp-dot');
     st = { el, i: -1, axis: null, x0: clientX, y0: clientY, lastY: clientY, pointerId: null, vl: el.querySelector('.sp-vline'), dot };
     el._orig = {
-      a: amt && amt.dataset.count ? money(+amt.dataset.count) : (amt ? amt.innerHTML : ''),
+      a: (state.hideBalance || !amt || !amt.dataset.count) ? (amt ? amt.innerHTML : '') : money(+amt.dataset.count),
       d: dl ? dl.innerHTML : '',
       l: dot ? dot.style.left : '',
       t: dot ? dot.style.top : ''
@@ -1553,10 +1560,12 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
   // considère le touchmove comme passif et le doigt ne fait que faire défiler.
   document.addEventListener('touchstart', e => {
     if (st || !SPARK || !e.touches || e.touches.length !== 1) return;
-    const el = e.target.closest && e.target.closest('.spark');
+    const el = e.target.closest && e.target.closest('.sp-hit');
     if (!el) return;
+    const spark = el.closest('.spark');
+    if (!spark) return;
     const t = e.touches[0];
-    arm(el, t.clientX, t.clientY);
+    arm(spark, t.clientX, t.clientY);
   }, { passive: true, capture: true });
   document.addEventListener('touchmove', e => {
     if (!st) return;
@@ -1588,7 +1597,9 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
 
   document.addEventListener('pointerdown', e => {
     if (e.pointerType === 'touch' || e.button > 0 || !SPARK) return;
-    const el = e.target.closest && e.target.closest('.spark');
+    const hit = e.target.closest && e.target.closest('.sp-hit');
+    if (!hit) return;
+    const el = hit.closest('.spark');
     if (!el) return;
     if (st) end();
     arm(el, e.clientX, e.clientY);

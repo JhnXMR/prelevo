@@ -375,6 +375,12 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .total{background:var(--soft);border-radius:22px;padding:20px 20px 16px;margin-bottom:6px;position:relative;overflow:hidden}
 .total .lbl{font-size:13px;color:var(--ink2);font-weight:500}
 .total .amount{font-size:46px;font-weight:650;letter-spacing:-.045em;line-height:1.05;margin:10px 0 6px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.amount-row{display:flex;align-items:center;gap:8px}
+.amount-row .amount{flex:1;min-width:0}
+.eye{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--ink2);display:grid;place-items:center;flex:none}
+.eye .i{width:18px;height:18px}
+.masked{letter-spacing:.18em;font-weight:650}
+button.kv{width:100%;border:0;background:transparent;font:inherit;color:inherit;text-align:left;cursor:pointer}
 .m-dec{font-size:.48em;font-weight:550;letter-spacing:-.01em;color:var(--ink2);margin-left:1px}
 .total .delta{font-size:13px;color:var(--ink2);display:flex;align-items:center;gap:5px}
 .total .delta .i{width:15px;height:15px;color:var(--accent)}
@@ -532,9 +538,9 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .plan-status .btn{margin-top:12px}
 /* scrub du graphique — touch-action:none pour que Safari iOS ne vole pas le geste.
    Le défilement vertical est rejoué à la main quand le doigt part vers le haut ou le bas. */
-.spark{touch-action:none;cursor:crosshair;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+.spark{position:relative;margin:8px -4px 2px;height:auto;cursor:default;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 .spark svg,.spark .sp-dot,.spark .sp-vline,.spark .sp-legend{pointer-events:none}
-.sp-hit{position:absolute;inset:0;z-index:2;touch-action:none;background:transparent}
+.sp-hit{position:absolute;left:0;right:0;top:0;height:70px;z-index:2;touch-action:none;cursor:crosshair;background:transparent}
 .sp-vline{position:absolute;top:-4px;bottom:16px;width:1px;margin-left:-.5px;background:var(--ink);opacity:.35;pointer-events:none;z-index:1}
 .spark.scrub .sp-dot{width:11px;height:11px;margin:-5.5px 0 0 -5.5px;box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 25%,transparent);animation:none!important;z-index:1}
 .spark.scrub .sp-area,.spark.scrub .sp-line{animation:none!important}
@@ -586,7 +592,6 @@ input,select,textarea{font-size:16px}
 .toast{bottom:calc(78px + env(safe-area-inset-bottom));border-radius:14px}
 .demo{font-size:11px;color:var(--ink2)}
 .spark{height:auto}
-.sp-hit{inset:auto;left:0;right:0;top:0;height:70px}
 .empty{text-align:center;padding:28px 8px 22px}
 .empty-ic{width:52px;height:52px;margin:0 auto 12px;border-radius:16px;border:1px solid var(--line);display:grid;place-items:center;color:var(--accent);background:var(--tint)}
 .empty-ic .i{width:22px;height:22px}
