@@ -414,6 +414,10 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .t-noir{background:#0A0B0D}
 .t-bleu{background:#0066FF}
 .t-bleu img{filter:brightness(0) invert(1)}
+.glyph{display:block;width:46px;height:56px;background:#0066FF;-webkit-mask:url("icons/logo-mark-white.svg") center / contain no-repeat;mask:url("icons/logo-mark-white.svg") center / contain no-repeat}
+.logo-chip .glyph{width:34px;height:42px}
+.logo-chip.l .glyph{width:42px;height:52px}
+.logo-chip.xl .glyph{width:56px;height:68px}
 .onb .logo-chip.xl{width:88px;height:88px;border-radius:24px;margin:6px 0 28px}
 .onb .logo-chip.xl img{width:56px}
 .login .logo-chip.l{width:64px;height:64px;border-radius:18px;margin-top:8px}

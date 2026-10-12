@@ -301,9 +301,9 @@ const screens = {};
 const brandBar = (right=demoTag) => `<div class="topbar"><div class="brand"><i class="brand-mark" aria-hidden="true"></i>${APP_NAME}</div>${right}</div>`;
 function logoMark(size){
   const id = appIcon();
-  const src = id === 'noir' ? 'icons/logo-mark-white.svg' : 'icons/logo-mark.svg';
   const tone = id === 'noir' ? 't-noir' : id === 'defaut' ? 't-defaut' : 't-bleu';
-  return `<span class="logo-chip ${size || ''} ${tone}"><img src="${src}" alt=""></span>`;
+  const inner = id === 'bleu' ? '<img src="icons/logo-mark.svg" alt="">' : '<i class="glyph"></i>';
+  return `<span class="logo-chip ${size || ''} ${tone}">${inner}</span>`;
 }
 const yearSave = () => Math.round((1 - CFG.priceYear / (CFG.priceMonth*12)) * 100);
 
@@ -1037,7 +1037,7 @@ screens.parrainage = (qs, sub) => {
 screens.apparence = () => {
   const t = themePref(), icon = appIcon();
   const radio = (v, lab) => `<button type="button" class="th-radio" data-theme-set="${v}" onclick="pickTheme('${v}')" role="radio" aria-checked="${t===v}"><span class="rdot"></span>${lab}</button>`;
-  const tiles = [['bleu','Défaut','icons/logo-mark.svg'],['noir','Noir','icons/logo-mark-white.svg'],['defaut','Blanc','icons/logo-mark.svg']];
+  const tiles = [['bleu','Défaut'],['noir','Noir'],['defaut','Blanc']];
   return `
 <div class="screen look-page">
   <div class="topbar look-bar"><a class="back" href="#/compte" aria-label="Retour">⟦back⟧</a><h1>Apparence</h1><span></span></div>
@@ -1052,7 +1052,7 @@ screens.apparence = () => {
   </div>
   <p class="acct-k">Icône de l’app</p>
   <div class="menu-card icon-card">
-    <div class="icon-grid">${tiles.map(([id,lab,src])=>`<button type="button" class="icon-opt ${icon===id?'on':''}" data-app-icon="${id}" onclick="pickIcon('${id}')" aria-pressed="${icon===id}"><span class="tile t-${id}"><img src="${src}" alt=""></span>${icon===id?'<i class="ibadge">⟦check⟧</i>':''}<span class="ilab">${lab}</span></button>`).join('')}</div>
+    <div class="icon-grid">${tiles.map(([id,lab])=>`<button type="button" class="icon-opt ${icon===id?'on':''}" data-app-icon="${id}" onclick="pickIcon('${id}')" aria-pressed="${icon===id}"><span class="tile t-${id}">${id==='bleu'?'<img src="icons/logo-mark.svg" alt="">':'<i class="glyph"></i>'}</span>${icon===id?'<i class="ibadge">⟦check⟧</i>':''}<span class="ilab">${lab}</span></button>`).join('')}</div>
     <p class="icon-note">Le logo bleu est le logo officiel de Prelevo, partout dans l’app. Noir et Blanc restent des variantes. L’icône déjà posée sur l’écran d’accueil de l’iPhone ne change pas toute seule.</p>
   </div>
 </div>`;
