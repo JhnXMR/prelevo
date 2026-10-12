@@ -1344,14 +1344,17 @@ async function homeSync(){
     ptr.classList.add('on');
     ptr.style.transition = 'opacity .2s ease, transform .2s ease';
     ptr.style.opacity = '1';
-    ptr.style.transform = 'translate(-50%, -50%) scale(1)';
+    ptr.style.transform = 'translate(-50%, 0) scale(1)';
   }
+  const shownAt = Date.now();
   try {
     if (API && ME){ toast('Synchronisation…'); await API.sync(); await apiLoadMe(); _ledger = null; render(); toast('Comptes à jour'); }
     else if (PWX && LIVE) await pwRefresh();
     else { await new Promise(r => setTimeout(r, 900)); toast('Comptes à jour (exemple)'); }
   } catch(e){ API ? apiFail(e) : toast('Synchronisation impossible'); }
   finally {
+    const wait = Math.max(0, 2200 - (Date.now() - shownAt));
+    if (wait) await new Promise(r => setTimeout(r, wait));
     _syncing = false;
     document.querySelector('#home-sync')?.classList.remove('on');
     const p = document.querySelector('.ptr');
@@ -1359,7 +1362,7 @@ async function homeSync(){
       p.classList.remove('on');
       p.style.transition = 'opacity .28s ease, transform .28s ease';
       p.style.opacity = '0';
-      p.style.transform = 'translate(-50%, -50%) scale(.72)';
+      p.style.transform = 'translate(-50%, 0) scale(.72)';
     }
   }
 }
@@ -1382,7 +1385,7 @@ async function homeSync(){
     const p = Math.max(0, Math.min(1, dist / TRIGGER));
     ptr.style.transition = animate ? 'opacity .22s ease, transform .22s ease' : 'none';
     ptr.style.opacity = String(p);
-    ptr.style.transform = `translate(-50%, -50%) scale(${0.72 + p * 0.28})`;
+    ptr.style.transform = `translate(-50%, 0) scale(${0.72 + p * 0.28})`;
   };
   addEventListener('touchstart', e => {
     if (_syncing || onChart(e) || !e.touches || e.touches.length !== 1) { y0 = null; d = 0; pulling = false; return; }
