@@ -176,7 +176,9 @@ const ICONS = {
   back:'<path d="M15 5l-7 7 7 7"/>',
   chev:'<path d="M9 5l7 7-7 7"/>',
 };
-const icons = html => html.replace(/⟦(\w+)⟧/g, (_, n) => ICONS[n] ? SVG(ICONS[n]) : '');
+const icons = html => html.replace(/⟦(\w+)⟧/g, (_, n) => ICONS[n] ? SVG(ICONS[n]) : '').replace(/<a class="back"(?![^>]*aria-label)/g, '<a class="back" aria-label="Retour"');
+const emptyState = (ic, title, text) => `<div class="empty" role="status"><span class="empty-ic">⟦${ic}⟧</span><b>${title}</b><p>${text}</p></div>`;
+const skel = () => `<div class="sk" aria-hidden="true"><i class="lg"></i><i></i><i></i><i class="short"></i></div>`;
 
 // ---------- utilitaires ----------
 const eur = n => n.toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' €';
@@ -618,7 +620,7 @@ screens.operations = () => {
   <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a><h1 style="font-size:19px">Opérations</h1>${demoTag}</div>
   <div class="grid2 sums"><div class="kpi"><div class="lbl">Dépensé · 30 j</div><div class="val">${eur(-out)}</div></div><div class="kpi"><div class="lbl">Reçu · 30 j</div><div class="val t-blue">${eur(inc)}</div></div></div>
   <div class="seg ops-seg" role="tablist">${[['all','Tout'],['out','Dépenses'],['in','Revenus']].map(([k, l]) => `<button type="button" role="tab" class="${opsFilter === k ? 'on' : ''}" data-ops="${k}">${l}</button>`).join('')}</div>
-  <div class="panel">${list.length ? txGroups(list) : '<p class="insight">Rien sur cette période.</p>'}</div>
+  <div class="panel">${list.length ? txGroups(list) : emptyState('search', 'Aucune opération ici', 'Rien à afficher pour ce filtre. Choisissez « Tout » pour revoir les 35 derniers jours.')}</div>
   <p class="muted small center" style="margin-top:6px">${L.live ? 'Opérations des 35 derniers jours, lues chez votre banque.' : 'Opérations d’exemple des 35 derniers jours.'}</p>
 </div>`;
 };
@@ -650,7 +652,7 @@ screens.abonnements = (q) => {
   <div class="hchips">${chip('all','Tous ('+t.list.length+')')}${chip('up','⟦trend⟧ Hausses ('+t.ups.length+')')}${chip('small','⟦search⟧ Oubliés ('+t.smalls.length+')')}${chip('eco','⟦coin⟧ À économiser')}</div>
   ${P?'':teaser(`${eur(t.found)}/mois d’économies repérées`, LIVE ? `${t.ups.length} hausse${t.ups.length>1?'s':''}, ${t.smalls.length} petit${t.smalls.length>1?'s':''} prélèvement${t.smalls.length>1?'s':''} sous 10 €` : `${t.ups.length} hausses, 1 doublon, 1 double prélèvement, ${t.smalls.length} oubliés`)}
   ${LIVE && LIVE.history && LIVE.history.limited ? `<div class="banner amber"><span class="ic">⟦info⟧</span><div><b>Historique court : détection partielle</b>La banque de test ne fournit que ${LIVE.history.days} jours d’opérations (${LIVE.history.debits} débits). Il faut au moins 2 prélèvements pour confirmer un abonnement : ceux vus une seule fois sont marqués « probable ».</div></div>` : ''}
-  ${LIVE && !t.list.length ? `<div class="card center"><b>Aucun prélèvement récurrent trouvé</b><p class="muted small" style="margin-top:6px">Rien de régulier dans ces ${LIVE.txCount} opérations de test. Avec plus d’historique (2 mois ou plus), la détection sera plus complète.</p></div>` : ''}
+  ${LIVE && !t.list.length ? emptyState('search', 'Aucun prélèvement récurrent', 'Rien de régulier pour le moment. Avec deux mois d’historique ou plus, la détection sera plus complète. Vos comptes restent en lecture seule.') : ''}
   ${P && t.ups.length && f==='all' ? `<div class="banner red"><span class="ic">⟦trend⟧</span><div><b>${t.ups.length} hausse${t.ups.length>1?'s':''} de prix détectée${t.ups.length>1?'s':''}</b>${t.ups.map(s=>`${esc(s.name)} : ${eur(s.prev)} → ${eur(s.price)}`).join(' · ')}. Soit ${eur(t.ups.reduce((a,s)=>a+increase(s),0)*12)} de plus par an.</div></div>` : ''}
   ${list.length?`<div class="card" style="padding:4px 16px">${list.map(row).join('')}</div>`:''}
   ${adSlot('subs')}
@@ -809,12 +811,13 @@ screens.alertes = () => {
 <div class="screen">
   <div class="topbar"><h1>Alertes</h1>${demoTag}</div>
   ${free.map(item).join('')}
-  ${P ? prem.map(item).join('') : `
+  ${P ? prem.map(item).join('') : (prem.length ? `
   <div class="section-h"><h2>${prem.length} alertes d’économies en attente</h2>${lockBadge()}</div>
   <div class="locked-wrap">
     <div class="lock">${prem.slice(0,3).map(a=>item({...a, title:a.title.replace(/[0-9]+,[0-9]+ €/g,'••• €'), text:'•••••••• •••••• ••••• •••••••• ••• •••••• •••••••••'})).join('')}</div>
     <div class="locked-cta"><div class="lc-box"><b>Hausses de prix, doubles prélèvements, rappels avant chaque prélèvement</b><a href="#/premium">Débloquer · ${prix(CFG.priceMonth)}/mois</a><span class="lc-trial">${CFG.trial}</span></div></div>
-  </div>`}
+  </div>` : '')}
+  ${!al.length ? emptyState('bell', 'Tout est calme', 'Aucune alerte pour le moment. Nous vous préviendrons ici si un prix augmente ou si une connexion bancaire demande votre attention.') : ''}
   <div class="section-h"><h2>Réglages des alertes</h2></div>
   <div class="card" style="padding:4px 16px">
     <div class="kv"><span>Accès bancaire bientôt expiré</span><span class="y">Activée</span></div>
@@ -872,7 +875,7 @@ screens.aide = () => `
 <div class="screen">
   <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a><h1 style="font-size:19px">Aide et réglages</h1>${demoTag}</div>
   <div class="card support">
-    <div class="sup-head"><div class="avatars"><span style="background:#F59E0B">S</span><span style="background:#3B82F6">K</span><span style="background:#10B981">M</span></div>
+    <div class="sup-head"><div class="avatars"><span class="avc a">S</span><span class="avc b">K</span><span class="avc c">M</span></div>
       <div><b>Support humain</b><div class="muted small">De vraies personnes vous répondent, pas un robot.</div></div></div>
     <p class="small" style="color:var(--ink2);margin:10px 0 12px;line-height:1.45">Sarah, Karim et Marie (exemple) répondent du lundi au samedi, de 9 h à 19 h. Réponse moyenne : moins de 2 h${isP()?' · prioritaire pour vous':''}.</p>
     <div class="btn-pair" style="margin:0">
@@ -917,7 +920,7 @@ const CHAT = [
 ];
 screens.chat = () => `
 <div class="screen chat-screen">
-  <div class="topbar"><a class="back" href="#/aide">⟦back⟧</a><div class="chat-who"><span class="av" style="background:#F59E0B">S</span><div><b>Sarah</b><div class="muted small">Équipe support · humaine · en ligne</div></div></div>${demoTag}</div>
+  <div class="topbar"><a class="back" href="#/aide">⟦back⟧</a><div class="chat-who"><span class="av avc a">S</span><div><b>Sarah</b><div class="muted small">Équipe support · humaine · en ligne</div></div></div>${demoTag}</div>
   <div class="chat">${CHAT.map(m=>`<div class="msg ${m.me?'me':''}"><div class="bubble">${m.t}</div><div class="h">${m.h}</div></div>`).join('')}</div>
   <form class="chat-input" id="chat-form"><input id="chat-text" placeholder="Écrivez votre message…" autocomplete="off"><button class="send" aria-label="Envoyer">⟦send⟧</button></form>
   <p class="muted small center" style="margin-top:8px">Conversation simulée – aucun message n’est envoyé.</p>
@@ -966,7 +969,7 @@ screens.premium = () => {
     </table>
   </div>
   ${neutral}
-  <a class="card sup-mini" href="#/chat"><span class="avatars"><span style="background:#F59E0B">S</span><span style="background:#3B82F6">K</span></span><div><b>Une question avant de vous abonner ?</b><span>Un humain vous répond, pas un robot.</span></div><span class="chev">⟦chev⟧</span></a>
+  <a class="card sup-mini" href="#/chat"><span class="avatars"><span class="avc a">S</span><span class="avc b">K</span></span><div><b>Une question avant de vous abonner ?</b><span>Un humain vous répond, pas un robot.</span></div><span class="chev">⟦chev⟧</span></a>
   ${P ? '' : `<button class="btn mint" id="go-premium">Commencer : ${CFG.trial}</button>`}
   ${P ? '' : `<p class="muted small center" style="margin:10px 0 0">${API && ME ? 'Paiement sécurisé par Stripe (mode test : aucune carte réelle débitée). Les 500 premiers inscrits ont 3 mois offerts.' : 'Les 500 premiers inscrits ont 3 mois offerts.'}</p>`}
   <p class="muted small center" style="margin-top:10px">Formule ${Y?'Annuelle':'Mensuelle'} : puis ${Y?prix(CFG.priceYear)+'/an (soit '+prix(CFG.priceYear/12)+'/mois)':prix(CFG.priceMonth)+'/mois'} après l’essai. Annulable en 1 clic, à tout moment. Paiement simulé dans cette maquette.</p>
@@ -1133,7 +1136,8 @@ screens.pwscan = () => `
 <div class="screen"><div class="loader">
   <div class="spin"></div>
   <h2 style="font-size:20px">Lecture de vos comptes de test…</h2>
-  <p class="muted small" style="margin-top:6px">Banque de test Powens · analyse faite dans votre navigateur</p>
+  <p class="muted small" style="margin-top:6px">Banque de test Powens. L’analyse se fait dans votre navigateur.</p>
+  ${skel()}
   <div class="scanlist" id="pwlist"><div class="done">⟦check⟧ Connexion à la banque de test</div><div id="pw-step">⟦clock⟧ Récupération des opérations…</div></div>
   <div id="pw-err"></div>
 </div></div>`;
@@ -1165,19 +1169,19 @@ async function pwRefresh(){
 // ---------- compte Prelevo (API) ----------
 let loginSent = null;
 screens.connexion = (q) => {
-  if (q.get('token')) return `<div class="screen"><div class="loader"><div class="spin"></div><h2 style="font-size:20px">Connexion…</h2><p class="muted small" style="margin-top:6px">Vérification de votre lien</p></div></div>`;
+  if (q.get('token')) return `<div class="screen"><div class="loader"><div class="spin"></div><h2 style="font-size:20px">Connexion…</h2><p class="muted small" style="margin-top:6px">Vérification de votre lien. Cela ne prend qu’un instant.</p>${skel()}</div></div>`;
   if (!API) return screens.onboarding();
   return `
 <div class="screen login">
   <div class="topbar"><a class="back" href="#/onboarding">⟦back⟧</a></div>
   <span class="lg"><img class="logo-l lg-l" src="icons/logo-mark.svg" alt=""><img class="logo-l lg-d" src="icons/logo-mark-white.svg" alt="Prelevo"></span>
   <h1 style="font-size:26px;letter-spacing:-.02em;margin-top:18px">${loginSent ? 'Regardez vos e-mails' : 'Connexion'}</h1>
-  ${loginSent ? `<p class="muted" style="margin-top:8px;line-height:1.5">Si l’adresse <b>${esc(loginSent)}</b> est valide, vous venez de recevoir un lien de connexion. Il est valable 15 minutes et ne sert qu’une fois.</p>
+  ${loginSent ? `<p class="muted" style="margin-top:8px;line-height:1.5">Si l’adresse <b>${esc(loginSent)}</b> est la bonne, un lien vient de partir. Il est valable 15 minutes et ne sert qu’une fois. Pensez aussi aux courriers indésirables.</p>
   <button class="btn ghost" id="login-again" style="margin-top:22px">Utiliser une autre adresse</button>`
-  : `<p class="muted" style="margin-top:8px;line-height:1.5">Pas de mot de passe : on vous envoie un lien de connexion par e-mail.</p>
+  : `<p class="muted" style="margin-top:8px;line-height:1.5">Pas de mot de passe. Nous vous envoyons un lien de connexion par e-mail.</p>
   <form id="login-form" class="login-form" novalidate>
     <label for="login-email" class="small" style="font-weight:600">Adresse e-mail</label>
-    <input id="login-email" type="email" inputmode="email" autocomplete="email" required placeholder="nom@exemple.fr">
+    <input id="login-email" type="email" inputmode="email" autocomplete="email" required placeholder="nom@exemple.fr" enterkeyhint="send">
     <button class="btn" type="submit" id="login-submit">Recevoir mon lien</button>
   </form>
   <p class="fine" style="margin-top:14px">⟦lock⟧ Votre e-mail sert uniquement à vous connecter et à vous envoyer vos alertes. Aucune publicité par e-mail.</p>`}
@@ -1187,7 +1191,8 @@ screens.apiwait = () => `
 <div class="screen"><div class="loader">
   <div class="spin"></div>
   <h2 style="font-size:20px">Lecture de vos comptes…</h2>
-  <p class="muted small" style="margin-top:6px">La banque transmet vos opérations, cela peut prendre jusqu’à 30 secondes.</p>
+  <p class="muted small" style="margin-top:6px">La banque transmet vos opérations. Cela peut prendre jusqu’à 30 secondes : vous pouvez laisser cette page ouverte.</p>
+  ${skel()}
   <div id="api-err"></div>
 </div></div>`;
 screens.supprimer = () => !API || !API.loggedIn() ? screens.onboarding() : `
@@ -1246,7 +1251,7 @@ function render(){
   $('#tabbar').hidden = !tabbed;
   if (API && ['onboarding','connexion','dashboard','connect','banques'].includes(name)){ const sc = $('#app').firstElementChild; if (sc && !sc.querySelector('.alpha-note')) sc.insertAdjacentHTML('afterbegin', '<div class="alpha-note" role="note"><b>Alpha</b> — banques de test uniquement pour l’instant</div>'); }
   const tabName = name==='abo' ? 'abonnements' : name==='operations' || !screens[name] ? 'dashboard' : name;
-  document.querySelectorAll('#tabbar a').forEach(a=>a.classList.toggle('on', a.dataset.tab===tabName));
+  document.querySelectorAll('#tabbar a').forEach(a => { const on = a.dataset.tab === tabName; a.classList.toggle('on', on); if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   $('#alert-dot').classList.toggle('show', alerts().some(a=>!state.readAlerts.includes(a.id)));
   window.scrollTo(0,0);
   if (name==='dashboard') animateHome();
@@ -1332,18 +1337,56 @@ if (API){
 // ---------- synchro depuis l'accueil (bouton + tirer pour actualiser) ----------
 let _syncing = false;
 async function homeSync(){
-  if (_syncing) return; _syncing = true; document.querySelector('#home-sync')?.classList.add('on');
+  if (_syncing) return; _syncing = true;
+  document.querySelector('#home-sync')?.classList.add('on');
+  const lg = document.querySelector('.screen.home .brand .lg');
+  if (lg) { lg.style.transform = ''; lg.classList.add('spin'); }
   try {
     if (API && ME){ toast('Synchronisation…'); await API.sync(); await apiLoadMe(); _ledger = null; render(); toast('Comptes à jour'); }
     else if (PWX && LIVE) await pwRefresh();
     else { await new Promise(r => setTimeout(r, 900)); toast('Comptes à jour (exemple)'); }
   } catch(e){ API ? apiFail(e) : toast('Synchronisation impossible'); }
-  finally { _syncing = false; document.querySelector('#home-sync')?.classList.remove('on'); }
+  finally { _syncing = false; document.querySelector('#home-sync')?.classList.remove('on'); document.querySelector('.screen.home .brand .lg')?.classList.remove('spin'); }
 }
-(() => { let y0 = null, d = 0; const ptr = document.createElement('div'); ptr.className = 'ptr'; document.body.appendChild(ptr);
-  addEventListener('touchstart', e => { y0 = scrollY <= 0 && document.querySelector('.home:not(.ops)') && location.hash.replace('#/','').startsWith('dashboard') || location.hash === '' ? e.touches[0].clientY : null; d = 0; }, { passive:true });
-  addEventListener('touchmove', e => { if (y0 == null) return; d = Math.max(0, e.touches[0].clientY - y0); ptr.style.transform = `translate(-50%,${Math.min(d, 90) - 40}px) rotate(${d * 3}deg)`; ptr.classList.toggle('ready', d > 70); }, { passive:true });
-  addEventListener('touchend', () => { if (y0 != null && d > 70) homeSync(); y0 = null; ptr.style.transform = ''; ptr.classList.remove('ready'); });
+(() => {
+  let y0 = null, d = 0, pulling = false;
+  const TRIGGER = 16;
+  const onChart = e => !!(e.target && e.target.closest && e.target.closest('.spark'));
+  const homePull = () => {
+    const h = location.hash;
+    const dash = h === '' || h === '#' || h.replace(/^#\/?/, '').startsWith('dashboard');
+    return scrollY <= 8 && dash && !!document.querySelector('.home:not(.ops)');
+  };
+  const logo = () => document.querySelector('.screen.home .brand .lg');
+  const place = (dist, animate) => {
+    const el = logo();
+    if (!el || el.classList.contains('spin')) return;
+    const p = Math.max(0, Math.min(1, dist / TRIGGER));
+    el.style.transition = animate ? 'transform .2s cubic-bezier(.2,.7,.2,1)' : 'none';
+    el.style.transform = p ? `scale(${1 + p * 0.18})` : '';
+  };
+  addEventListener('touchstart', e => {
+    if (_syncing || onChart(e) || !e.touches || e.touches.length !== 1) { y0 = null; d = 0; pulling = false; return; }
+    y0 = homePull() ? e.touches[0].clientY : null;
+    d = 0; pulling = false;
+  }, { passive: true });
+  addEventListener('touchmove', e => {
+    if (y0 == null || onChart(e) || !e.touches) return;
+    d = Math.max(0, e.touches[0].clientY - y0);
+    if (d > 6) pulling = true;
+    if (pulling && e.cancelable) e.preventDefault();
+    place(d, false);
+  }, { passive: false });
+  const finish = () => {
+    const go = y0 != null && d >= TRIGGER && !_syncing;
+    y0 = null; d = 0; pulling = false;
+    if (!go) { place(0, true); return; }
+    const el = logo();
+    if (el) el.style.transform = '';
+    homeSync();
+  };
+  addEventListener('touchend', finish);
+  addEventListener('touchcancel', () => { y0 = null; d = 0; pulling = false; place(0, true); });
 })();
 
 // retour de Stripe Checkout
@@ -1451,6 +1494,9 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
       const dx = t.clientX - st.x0, dy = t.clientY - st.y0;
       if (dx * dx + dy * dy >= 36) st.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
     }
+    // Tant que le doigt est sur la courbe, le navigateur ne doit ni défiler
+    // tout seul ni lancer le rafraîchissement (tirer pour actualiser).
+    if (e.cancelable) e.preventDefault();
     if (st.axis === 'y') {
       const dy = t.clientY - st.lastY; st.lastY = t.clientY;
       if (raf) cancelAnimationFrame(raf), raf = 0;
@@ -1458,7 +1504,6 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
       window.scrollBy(0, -dy);
       return;
     }
-    if (e.cancelable) e.preventDefault();
     syncDay(t.clientX, st.axis === 'x');
     sched();
   }, { passive: false, capture: true });
