@@ -1216,17 +1216,22 @@ function timeline(){
     const full = ds.length >= 28;
     const save = -95 + R() * 120;                                   // épargne nette du cycle
     const spendTotal = isCur ? SPENT : (full ? fixedSum + (ds[0].getDate()===21 ? 0 : INCOME) - save : 22 * ds.length);
-    const w = ds.map(() => 0.3 + R() * 1.4), sw = w.reduce((a,b)=>a+b,0);
-    ds.forEach((d, i) => {
-      let left = Math.max(0, spendTotal) * w[i] / sw;
-      const n = 1 + Math.floor(R() * 4);
-      for (let j = 0; j < n; j++){
-        const part = j === n-1 ? left : left * (0.2 + R() * 0.5); left -= part;
-        const h = 8 + R() * 13;
-        const tt = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(h), Math.floor((h%1)*60));
-        if (tt <= NOW) ev.push({ t:tt, amt:-part, name:'Carte', k:'spend' });
-      }
-    });
+    // 10 à 15 achats sur un mois plein : courses, essence, resto… d’un foyer à ~2 000 €
+    const nTarget = 10 + Math.floor(R() * 6);
+    const n = Math.max(2, Math.min(nTarget, Math.round(nTarget * ds.length / 30)));
+    const ww = [];
+    for (let i = 0; i < n; i++){ const roll = R(); ww.push(roll < .3 ? 2.8 : roll < .55 ? 1.65 : roll < .8 ? 1 : 0.42); }
+    const sw = ww.reduce((a, b) => a + b, 0);
+    let left = Math.max(0, spendTotal);
+    for (let i = 0; i < n; i++){
+      const part = i === n - 1 ? left : Math.round(Math.max(0, spendTotal) * ww[i] / sw * 100) / 100;
+      left = Math.round((left - part) * 100) / 100;
+      if (part < 0.4) continue;
+      const d = ds[Math.min(ds.length - 1, Math.floor(((i + 0.15 + R() * 0.45) / n) * ds.length))];
+      const h = 9 + R() * 12;
+      const tt = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(h), Math.floor((h % 1) * 60));
+      if (tt <= NOW) ev.push({ t:tt, amt:-part, name:'Carte', k:'spend' });
+    }
     fixed.forEach(e => { if (e.t <= NOW) ev.push(e); });
   });
   ev.sort((a,b)=>a.t-b.t);
