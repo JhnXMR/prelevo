@@ -7,7 +7,7 @@ document.title = `${APP_NAME} – ${CFG.tagline}`;
 const USER = { prenom: 'Camille', nom: 'Exemple', adresse: '12 rue de l’Exemple\n75011 Paris' };
 let INCOME = 2150;          // salaire net (exemple)
 let RENT = 720;             // loyer (exemple)
-let SPENT = 486.30;         // dépenses courantes déjà faites ce mois-ci (exemple)
+let SPENT = 832;            // courses, essence, restos déjà passés depuis la paie (exemple)
 let PAYDAY_IN = 12;         // jours avant la prochaine paie
 let PAST_SAVED = 6.99;      // un abonnement déjà résilié le mois dernier (exemple)
 
@@ -128,7 +128,7 @@ function apiFail(e){
 async function apiLoadMe(){ try { applyServer(await API.me()); } catch(e){ apiFail(e); } }
 const sandboxNote = () => window.PW && API ? `<div class="pw-note"><b>Banque de test (sandbox Powens)</b>
   ${window.PW.testCreds.map(c=>`<div><span>${c.bank}</span>${c.fields}</div>`).join('')}
-  <p>Pendant la bêta, seules les fausses banques de test sont proposées.</p></div>` : '';
+  <p>Pendant l’alpha, seules les fausses banques de test sont proposées.</p></div>` : '';
 const notBank = (extra='') => `<p class="notbank ${extra}">⟦shield⟧<span><b>${APP_NAME} n’est pas une banque.</b> C’est une télécommande élégante pour celles que vous avez déjà : on s’y branche en lecture seule, via un agrégateur agréé par l’ACPR.</span></p>`;
 const pwNote = () => `<div class="pw-note"><b>Identifiants de test Powens</b>
   ${(PWX ? PWX.testCreds : []).map(c=>`<div><span>${c.bank}</span>${c.fields}</div>`).join('')}
@@ -326,7 +326,7 @@ screens.onboarding = () => `
     : `<a class="btn" href="#/connexion">⟦mail⟧ Se connecter avec mon e-mail</a>
   <a class="btn ghost" href="?demo=1#/dashboard" style="margin-top:8px">Voir la démo (données d’exemple)</a>`) : `<a class="btn" href="#/connect">Connecter ma banque</a>
   ${PWX ? `<button class="btn ghost" id="pw-connect" style="margin-top:8px">⟦bank⟧ Connecter une banque de test</button>` : ''}`}
-  <p class="fine">⟦lock⟧ Gratuit pour commencer, Premium à ${prix(CFG.priceMonth)}/mois.<br>Accès en lecture seule via un agrégateur bancaire agréé. ${APP_NAME} ne peut jamais déplacer votre argent.<br>${API ? 'Bêta – banques de test uniquement' : 'Maquette – données d’exemple'}</p>
+  <p class="fine">⟦lock⟧ Gratuit pour commencer, Premium à ${prix(CFG.priceMonth)}/mois.<br>Accès en lecture seule via un agrégateur bancaire agréé. ${APP_NAME} ne peut jamais déplacer votre argent.<br>${API ? 'Alpha – banques de test uniquement' : 'Maquette – données d’exemple'}</p>
 </div>`;
 
 screens.connect = () => `
@@ -1192,7 +1192,7 @@ let _timeline = null;
 function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function timeline(){
   if (_timeline) return _timeline;
-  const R = rng(20261009), t = totals();
+  const t = totals();
   const start = new Date(2025, 3, 1);
   const days = []; for (let d = new Date(start); d <= NOW; d.setDate(d.getDate()+1)) days.push(new Date(d));
   const ev = [];   // {t: Date, amt, name, k}
@@ -1200,9 +1200,8 @@ function timeline(){
   const cycleKey = d => { const m = d.getDate() >= 21 ? d.getMonth() : d.getMonth() - 1; return new Date(d.getFullYear(), m, 21).getTime(); };
   const cycles = {};
   days.forEach(d => { const k = cycleKey(d); (cycles[k] = cycles[k] || []).push(d); });
-  const curKey = cycleKey(NOW);
   Object.entries(cycles).forEach(([k, ds]) => {
-    k = +k; const isCur = k === curKey;
+    k = +k;
     const fixed = []; 
     ds.forEach(d => {
       if (d.getDate() === 21) {
@@ -1212,26 +1211,14 @@ function timeline(){
       if (d.getDate() === 5) fixed.push({ t:new Date(d.getFullYear(), d.getMonth(), 5, 6, 10), amt:-RENT, name:'Loyer', k:'rent' });
       t.list.forEach(s => { if (s.day === d.getDate()) fixed.push({ t:new Date(d.getFullYear(), d.getMonth(), d.getDate(), 5 + (s.price*7 % 4), 0), amt:-s.price, name:s.name, k:'sub' }); });
     });
-    const fixedSum = fixed.reduce((a,e)=>a+e.amt,0);
-    const full = ds.length >= 28;
-    const save = -95 + R() * 120;                                   // épargne nette du cycle
-    const spendTotal = isCur ? SPENT : (full ? fixedSum + (ds[0].getDate()===21 ? 0 : INCOME) - save : 22 * ds.length);
-    // 10 à 15 achats sur un mois plein : courses, essence, resto… d’un foyer à ~2 000 €
-    const nTarget = 10 + Math.floor(R() * 6);
-    const n = Math.max(2, Math.min(nTarget, Math.round(nTarget * ds.length / 30)));
-    const ww = [];
-    for (let i = 0; i < n; i++){ const roll = R(); ww.push(roll < .3 ? 2.8 : roll < .55 ? 1.65 : roll < .8 ? 1 : 0.42); }
-    const sw = ww.reduce((a, b) => a + b, 0);
-    let left = Math.max(0, spendTotal);
-    for (let i = 0; i < n; i++){
-      const part = i === n - 1 ? left : Math.round(Math.max(0, spendTotal) * ww[i] / sw * 100) / 100;
-      left = Math.round((left - part) * 100) / 100;
-      if (part < 0.4) continue;
-      const d = ds[Math.min(ds.length - 1, Math.floor(((i + 0.15 + R() * 0.45) / n) * ds.length))];
-      const h = 9 + R() * 12;
-      const tt = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Math.floor(h), Math.floor((h % 1) * 60));
-      if (tt <= NOW) ev.push({ t:tt, amt:-part, name:'Carte', k:'spend' });
-    }
+    const origin = new Date(k);
+    const lastDay = ds[ds.length - 1];
+    const endDay = new Date(lastDay.getFullYear(), lastDay.getMonth(), lastDay.getDate(), 23, 59);
+    [[1,168],[3,92],[5,46],[7,154],[11,78],[13,36],[14,142],[16,64],[18,52],[21,136],[24,88],[28,74]].forEach(([off, amt]) => {
+      const tt = new Date(origin.getFullYear(), origin.getMonth(), origin.getDate() + off, 11 + (off % 4), (off * 11) % 50);
+      if (tt < ds[0] || tt > endDay || tt > NOW) return;
+      ev.push({ t:tt, amt:-amt, name:'Carte', k:'spend' });
+    });
     fixed.forEach(e => { if (e.t <= NOW) ev.push(e); });
   });
   ev.sort((a,b)=>a.t-b.t);
@@ -1456,7 +1443,7 @@ function render(){
   $('#app').innerHTML = icons(fn(new URLSearchParams(qs||''), ...args));
   const tabbed = ['dashboard','operations','abonnements','alertes','premium','abo','aide','banques','compte','apparence','parrainage'].includes(name) || (!screens[name]);
   $('#tabbar').hidden = !tabbed;
-  if (API && ['onboarding','connexion','dashboard','connect','banques'].includes(name)){ const sc = $('#app').firstElementChild; if (sc && !sc.querySelector('.alpha-note')) sc.insertAdjacentHTML('afterbegin', '<div class="alpha-note" role="note"><b>Bêta</b> — banques de test uniquement pour l’instant</div>'); }
+  if (API && ['onboarding','connexion','dashboard','connect','banques'].includes(name)){ const sc = $('#app').firstElementChild; if (sc && !sc.querySelector('.alpha-note')) sc.insertAdjacentHTML('afterbegin', '<div class="alpha-note" role="note"><b>Alpha</b> — banques de test uniquement pour l’instant</div>'); }
   const tabName = name==='abo' ? 'abonnements' : name==='operations' || !screens[name] ? 'dashboard' : name;
   document.querySelectorAll('#tabbar a').forEach(a => { const on = a.dataset.tab === tabName; a.classList.toggle('on', on); if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   $('#alert-dot').classList.toggle('show', alerts().some(a=>!state.readAlerts.includes(a.id)));
