@@ -1339,17 +1339,37 @@ let _syncing = false;
 async function homeSync(){
   if (_syncing) return; _syncing = true;
   document.querySelector('#home-sync')?.classList.add('on');
-  const lg = document.querySelector('.screen.home .brand .lg');
-  if (lg) { lg.style.transform = ''; lg.classList.add('spin'); }
+  const ptr = document.querySelector('.ptr');
+  if (ptr) {
+    ptr.classList.add('on');
+    ptr.style.transition = 'opacity .2s ease, transform .2s ease';
+    ptr.style.opacity = '1';
+    ptr.style.transform = 'translate(-50%, -50%) scale(1)';
+  }
   try {
     if (API && ME){ toast('Synchronisation…'); await API.sync(); await apiLoadMe(); _ledger = null; render(); toast('Comptes à jour'); }
     else if (PWX && LIVE) await pwRefresh();
     else { await new Promise(r => setTimeout(r, 900)); toast('Comptes à jour (exemple)'); }
   } catch(e){ API ? apiFail(e) : toast('Synchronisation impossible'); }
-  finally { _syncing = false; document.querySelector('#home-sync')?.classList.remove('on'); document.querySelector('.screen.home .brand .lg')?.classList.remove('spin'); }
+  finally {
+    _syncing = false;
+    document.querySelector('#home-sync')?.classList.remove('on');
+    const p = document.querySelector('.ptr');
+    if (p) {
+      p.classList.remove('on');
+      p.style.transition = 'opacity .28s ease, transform .28s ease';
+      p.style.opacity = '0';
+      p.style.transform = 'translate(-50%, -50%) scale(.72)';
+    }
+  }
 }
 (() => {
   let y0 = null, d = 0, pulling = false;
+  const ptr = document.createElement('div');
+  ptr.className = 'ptr';
+  ptr.setAttribute('aria-hidden', 'true');
+  ptr.innerHTML = '<img class="lg-l" src="icons/logo-mark.svg" alt=""><img class="lg-d" src="icons/logo-mark-white.svg" alt="">';
+  document.body.appendChild(ptr);
   const TRIGGER = 16;
   const onChart = e => !!(e.target && e.target.closest && e.target.closest('.spark'));
   const homePull = () => {
@@ -1357,13 +1377,12 @@ async function homeSync(){
     const dash = h === '' || h === '#' || h.replace(/^#\/?/, '').startsWith('dashboard');
     return scrollY <= 8 && dash && !!document.querySelector('.home:not(.ops)');
   };
-  const logo = () => document.querySelector('.screen.home .brand .lg');
   const place = (dist, animate) => {
-    const el = logo();
-    if (!el || el.classList.contains('spin')) return;
+    if (ptr.classList.contains('on')) return;
     const p = Math.max(0, Math.min(1, dist / TRIGGER));
-    el.style.transition = animate ? 'transform .2s cubic-bezier(.2,.7,.2,1)' : 'none';
-    el.style.transform = p ? `scale(${1 + p * 0.18})` : '';
+    ptr.style.transition = animate ? 'opacity .22s ease, transform .22s ease' : 'none';
+    ptr.style.opacity = String(p);
+    ptr.style.transform = `translate(-50%, -50%) scale(${0.72 + p * 0.28})`;
   };
   addEventListener('touchstart', e => {
     if (_syncing || onChart(e) || !e.touches || e.touches.length !== 1) { y0 = null; d = 0; pulling = false; return; }
@@ -1381,8 +1400,6 @@ async function homeSync(){
     const go = y0 != null && d >= TRIGGER && !_syncing;
     y0 = null; d = 0; pulling = false;
     if (!go) { place(0, true); return; }
-    const el = logo();
-    if (el) el.style.transform = '';
     homeSync();
   };
   addEventListener('touchend', finish);

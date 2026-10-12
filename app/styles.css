@@ -504,9 +504,18 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .bk-tile.tx-bk{width:18px;height:18px;border-radius:6px}
 .bk-tile.tx-bk b{font-size:7.5px}
 .bk-tile.tx-bk img{max-width:100%}
-.brand .lg{transform-origin:50% 40%}
-.brand .lg.spin{animation:logo-spin .7s linear infinite}
-@keyframes logo-spin{to{transform:rotate(360deg)}}
+.ptr{position:fixed;left:50%;top:42%;width:88px;z-index:40;opacity:0;transform:translate(-50%,-50%) scale(.72);pointer-events:none}
+.ptr img{width:88px;height:auto;display:block;transform-origin:50% 40%}
+.ptr .lg-d{display:none}
+[data-theme="dark"] .ptr .lg-l{display:none}
+[data-theme="dark"] .ptr .lg-d{display:block}
+@media (prefers-color-scheme: dark){ :root:not([data-theme]) .ptr .lg-l{display:none} :root:not([data-theme]) .ptr .lg-d{display:block} }
+.ptr::after{content:"";position:absolute;left:50%;top:40%;width:78px;height:78px;margin:-39px 0 0 -39px;border-radius:50%;border:2px solid var(--accent);opacity:0;pointer-events:none}
+.ptr.on img{animation:radar 1.05s ease-in-out infinite}
+.ptr.on::after{animation:radar-ping 1.05s ease-out infinite}
+@keyframes radar{0%,100%{transform:scale(.82);opacity:.7}50%{transform:scale(1.14);opacity:1}}
+@keyframes radar-ping{0%{transform:scale(.55);opacity:.5}100%{transform:scale(1.85);opacity:0}}
+@media (prefers-reduced-motion: reduce){ .ptr.on img,.ptr.on::after{animation:none} }
 .total .lbl{padding-right:118px}
 /* ---------- Abonnements / résiliation ---------- */
 .row .meta.sub-next{color:var(--ink2);margin-top:1px}
@@ -594,5 +603,5 @@ input,select,textarea{font-size:16px}
 #api-delete.btn.danger:not(:disabled){background:var(--ink);color:var(--bg);border-color:transparent}
 .seg button{min-height:44px;height:44px}
 @media (prefers-reduced-motion: reduce){
-  .screen,.sk i,.btn,.sync-btn,.tx,.row,.bk-card,.brand .lg.spin{animation:none!important;transition:none!important}
+  .screen,.sk i,.btn,.sync-btn,.tx,.row,.bk-card,.ptr.on img,.ptr.on::after{animation:none!important;transition:none!important}
 }
