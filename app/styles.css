@@ -517,3 +517,8 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .plan-status{margin-top:14px}
 .plan-status .ps-h{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .plan-status .btn{margin-top:12px}
+/* scrub du graphique */
+.spark{touch-action:pan-y;cursor:crosshair;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+.sp-vline{position:absolute;top:-4px;bottom:16px;width:1px;margin-left:-.5px;background:var(--ink);opacity:.35;pointer-events:none}
+.spark.scrub .sp-dot{width:11px;height:11px;margin:-5.5px 0 0 -5.5px;box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 25%,transparent);animation:none!important}
+.spark.scrub .sp-area,.spark.scrub .sp-line{animation:none!important}

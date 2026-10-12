@@ -491,6 +491,7 @@ function liveLedger(){
   return { banks:[bank], total:bank.total, tx, curve, up, nAcc:bank.accs.filter(a => a.counted).length, live:true };
 }
 
+let SPARK = null;
 function spark(curve){
   if (!curve || curve.length < 2) return '';
   const W = 340, H = 70, vs = curve.map(p => p.v), lo = Math.min(...vs), hi = Math.max(...vs), r = hi - lo || 1;
@@ -498,11 +499,15 @@ function spark(curve){
   const pts = curve.map((p, i) => [x(i), y(p.v)]);
   const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
   const last = pts[pts.length - 1];
-  return `<div class="spark"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+  // points journaliers pour le « scrub » (dernier point de chaque jour)
+  const daily = []; curve.forEach((p, i) => { const k = day0(p.t).getTime(); const o = { x: pts[i][0] / W * 100, y: pts[i][1] / H * 100, v: p.v, t: p.t };
+    if (daily.length && daily[daily.length - 1].k === k) daily[daily.length - 1] = { k, ...o }; else daily.push({ k, ...o }); });
+  SPARK = { daily, first: curve[0].v };
+  return `<div class="spark" role="img" aria-label="Évolution du solde sur 30 jours. Glissez pour voir chaque jour."><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
     <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".16"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
     <path class="sp-area" d="${d} L${W},${H} L0,${H} Z" fill="url(#spk)"/>
     <path class="sp-line" d="${d}" pathLength="1" fill="none" stroke="var(--accent)" stroke-width="1.8" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
-  </svg><i class="sp-dot" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%"></i>
+  </svg><i class="sp-vline" hidden></i><i class="sp-dot" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%"></i>
   <div class="sp-legend"><span>il y a 30 jours</span><span>aujourd’hui</span></div></div>`;
 }
 const catChip = c => `<span class="cat cat-${c}" aria-hidden="true">⟦${(CATS[c] || CATS.autre).ic}⟧</span>`;
@@ -547,7 +552,7 @@ screens.dashboard = () => {
     <button type="button" class="sync-btn" id="home-sync" aria-label="Synchroniser vos comptes">⟦refresh⟧<span>Synchroniser</span></button>
     <div class="lbl">Solde total · ${L.nAcc} compte${L.nAcc > 1 ? 's' : ''}${banksN > 1 ? ' dans ' + banksN + ' banques' : ''}</div>
     <div class="amount" data-count="${L.total.toFixed(2)}">${money(L.total)}</div>
-    <div class="delta">${delta >= 0 ? '⟦trend⟧' : ''}<b class="${delta >= 0 ? 'pos' : ''}">${signed(delta)}</b> sur 30 jours</div>
+    <div class="delta" id="sp-delta">${delta >= 0 ? '⟦trend⟧' : ''}<b class="${delta >= 0 ? 'pos' : ''}">${signed(delta)}</b> sur 30 jours</div>
     ${spark(L.curve)}
     ${P ? `<a class="rav" href="#/abonnements"><span>Reste à vivre jusqu’à la paie</span><b>${eur(t.reste)}</b></a>`
         : `<a class="rav locked" href="#/premium"><span>⟦lock⟧ Reste à vivre jusqu’à la paie</span><b>Premium</b></a>`}
@@ -1343,3 +1348,33 @@ async function homeSync(){
 // retour de Stripe Checkout
 if (QS.get('billing') === 'success'){ toast('Merci ! Votre Premium s’active…'); history.replaceState(null, '', location.pathname + '#/premium'); if (API && API.loggedIn()) setTimeout(() => apiLoadMe().then(render), 2500); }
 else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a été débité'); history.replaceState(null, '', location.pathname + '#/premium'); }
+
+// ---------- scrub du graphique « Solde total » (pointer events, rAF, vibration Android) ----------
+(() => {
+  const JC = ['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'];
+  const buzz = ms => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch(e){} };
+  let st = null, raf = 0, px = 0;
+  const frame = () => { raf = 0; if (!st || !SPARK) return;
+    const r = st.el.getBoundingClientRect(), f = Math.min(1, Math.max(0, (px - r.left) / r.width)) * 100, D = SPARK.daily;
+    let i = 0, best = 1e9; D.forEach((p, k) => { const d = Math.abs(p.x - f); if (d < best){ best = d; i = k; } });
+    if (i === st.i) return; if (st.i !== -1) buzz(8); st.i = i;
+    const p = D[i], amt = document.querySelector('.total [data-count]'), dl = document.getElementById('sp-delta'), dv = p.v - SPARK.first;
+    st.vl.hidden = false; st.vl.style.left = p.x + '%'; st.dot.style.left = p.x + '%'; st.dot.style.top = p.y + '%';
+    if (amt) amt.innerHTML = money(p.v);
+    if (dl) dl.innerHTML = `<b class="${dv >= 0 ? 'pos' : ''}">${signed(dv)}</b> · ${JC[p.t.getDay()]} ${p.t.getDate()} ${MOIS[p.t.getMonth()]}`;
+  };
+  const move = e => { if (!st || e.pointerId !== st.id) return; px = e.clientX; if (!raf) raf = requestAnimationFrame(frame); };
+  const end = e => { if (!st || (e && e.pointerId !== st.id)) return; const el = st.el; st = null; if (raf) cancelAnimationFrame(raf), raf = 0;
+    el.classList.remove('scrub'); const o = el._orig; if (o){ const amt = document.querySelector('.total [data-count]'), dl = document.getElementById('sp-delta');
+      if (amt) amt.innerHTML = o.a; if (dl) dl.innerHTML = o.d; const dot = el.querySelector('.sp-dot'); dot.style.left = o.l; dot.style.top = o.t; el.querySelector('.sp-vline').hidden = true; } };
+  addEventListener('pointerdown', e => { const el = e.target.closest && e.target.closest('.spark'); if (!el || !SPARK || e.button > 0) return;
+    st = { el, id: e.pointerId, i: -1, vl: el.querySelector('.sp-vline'), dot: el.querySelector('.sp-dot') };
+    const amt = document.querySelector('.total [data-count]'), dl = document.getElementById('sp-delta');
+    el._orig = { a: amt ? amt.innerHTML : '', d: dl ? dl.innerHTML : '', l: st.dot.style.left, t: st.dot.style.top };
+    try { el.setPointerCapture(e.pointerId); } catch(_){}
+    el.classList.add('scrub'); buzz(5); px = e.clientX; frame(); });
+  addEventListener('pointermove', move, { passive: true });
+  addEventListener('pointerup', end); addEventListener('pointercancel', end);
+  window.__scrubTo = f => { const el = document.querySelector('.spark'); if (!el) return; st = { el, id: 0, i: -1, vl: el.querySelector('.sp-vline'), dot: el.querySelector('.sp-dot') }; el.classList.add('scrub'); const r = el.getBoundingClientRect(); px = r.left + r.width * f; frame(); };
+})();
+if (QS.has('demo') && QS.get('scrub')) setTimeout(() => window.__scrubTo(+QS.get('scrub')), 600);  // captures
