@@ -379,7 +379,10 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .total .delta{font-size:13px;color:var(--ink2);display:flex;align-items:center;gap:5px}
 .total .delta .i{width:15px;height:15px;color:var(--accent)}
 .total .delta b{font-weight:600;color:var(--ink)} .total .delta b.pos{color:var(--accent)}
-.spark{position:relative;margin:14px -4px 2px;height:70px}
+.tf{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;margin:12px 0 2px;padding:3px;background:var(--chip);border-radius:14px}
+.tf button{min-height:36px;border:0;border-radius:11px;background:transparent;color:var(--muted);font-size:12px;font-weight:650;letter-spacing:-.03em;padding:0 1px;white-space:nowrap}
+.tf button.on{background:var(--surface);color:var(--ink);box-shadow:0 1px 2px rgba(10,11,13,.14),0 0 0 1px var(--line)}
+.tf button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .spark svg{width:100%;height:70px;display:block;overflow:visible}
 .sp-line{stroke-dasharray:1;stroke-dashoffset:0}
 .sp-dot{position:absolute;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 22%,transparent)}

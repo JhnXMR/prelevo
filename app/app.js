@@ -488,29 +488,45 @@ function liveLedger(){
   // courbe 30 j : solde des comptes courants/épargne aujourd'hui, en remontant leurs opérations
   const ids = new Set(bank.accs.filter(a => a.counted && a.id != null).map(a => a.id));
   const flows = tx.filter(x => ids.has(x.acc));
+  const oldest = flows.length ? flows.reduce((m, f) => Math.min(m, +f.t), +t0) : +t0;
+  const span = Math.min(400, Math.max(30, Math.ceil((+t0 - oldest) / DAY_MS)));
   const curve = [];
-  for (let d = 30; d >= 0; d--){ const end = new Date(t0.getTime() - (d - 1) * DAY_MS); curve.push({ t:new Date(end - DAY_MS / 2), v: bank.total - flows.filter(f => f.t >= end).reduce((a, f) => a + f.amt, 0) }); }
+  for (let d = span; d >= 0; d--){ const end = new Date(t0.getTime() - (d - 1) * DAY_MS); curve.push({ t:new Date(end - DAY_MS / 2), v: bank.total - flows.filter(f => f.t >= end).reduce((a, f) => a + f.amt, 0) }); }
   return { banks:[bank], total:bank.total, tx, curve, up, nAcc:bank.accs.filter(a => a.counted).length, live:true };
 }
 
 let SPARK = null;
+function homeCurve(){
+  const L = ledger();
+  if (L.live) {
+    const days = { '24H':1, '7J':7, '1M':30, '3M':90, '1A':365, 'TOUT':1e5 }[homeTf] || 30;
+    const from = day0(nowRef()).getTime() - (days - 1) * DAY_MS;
+    const c = L.curve.filter(p => +p.t >= from);
+    return c.length > 1 ? c : L.curve.slice(-2);
+  }
+  return samples(homeTf).map(p => ({ t:p.t, v:p.bal + (L.total - timeline().end) }));
+}
 function spark(curve){
   if (!curve || curve.length < 2) return '';
+  const tf = homeTfMeta();
   const W = 340, H = 70, vs = curve.map(p => p.v), lo = Math.min(...vs), hi = Math.max(...vs), r = hi - lo || 1;
   const x = i => (i / (curve.length - 1)) * W, y = v => 6 + (hi - v) / r * (H - 14);
   const pts = curve.map((p, i) => [x(i), y(p.v)]);
   const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
   const last = pts[pts.length - 1];
-  // points journaliers pour le « scrub » (dernier point de chaque jour)
-  const daily = []; curve.forEach((p, i) => { const k = day0(p.t).getTime(); const o = { x: pts[i][0] / W * 100, y: pts[i][1] / H * 100, v: p.v, t: p.t };
-    if (daily.length && daily[daily.length - 1].k === k) daily[daily.length - 1] = { k, ...o }; else daily.push({ k, ...o }); });
-  SPARK = { daily, first: curve[0].v };
-  return `<div class="spark" role="img" aria-label="Évolution du solde sur 30 jours. Glissez pour voir chaque jour."><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+  const daily = [];
+  curve.forEach((p, i) => {
+    const k = homeTf === '24H' ? p.t.getTime() : day0(p.t).getTime();
+    const o = { x: pts[i][0] / W * 100, y: pts[i][1] / H * 100, v: p.v, t: p.t };
+    if (daily.length && daily[daily.length - 1].k === k) daily[daily.length - 1] = { k, ...o }; else daily.push({ k, ...o });
+  });
+  SPARK = { daily, first: curve[0].v, tf: homeTf };
+  return `<div class="spark" role="img" aria-label="Évolution du solde sur ${tf[2]}. Glissez pour voir le détail."><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
     <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".16"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
     <path class="sp-area" d="${d} L${W},${H} L0,${H} Z" fill="url(#spk)"/>
     <path class="sp-line" d="${d}" pathLength="1" fill="none" stroke="var(--accent)" stroke-width="1.8" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
   </svg><i class="sp-vline" hidden></i><i class="sp-dot" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%"></i>
-  <div class="sp-legend"><span>il y a 30 jours</span><span>aujourd’hui</span></div>
+  <div class="sp-legend"><span>${tf[3]}</span><span>aujourd’hui</span></div>
   <div class="sp-hit" aria-hidden="true"></div></div>`;
 }
 const catChip = c => `<span class="cat cat-${c}" aria-hidden="true">⟦${(CATS[c] || CATS.autre).ic}⟧</span>`;
@@ -540,7 +556,9 @@ function animateHome(){
 screens.dashboard = () => {
   const t = totals(), P = isP(), L = ledger(), al = alerts();
   const unread = al.filter(a => !state.readAlerts.includes(a.id)).length;
-  const first = L.curve.length ? L.curve[0].v : L.total, delta = L.total - first;
+  const curve = homeCurve();
+  const first = curve.length ? curve[0].v : L.total, delta = L.total - first;
+  const tf = homeTfMeta();
   const upSum = L.up.reduce((a, x) => a + x.amt, 0);
   const nextSub = L.up.find(x => x.sub);
   const banksN = L.banks.length;
@@ -556,8 +574,9 @@ screens.dashboard = () => {
     <button type="button" class="sync-btn" id="home-sync" aria-label="Synchroniser vos comptes">⟦refresh⟧<span>Synchroniser</span></button>
     <div class="lbl">Solde total · ${L.nAcc} compte${L.nAcc > 1 ? 's' : ''}${banksN > 1 ? ' dans ' + banksN + ' banques' : ''}</div>
     <div class="amount" data-count="${L.total.toFixed(2)}">${money(L.total)}</div>
-    <div class="delta" id="sp-delta">${delta >= 0 ? '⟦trend⟧' : ''}<b class="${delta >= 0 ? 'pos' : ''}">${signed(delta)}</b> sur 30 jours</div>
-    ${spark(L.curve)}
+    <div class="delta" id="sp-delta">${delta >= 0 ? '⟦trend⟧' : ''}<b class="${delta >= 0 ? 'pos' : ''}">${signed(delta)}</b> ${homeTf === 'TOUT' ? 'depuis le début' : 'sur ' + tf[2]}</div>
+    <div class="tf" role="tablist" aria-label="Période du graphique">${HOME_TF.map(([k, lab]) => `<button type="button" role="tab" data-tf="${k}" aria-selected="${k === homeTf ? 'true' : 'false'}" class="${k === homeTf ? 'on' : ''}">${lab}</button>`).join('')}</div>
+    ${spark(curve)}
     ${P ? `<a class="rav" href="#/abonnements"><span>Reste à vivre jusqu’à la paie</span><b>${eur(t.reste)}</b></a>`
         : `<a class="rav locked" href="#/premium"><span>⟦lock⟧ Reste à vivre jusqu’à la paie</span><b>Premium</b></a>`}
   </section>
@@ -986,6 +1005,7 @@ const LEFTOVER = 57.20;
 const NOW = new Date(2026, 9, 9, 20, 0);                 // 9 oct. 2026, 20 h (date fictive de la démo)
 const MOIS = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
 const PERIODS = {
+  '24H': { days:1,   stepH:1,  dots:true,  fmt:'hour' },
   '7J':  { days:7,   stepH:2,  dots:true,  fmt:'hour' },
   '1M':  { days:30,  stepH:4,  dots:true,  fmt:'day' },
   '3M':  { days:91,  stepH:12, dots:false, fmt:'day' },
@@ -993,6 +1013,16 @@ const PERIODS = {
   'TOUT':{ days:556, stepH:48, dots:false, fmt:'month' },   // depuis le 1er avr. 2025
 };
 let balPeriod = '1M';
+const HOME_TF = [
+  ['24H', '24 h', '24 heures', 'il y a 24 h'],
+  ['7J', '7 j', '7 jours', 'il y a 7 jours'],
+  ['1M', '30 j', '30 jours', 'il y a 30 jours'],
+  ['3M', '90 j', '90 jours', 'il y a 90 jours'],
+  ['1A', '1 an', '1 an', 'il y a 1 an'],
+  ['TOUT', 'Tout', 'tout', 'au début'],
+];
+let homeTf = '1M';
+const homeTfMeta = () => HOME_TF.find(x => x[0] === homeTf) || HOME_TF[2];
 let _timeline = null;
 function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function timeline(){
@@ -1129,6 +1159,8 @@ document.addEventListener('pointermove', e => { const r = e.target.closest && e.
 document.addEventListener('pointerdown', e => { const r = e.target.closest && e.target.closest('.g-hit'); if (r) balSelect(+r.dataset.bi); });
 document.addEventListener('pointerleave', e => { if (e.target.id === 'balance') balReset(); }, true);
 document.addEventListener('click', e => {
+  const tf = e.target.closest && e.target.closest('[data-tf]');
+  if (tf && tf.dataset.tf !== homeTf) { homeTf = tf.dataset.tf; render(); return; }
   const b = e.target.closest && e.target.closest('[data-period]'); if (!b) return;
   balPeriod = b.dataset.period;
   const sec = document.getElementById('balance'); if (sec) sec.outerHTML = balanceChart();
@@ -1475,7 +1507,12 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     if (st.vl) { st.vl.hidden = false; st.vl.style.left = p.x + '%'; }
     if (st.dot) { st.dot.style.left = p.x + '%'; st.dot.style.top = p.y + '%'; }
     if (amt) { amt.dataset.scrub = '1'; amt.innerHTML = money(p.v); }
-    if (dl) dl.innerHTML = `<b class="${dv >= 0 ? 'pos' : ''}">${signed(dv)}</b> · ${JC[p.t.getDay()]} ${p.t.getDate()} ${MOIS[p.t.getMonth()]}`;
+    if (dl) {
+      const when = SPARK.tf === '24H'
+        ? `${String(p.t.getHours()).padStart(2,'0')} h`
+        : `${JC[p.t.getDay()]} ${p.t.getDate()} ${MOIS[p.t.getMonth()]}`;
+      dl.innerHTML = `<b class="${dv >= 0 ? 'pos' : ''}">${signed(dv)}</b> · ${when}`;
+    }
   };
   const frame = () => { raf = 0; paint(); };
   const sched = () => { if (!raf) raf = requestAnimationFrame(frame); };
