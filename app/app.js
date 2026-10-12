@@ -908,8 +908,8 @@ screens.banques = () => {
 
 const themePref = () => (window.PrelevoTheme ? PrelevoTheme.get() : 'auto');
 const themeLabel = () => ({ light:'Clair', dark:'Sombre', auto:'Automatique' }[themePref()] || 'Automatique');
-function appIcon(){ try { const v = localStorage.getItem('prelevo-icon'); if (v === 'noir' || v === 'bleu') return v; } catch (e) {} return 'defaut'; }
-function setAppIcon(v){ try { if (v === 'noir' || v === 'bleu') localStorage.setItem('prelevo-icon', v); else localStorage.removeItem('prelevo-icon'); } catch (e) {} document.documentElement.setAttribute('data-icon', appIcon()); }
+function appIcon(){ try { const v = localStorage.getItem('prelevo-icon'); if (v === 'noir' || v === 'defaut' || v === 'bleu') return v; } catch (e) {} return 'bleu'; }
+function setAppIcon(v){ try { if (v === 'noir' || v === 'defaut') localStorage.setItem('prelevo-icon', v); else localStorage.removeItem('prelevo-icon'); } catch (e) {} document.documentElement.setAttribute('data-icon', appIcon()); }
 setAppIcon(appIcon());
 let _pickAt = 0;
 function pickTheme(v){
@@ -922,7 +922,7 @@ function pickIcon(v){
   const now = Date.now(); if (now - _pickAt < 350) return; _pickAt = now;
   setAppIcon(v);
   render();
-  toast(v === 'bleu' ? 'Icône bleue' : v === 'noir' ? 'Icône noire' : 'Icône par défaut');
+  toast(v === 'noir' ? 'Icône noire' : v === 'defaut' ? 'Icône blanche' : 'Icône par défaut');
 }
 screens.compte = () => {
   const P = isP(), unread = alerts().filter(a => !state.readAlerts.includes(a.id)).length;
@@ -1038,7 +1038,7 @@ screens.parrainage = (qs, sub) => {
 screens.apparence = () => {
   const t = themePref(), icon = appIcon();
   const radio = (v, lab) => `<button type="button" class="th-radio" data-theme-set="${v}" onclick="pickTheme('${v}')" role="radio" aria-checked="${t===v}"><span class="rdot"></span>${lab}</button>`;
-  const tiles = [['defaut','Défaut','icons/logo-mark.svg'],['noir','Noir','icons/logo-mark-white.svg'],['bleu','Bleu','icons/logo-mark.svg']];
+  const tiles = [['bleu','Défaut','icons/logo-mark.svg'],['noir','Noir','icons/logo-mark-white.svg'],['defaut','Blanc','icons/logo-mark.svg']];
   return `
 <div class="screen look-page">
   <div class="topbar look-bar"><a class="back" href="#/compte" aria-label="Retour">⟦back⟧</a><h1>Apparence</h1><span></span></div>
