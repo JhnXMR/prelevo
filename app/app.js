@@ -1121,6 +1121,7 @@ screens.premium = () => {
       <p class="muted small">${B.status === 'trialing' ? `Période d’essai gratuite jusqu’au ${fd(B.periodEnd)}.` : B.cancelAtPeriodEnd ? `Résilié : Premium reste actif jusqu’au ${fd(B.periodEnd)}.` : B.status === 'past_due' ? '<span class="t-red">Paiement en échec : mettez à jour votre carte.</span>' : `Prochain renouvellement le ${fd(B.periodEnd)}.`}</p>
       ${B.manageable ? `<button class="btn ghost" id="billing-portal">Gérer mon abonnement</button>` : ''}</div>`
     : `<div class="card plan-status"><div class="ps-h"><span class="plan-pill p">Premium</span><b>Formule annuelle (exemple)</b></div><p class="muted small">Période d’essai gratuite jusqu’au ${fd(new Date(nowRef().getTime() + 30 * DAY_MS))}. Factures, carte et résiliation : en 1 clic depuis « Gérer mon abonnement ».</p><button class="btn ghost" data-toast="Portail de paiement (simulation)">Gérer mon abonnement</button></div>`;
+  const perks = open => `<details class="perks"${open ? ' open' : ''}><summary>Principaux avantages</summary><ul><li>Zéro publicité</li><li>Alertes de hausse de prix</li><li>Rappel avant chaque prélèvement</li><li>Doubles prélèvements, oubliés et doublons</li><li>Résiliation guidée et lettres</li><li>Reste à vivre et suivi des économies</li><li>Banques illimitées</li><li>Support prioritaire</li></ul></details>`;
   return `
 <div class="screen">
   <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a>${demoTag}</div>
@@ -1133,8 +1134,8 @@ screens.premium = () => {
   <div class="banner green" style="margin-top:14px"><span class="ic">⟦coin⟧</span><div><b>Chez ${USER.prenom} (exemple) : ${eur(t.found)}/mois d’économies trouvées</b>Premium coûte ${prix(CFG.priceMonth)}/mois. Il est remboursé dès la première résiliation.</div></div>
   <div class="plans" role="radiogroup" aria-label="Formules">
     <div class="plan free"><div class="pl-l"><h3>Gratuit</h3><span>Scan + liste · avec pubs</span></div><div class="pl-r"><div class="p">0 €</div></div></div>
-    <button class="plan ${Y?'':'on'}" data-billing="month" role="radio" aria-checked="${!Y}"><i class="radio"></i><div class="pl-l"><h3>Premium Mensuel</h3><span>Sans engagement · Zéro pub</span></div><div class="pl-r"><div class="p">${prix(CFG.priceMonth)}<small>/mois</small></div></div></button>
-    <button class="plan rec ${Y?'on':''}" data-billing="year" role="radio" aria-checked="${Y}"><em class="rec-b">Recommandé</em><i class="radio"></i><div class="pl-l"><h3>Premium Annuel <b class="save">−${yearSave()} %</b></h3><span>soit ${prix(CFG.priceYear/12)}/mois · Zéro pub</span></div><div class="pl-r"><div class="p">${prix(CFG.priceYear)}<small>/an</small></div></div></button>
+    <div class="plan-stack ${Y?'':'on'}"><button class="plan ${Y?'':'on'}" data-billing="month" role="radio" aria-checked="${!Y}"><i class="radio"></i><div class="pl-l"><h3>Premium Mensuel</h3><span>Sans engagement · Zéro pub</span></div><div class="pl-r"><div class="p">${prix(CFG.priceMonth)}<small>/mois</small></div></div></button>${Y ? '' : perks(true)}</div>
+    <div class="plan-stack ${Y?'on':''}"><button class="plan rec ${Y?'on':''}" data-billing="year" role="radio" aria-checked="${Y}"><em class="rec-b">Recommandé</em><i class="radio"></i><div class="pl-l"><h3>Premium Annuel <b class="save">−${yearSave()} %</b></h3><span>soit ${prix(CFG.priceYear/12)}/mois · Zéro pub</span></div><div class="pl-r"><div class="p">${prix(CFG.priceYear)}<small>/an</small></div></div></button>${Y ? perks(true) : ''}</div>
   </div>
   <div class="trial">⟦gift⟧ <span><b>${CFG.trial}</b><br>puis <span class="${Y?'':'sel'}">${prix(CFG.priceMonth)}/mois</span> ou <span class="${Y?'sel':''}">${prix(CFG.priceYear)}/an</span></span></div>
   <div class="card">
