@@ -141,6 +141,7 @@ function pwConnect(){
 
 const SVG = d => `<svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONS = {
+  refresh:'<path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 4v5h-5"/>',
   lock:'<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   trend:'<path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/>',
   bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
@@ -417,10 +418,11 @@ function demoLedger(){
   const from = NOW.getTime() - 35 * DAY_MS;
   const tx = T.ev.filter(e => e.t.getTime() >= from).map(e => {
     if (e.k === 'spend'){ const a = -e.amt, pool = a < 9 ? MERCH.s : a < 40 ? MERCH.m : MERCH.l, m = pool[Math.floor(e.t.getTime() / 6e4) % pool.length];
-      return { t:e.t, name:m[0], cat:m[1], amt:e.amt, where:LINKED[0].name }; }
-    if (e.k === 'in') return { t:e.t, name:'Salaire · Exemple SAS', cat:'revenu', amt:e.amt, where:LINKED[0].name };
-    if (e.k === 'rent') return { t:e.t, name:'Loyer · Agence Fictive', cat:'logement', amt:e.amt, where:LINKED[0].name };
-    const s = SUBS.find(x => x.name === e.name); return { t:e.t, name:e.name, cat:'abo', amt:e.amt, sub:s && s.id, where:'Prélèvement' };
+      const bk = banks[(Math.floor(e.t.getTime() / 864e5) % 3) % banks.length] || banks[0];
+      return { t:e.t, name:m[0], cat:m[1], amt:e.amt, where:bk.name, bank:bk }; }
+    if (e.k === 'in') return { t:e.t, name:'Salaire · Exemple SAS', cat:'revenu', amt:e.amt, where:LINKED[0].name, bank:banks[0] };
+    if (e.k === 'rent') return { t:e.t, name:'Loyer · Agence Fictive', cat:'logement', amt:e.amt, where:LINKED[0].name, bank:banks[0] };
+    const s = SUBS.find(x => x.name === e.name); return { t:e.t, name:e.name, cat:'abo', amt:e.amt, sub:s && s.id, where:'Prélèvement · ' + banks[0].name, bank:banks[0] };
   }).reverse();
   const curve = samples('1M').map(p => ({ t:p.t, v:p.bal + others }));
   const t0 = day0(NOW), up = [];
@@ -439,7 +441,7 @@ function liveLedger(){
   const accName = id => { const a = accs.find(x => x.id === id); return a ? a.name.replace(/\s*-\s*Mr.*$/i, '') : LIVE.bank; };
   const t0 = day0(new Date()), dt = t => new Date(t.date + 'T12:00');
   const raw = (LIVE.recent || []).filter(t => t.type !== 'summary_card');
-  const map = t => ({ t:dt(t), name:cleanName(t.wording), cat:catOf(t.wording, t.type, t.value), amt:t.value, acc:t.account, where:accName(t.account) });
+  const map = t => ({ t:dt(t), name:cleanName(t.wording), cat:catOf(t.wording, t.type, t.value), amt:t.value, acc:t.account, where:accName(t.account), bank });
   const tx = raw.filter(t => !t.coming && dt(t) < new Date(t0.getTime() + DAY_MS)).map(map).sort((a, b) => b.t - a.t);
   const up = raw.filter(t => t.coming && t.value < 0 && dt(t) >= t0 && dt(t) - t0 < 8 * DAY_MS).map(map);
   (LIVE.subs || []).forEach(s => { const d = nextLive(s); if (d >= t0 && d - t0 < 8 * DAY_MS) up.push({ t:d, name:s.name, cat:'abo', amt:-(s.amount || s.price), sub:s.id, where:'Abonnement détecté' }); });
@@ -469,7 +471,7 @@ function spark(curve){
 const catChip = c => `<span class="cat cat-${c}" aria-hidden="true">⟦${(CATS[c] || CATS.autre).ic}⟧</span>`;
 const txRow = x => `<a class="tx" href="${x.sub ? '#/abo/' + x.sub : '#/operations'}">${catChip(x.cat)}
   <div class="mid"><div class="name">${esc(x.name)}</div><div class="meta">${(CATS[x.cat] || CATS.autre).l}${x.where ? ' · ' + esc(x.where) : ''}</div></div>
-  <div class="amt ${x.amt > 0 ? 'pos' : ''}">${signed(x.amt)}</div></a>`;
+  <div class="amt ${x.amt > 0 ? 'pos' : ''}">${signed(x.amt)}${x.bank ? bankTile(x.bank, 'tx-bk') : ''}</div></a>`;
 function txGroups(list, maxDays = 99, maxRows = 999){
   const groups = []; let rows = 0;
   for (const x of list){
@@ -480,7 +482,7 @@ function txGroups(list, maxDays = 99, maxRows = 999){
   return groups.map(g => { const net = g.items.reduce((a, x) => a + x.amt, 0);
     return `<div class="day"><div class="day-h"><span>${dayLabel(g.d)}</span><span>${signed(net)}</span></div>${g.items.map(txRow).join('')}</div>`; }).join('');
 }
-let _homeAnimated = false;
+let _homeAnimated = QS.has('static');  // ?static=1 : sans animation (captures)
 function animateHome(){
   const el = document.querySelector('[data-count]'); if (!el) return;
   if (_homeAnimated || matchMedia('(prefers-reduced-motion: reduce)').matches){ document.querySelector('.home')?.classList.add('static'); return; }
@@ -505,6 +507,7 @@ screens.dashboard = () => {
     <div class="g-tags"><span class="plan-pill ${P ? 'p' : ''}">${P ? 'Premium' : 'Gratuit'}</span>${demoTag}</div></div><h1>Bonjour${prenom}</h1></div>
 
   <section class="total rise" style="--d:1">
+    <button type="button" class="sync-btn" id="home-sync" aria-label="Synchroniser vos comptes">⟦refresh⟧<span>Synchroniser</span></button>
     <div class="lbl">Solde total · ${L.nAcc} compte${L.nAcc > 1 ? 's' : ''}${banksN > 1 ? ' dans ' + banksN + ' banques' : ''}</div>
     <div class="amount" data-count="${L.total.toFixed(2)}">${money(L.total)}</div>
     <div class="delta">${delta >= 0 ? '⟦trend⟧' : ''}<b class="${delta >= 0 ? 'pos' : ''}">${signed(delta)}</b> sur 30 jours</div>
@@ -512,6 +515,18 @@ screens.dashboard = () => {
     ${P ? `<a class="rav" href="#/abonnements"><span>Reste à vivre jusqu’à la paie</span><b>${eur(t.reste)}</b></a>`
         : `<a class="rav locked" href="#/premium"><span>⟦lock⟧ Reste à vivre jusqu’à la paie</span><b>Premium</b></a>`}
   </section>
+
+  <div class="section-h rise" style="--d:2"><h2>Mes banques</h2><a href="#/banques">Gérer</a></div>
+  <div class="bk-cards rise" style="--d:2">
+    ${L.banks.map(b => `<a class="bk-card" href="#/banques" style="--bk:${/^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '#0066FF'}">
+      <div class="bc-top">${bankTile(b, 'bk-ini', b.status === 'error' ? '<i class="st err"></i>' : b.status === 'expired' ? '<i class="st warn"></i>' : '')}<span class="bc-n">${b.accs.length} compte${b.accs.length > 1 ? 's' : ''}</span></div>
+      <div class="bc-name">${esc(b.name)}</div><div class="bc-bal">${eur(b.total)}</div>
+      <div class="bc-meta ${b.status === 'error' ? 't-red' : ''}">${b.status === 'error' ? 'Synchro en échec' : b.status === 'expired' ? 'Session expirée' : 'À jour · ' + b.sync}</div></a>`).join('')}
+    ${!LIVE && !P ? `<a class="bk-card add" href="#/premium">⟦plus⟧<span>Ajouter une banque</span><b>Premium</b></a>` : ''}
+  </div>
+
+  <div class="section-h rise" style="--d:3"><h2>Dernières opérations</h2><a href="#/operations">Tout voir</a></div>
+  <div class="panel rise" style="--d:3">${L.tx.length ? txGroups(L.tx, 3, 8) : '<p class="insight">Aucune opération ces derniers jours.</p>'}</div>
 
   <div class="section-h rise" style="--d:2"><h2>À venir cette semaine</h2>${L.up.length ? `<span class="sec-sum">${signed(upSum)}</span>` : ''}</div>
   <div class="panel rise" style="--d:2">
@@ -545,8 +560,6 @@ screens.dashboard = () => {
 
   ${adSlot('dash')}
 
-  <div class="section-h rise" style="--d:5"><h2>Opérations récentes</h2><a href="#/operations">Tout voir</a></div>
-  <div class="panel rise" style="--d:5">${L.tx.length ? txGroups(L.tx, 4, 12) : '<p class="insight">Aucune opération ces derniers jours.</p>'}</div>
   ${neutral}
 </div>`;
 };
@@ -1207,6 +1220,7 @@ document.addEventListener('click', e => {
   else if (el.dataset.plan){ state.premium = el.dataset.plan==='premium'; save(); toast('Mode démo : ' + (state.premium?'Premium':'Gratuit')); render(); }
   else if (el.dataset.alert){ if(!state.readAlerts.includes(el.dataset.alert)){ state.readAlerts.push(el.dataset.alert); save(); } }
   else if (el.id==='api-connect'){ e.preventDefault(); toast('Ouverture de la connexion bancaire…'); API.connectBank().catch(apiFail); }
+  else if (el.id==='home-sync') homeSync();
   else if (el.id==='api-sync'){ toast('Synchronisation…'); API.sync().then(apiLoadMe).then(()=>{ render(); toast('Comptes à jour'); }).catch(apiFail); }
   else if (el.id==='api-logout'){ API.logout().then(()=>{ ME = null; LIVE = null; state.connected = false; save(); location.replace(location.pathname + '#/onboarding'); location.reload(); }); }
   else if (el.id==='del-check'){ const b = $('#api-delete'); if (b) b.disabled = !el.checked; }
@@ -1253,3 +1267,20 @@ if (API){
   else if (API.loggedIn()){ $('#app').innerHTML = icons(screens.apiwait().replace('Lecture de vos comptes…','Chargement…').replace(/<p class="muted small"[^>]*>.*?<\/p>/,'')); apiLoadMe().then(render); }
   else render();
 } else render();
+
+// ---------- synchro depuis l'accueil (bouton + tirer pour actualiser) ----------
+let _syncing = false;
+async function homeSync(){
+  if (_syncing) return; _syncing = true; document.querySelector('#home-sync')?.classList.add('on');
+  try {
+    if (API && ME){ toast('Synchronisation…'); await API.sync(); await apiLoadMe(); _ledger = null; render(); toast('Comptes à jour'); }
+    else if (PWX && LIVE) await pwRefresh();
+    else { await new Promise(r => setTimeout(r, 900)); toast('Comptes à jour (exemple)'); }
+  } catch(e){ API ? apiFail(e) : toast('Synchronisation impossible'); }
+  finally { _syncing = false; document.querySelector('#home-sync')?.classList.remove('on'); }
+}
+(() => { let y0 = null, d = 0; const ptr = document.createElement('div'); ptr.className = 'ptr'; document.body.appendChild(ptr);
+  addEventListener('touchstart', e => { y0 = scrollY <= 0 && document.querySelector('.home:not(.ops)') && location.hash.replace('#/','').startsWith('dashboard') || location.hash === '' ? e.touches[0].clientY : null; d = 0; }, { passive:true });
+  addEventListener('touchmove', e => { if (y0 == null) return; d = Math.max(0, e.touches[0].clientY - y0); ptr.style.transform = `translate(-50%,${Math.min(d, 90) - 40}px) rotate(${d * 3}deg)`; ptr.classList.toggle('ready', d > 70); }, { passive:true });
+  addEventListener('touchend', () => { if (y0 != null && d > 70) homeSync(); y0 = null; ptr.style.transform = ''; ptr.classList.remove('ready'); });
+})();

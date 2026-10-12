@@ -480,3 +480,30 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .alpha-note{margin:0 0 12px;padding:8px 12px;border-radius:10px;background:rgba(255,170,0,.14);color:inherit;font-size:13px;line-height:1.35;border:1px solid rgba(255,170,0,.35)}
 .alpha-note b{color:#B76E00;margin-right:2px}
 [data-theme=dark] .alpha-note b{color:#FFB84D}
+
+/* ---------- Accueil multi-banques ---------- */
+.total{position:relative}
+.sync-btn{position:absolute;top:14px;right:14px;display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:6px 11px;font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.sync-btn svg{width:15px;height:15px}
+.sync-btn.on svg{animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.bk-cards{display:flex;gap:10px;overflow-x:auto;scroll-snap-type:x mandatory;margin:0 -20px 18px;padding:2px 20px 6px;scrollbar-width:none}
+.bk-cards::-webkit-scrollbar{display:none}
+.bk-card{flex:0 0 46%;min-width:150px;scroll-snap-align:start;border:1px solid var(--line);border-radius:18px;padding:14px;color:var(--ink);text-decoration:none;position:relative;overflow:hidden;background:var(--bg)}
+.bk-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--bk)}
+.bk-card .bc-top{display:flex;justify-content:space-between;align-items:center}
+.bk-card .bc-n{font-size:11.5px;color:var(--muted)}
+.bk-card .bc-name{margin-top:12px;font-size:13.5px;color:var(--ink2);font-weight:550;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bk-card .bc-bal{font-size:21px;font-weight:700;letter-spacing:-.02em;font-variant-numeric:tabular-nums;margin-top:2px}
+.bk-card .bc-meta{font-size:11.5px;color:var(--muted);margin-top:6px}
+.bk-card.add{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:6px;border-style:dashed;color:var(--ink2);font-size:13.5px}
+.bk-card.add::before{display:none}
+.bk-card.add b{font-size:11.5px;color:var(--accent)}
+.bk-card.add svg{width:20px;height:20px}
+.tx .amt{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.bk-tile.tx-bk{width:18px;height:18px;border-radius:6px}
+.bk-tile.tx-bk b{font-size:7.5px}
+.bk-tile.tx-bk img{max-width:100%}
+.ptr{position:fixed;top:0;left:50%;transform:translate(-50%,-40px);width:30px;height:30px;border-radius:50%;background:var(--bg);border:1px solid var(--line);z-index:50;transition:transform .2s}
+.ptr.ready{border-color:var(--accent)}
+.total .lbl{padding-right:118px}
