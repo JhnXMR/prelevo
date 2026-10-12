@@ -508,7 +508,8 @@ function spark(curve){
     <path class="sp-area" d="${d} L${W},${H} L0,${H} Z" fill="url(#spk)"/>
     <path class="sp-line" d="${d}" pathLength="1" fill="none" stroke="var(--accent)" stroke-width="1.8" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
   </svg><i class="sp-vline" hidden></i><i class="sp-dot" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%"></i>
-  <div class="sp-legend"><span>il y a 30 jours</span><span>aujourd’hui</span></div></div>`;
+  <div class="sp-legend"><span>il y a 30 jours</span><span>aujourd’hui</span></div>
+  <div class="sp-hit" aria-hidden="true"></div></div>`;
 }
 const catChip = c => `<span class="cat cat-${c}" aria-hidden="true">⟦${(CATS[c] || CATS.autre).ic}⟧</span>`;
 const txRow = x => `<a class="tx" href="${x.sub ? '#/abo/' + x.sub : '#/operations'}">${catChip(x.cat)}
@@ -530,7 +531,7 @@ function animateHome(){
   if (_homeAnimated || matchMedia('(prefers-reduced-motion: reduce)').matches){ document.querySelector('.home')?.classList.add('static'); return; }
   _homeAnimated = true;
   const target = +el.dataset.count, t0 = performance.now(), dur = 750;
-  const step = now => { const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3); el.innerHTML = money(target * (0.92 + 0.08 * e)); if (p < 1) requestAnimationFrame(step); else el.innerHTML = money(target); };
+  const step = now => { if (!el.isConnected || el.dataset.scrub === '1') return; const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3); el.innerHTML = money(target * (0.92 + 0.08 * e)); if (p < 1) requestAnimationFrame(step); else el.innerHTML = money(target); };
   requestAnimationFrame(step);
 }
 
@@ -1349,32 +1350,151 @@ async function homeSync(){
 if (QS.get('billing') === 'success'){ toast('Merci ! Votre Premium s’active…'); history.replaceState(null, '', location.pathname + '#/premium'); if (API && API.loggedIn()) setTimeout(() => apiLoadMe().then(render), 2500); }
 else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a été débité'); history.replaceState(null, '', location.pathname + '#/premium'); }
 
-// ---------- scrub du graphique « Solde total » (pointer events, rAF, vibration Android) ----------
+// ---------- scrub du graphique « Solde total » ----------
+// iPhone : Safari annule le geste si on appelle setPointerCapture, et les
+// pointermove ne suivent pas le doigt. On pilote donc le tactile avec les
+// touch events (listener non passif, posé sur le graphique) et une surface
+// de toucher pleine (.sp-hit). La souris reste en pointer events.
 (() => {
   const JC = ['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'];
-  const buzz = ms => { try { if (navigator.vibrate) navigator.vibrate(ms); } catch(e){} };
-  let st = null, raf = 0, px = 0;
-  const frame = () => { raf = 0; if (!st || !SPARK) return;
-    const r = st.el.getBoundingClientRect(), f = Math.min(1, Math.max(0, (px - r.left) / r.width)) * 100, D = SPARK.daily;
-    let i = 0, best = 1e9; D.forEach((p, k) => { const d = Math.abs(p.x - f); if (d < best){ best = d; i = k; } });
-    if (i === st.i) return; if (st.i !== -1) buzz(8); st.i = i;
-    const p = D[i], amt = document.querySelector('.total [data-count]'), dl = document.getElementById('sp-delta'), dv = p.v - SPARK.first;
-    st.vl.hidden = false; st.vl.style.left = p.x + '%'; st.dot.style.left = p.x + '%'; st.dot.style.top = p.y + '%';
-    if (amt) amt.innerHTML = money(p.v);
+  let hapticLabel = null;
+  const buzz = ms => {
+    try { if (typeof navigator.vibrate === 'function') { navigator.vibrate(ms); return; } } catch (e) {}
+    // iOS 17.4+ : un <input switch> cliqué dans le geste déclenche un tap haptique. Sinon, on ignore.
+    try {
+      if (!hapticLabel) {
+        const label = document.createElement('label');
+        label.setAttribute('aria-hidden', 'true');
+        label.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none';
+        const input = document.createElement('input');
+        input.type = 'checkbox';
+        input.setAttribute('switch', '');
+        input.tabIndex = -1;
+        input.setAttribute('aria-hidden', 'true');
+        label.appendChild(input);
+        document.body.appendChild(label);
+        hapticLabel = label;
+      }
+      hapticLabel.click();
+    } catch (e) {}
+  };
+  let st = null, raf = 0;
+  const restore = el => {
+    if (!el) return;
+    el.classList.remove('scrub');
+    const o = el._orig; if (!o) return;
+    const amt = document.querySelector('.total [data-count]'), dl = document.getElementById('sp-delta');
+    if (amt) { delete amt.dataset.scrub; amt.innerHTML = o.a; }
+    if (dl) dl.innerHTML = o.d;
+    const dot = el.querySelector('.sp-dot'); if (dot) { dot.style.left = o.l; dot.style.top = o.t; }
+    const vl = el.querySelector('.sp-vline'); if (vl) vl.hidden = true;
+  };
+  const paint = () => {
+    if (!st || !SPARK || st.axis === 'y' || st.i < 0) return;
+    const D = SPARK.daily, p = D[st.i]; if (!p) return;
+    const amt = document.querySelector('.total [data-count]'), dl = document.getElementById('sp-delta'), dv = p.v - SPARK.first;
+    st.el.classList.add('scrub');
+    if (st.vl) { st.vl.hidden = false; st.vl.style.left = p.x + '%'; }
+    if (st.dot) { st.dot.style.left = p.x + '%'; st.dot.style.top = p.y + '%'; }
+    if (amt) { amt.dataset.scrub = '1'; amt.innerHTML = money(p.v); }
     if (dl) dl.innerHTML = `<b class="${dv >= 0 ? 'pos' : ''}">${signed(dv)}</b> · ${JC[p.t.getDay()]} ${p.t.getDate()} ${MOIS[p.t.getMonth()]}`;
   };
-  const move = e => { if (!st || e.pointerId !== st.id) return; px = e.clientX; if (!raf) raf = requestAnimationFrame(frame); };
-  const end = e => { if (!st || (e && e.pointerId !== st.id)) return; const el = st.el; st = null; if (raf) cancelAnimationFrame(raf), raf = 0;
-    el.classList.remove('scrub'); const o = el._orig; if (o){ const amt = document.querySelector('.total [data-count]'), dl = document.getElementById('sp-delta');
-      if (amt) amt.innerHTML = o.a; if (dl) dl.innerHTML = o.d; const dot = el.querySelector('.sp-dot'); dot.style.left = o.l; dot.style.top = o.t; el.querySelector('.sp-vline').hidden = true; } };
-  addEventListener('pointerdown', e => { const el = e.target.closest && e.target.closest('.spark'); if (!el || !SPARK || e.button > 0) return;
-    st = { el, id: e.pointerId, i: -1, vl: el.querySelector('.sp-vline'), dot: el.querySelector('.sp-dot') };
-    const amt = document.querySelector('.total [data-count]'), dl = document.getElementById('sp-delta');
-    el._orig = { a: amt ? amt.innerHTML : '', d: dl ? dl.innerHTML : '', l: st.dot.style.left, t: st.dot.style.top };
-    try { el.setPointerCapture(e.pointerId); } catch(_){}
-    el.classList.add('scrub'); buzz(5); px = e.clientX; frame(); });
-  addEventListener('pointermove', move, { passive: true });
-  addEventListener('pointerup', end); addEventListener('pointercancel', end);
-  window.__scrubTo = f => { const el = document.querySelector('.spark'); if (!el) return; st = { el, id: 0, i: -1, vl: el.querySelector('.sp-vline'), dot: el.querySelector('.sp-dot') }; el.classList.add('scrub'); const r = el.getBoundingClientRect(); px = r.left + r.width * f; frame(); };
+  const frame = () => { raf = 0; paint(); };
+  const sched = () => { if (!raf) raf = requestAnimationFrame(frame); };
+  const dayAt = clientX => {
+    const r = st.el.getBoundingClientRect(), w = r.width || 1;
+    const f = Math.min(1, Math.max(0, (clientX - r.left) / w)) * 100, D = SPARK.daily;
+    let i = 0, best = 1e9;
+    for (let k = 0; k < D.length; k++) { const dist = Math.abs(D[k].x - f); if (dist < best) { best = dist; i = k; } }
+    return i;
+  };
+  const syncDay = (clientX, haptic) => {
+    if (!st || !SPARK) return;
+    const i = dayAt(clientX);
+    if (i !== st.i) {
+      const was = st.i; st.i = i;
+      if (haptic && !(was < 0 && i === SPARK.daily.length - 1)) buzz(8);
+    }
+  };
+  const arm = (el, clientX, clientY) => {
+    const amt = document.querySelector('.total [data-count]'), dl = document.getElementById('sp-delta'), dot = el.querySelector('.sp-dot');
+    st = { el, i: -1, axis: null, x0: clientX, y0: clientY, lastY: clientY, pointerId: null, vl: el.querySelector('.sp-vline'), dot };
+    el._orig = {
+      a: amt && amt.dataset.count ? money(+amt.dataset.count) : (amt ? amt.innerHTML : ''),
+      d: dl ? dl.innerHTML : '',
+      l: dot ? dot.style.left : '',
+      t: dot ? dot.style.top : ''
+    };
+    syncDay(clientX, false);
+    sched();
+  };
+  const end = () => {
+    if (!st) return;
+    const el = st.el; st = null;
+    if (raf) cancelAnimationFrame(raf), raf = 0;
+    restore(el);
+  };
+  // Écouteurs posés tout de suite (pas pendant le touchstart) : sinon iOS
+  // considère le touchmove comme passif et le doigt ne fait que faire défiler.
+  document.addEventListener('touchstart', e => {
+    if (st || !SPARK || !e.touches || e.touches.length !== 1) return;
+    const el = e.target.closest && e.target.closest('.spark');
+    if (!el) return;
+    const t = e.touches[0];
+    arm(el, t.clientX, t.clientY);
+  }, { passive: true, capture: true });
+  document.addEventListener('touchmove', e => {
+    if (!st) return;
+    const t = e.touches && e.touches[0];
+    if (!t || e.touches.length > 1) { end(); return; }
+    if (!st.axis) {
+      const dx = t.clientX - st.x0, dy = t.clientY - st.y0;
+      if (dx * dx + dy * dy >= 36) st.axis = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+    }
+    if (st.axis === 'y') {
+      const dy = t.clientY - st.lastY; st.lastY = t.clientY;
+      if (raf) cancelAnimationFrame(raf), raf = 0;
+      const el = st.el; st.i = -1; restore(el);
+      window.scrollBy(0, -dy);
+      return;
+    }
+    if (e.cancelable) e.preventDefault();
+    syncDay(t.clientX, st.axis === 'x');
+    sched();
+  }, { passive: false, capture: true });
+  document.addEventListener('touchend', e => {
+    if (!st) return;
+    if (e.touches && e.touches.length) return;
+    end();
+  }, { passive: true, capture: true });
+  document.addEventListener('touchcancel', () => { if (st && st.pointerId == null) end(); }, { passive: true, capture: true });
+
+  document.addEventListener('pointerdown', e => {
+    if (e.pointerType === 'touch' || e.button > 0 || !SPARK) return;
+    const el = e.target.closest && e.target.closest('.spark');
+    if (!el) return;
+    if (st) end();
+    arm(el, e.clientX, e.clientY);
+    st.axis = 'x'; st.pointerId = e.pointerId;
+    syncDay(e.clientX, true);
+    try { el.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  document.addEventListener('pointermove', e => {
+    if (!st || st.pointerId == null || e.pointerId !== st.pointerId) return;
+    syncDay(e.clientX, true); sched();
+  });
+  const pend = e => { if (!st || st.pointerId == null || e.pointerId !== st.pointerId) return; end(); };
+  document.addEventListener('pointerup', pend);
+  document.addEventListener('pointercancel', pend);
+
+  window.__scrubTo = f => {
+    const el = document.querySelector('.spark'); if (!el || !SPARK) return;
+    if (st) end();
+    const r = el.getBoundingClientRect();
+    arm(el, r.left + r.width * f, r.top + r.height / 2);
+    st.axis = 'x';
+    syncDay(r.left + r.width * f, false);
+    paint();
+  };
 })();
 if (QS.has('demo') && QS.get('scrub')) setTimeout(() => window.__scrubTo(+QS.get('scrub')), 600);  // captures

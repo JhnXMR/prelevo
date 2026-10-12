@@ -517,8 +517,11 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .plan-status{margin-top:14px}
 .plan-status .ps-h{display:flex;align-items:center;gap:8px;margin-bottom:6px}
 .plan-status .btn{margin-top:12px}
-/* scrub du graphique */
-.spark{touch-action:pan-y;cursor:crosshair;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
-.sp-vline{position:absolute;top:-4px;bottom:16px;width:1px;margin-left:-.5px;background:var(--ink);opacity:.35;pointer-events:none}
-.spark.scrub .sp-dot{width:11px;height:11px;margin:-5.5px 0 0 -5.5px;box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 25%,transparent);animation:none!important}
+/* scrub du graphique — touch-action:none pour que Safari iOS ne vole pas le geste.
+   Le défilement vertical est rejoué à la main quand le doigt part vers le haut ou le bas. */
+.spark{touch-action:none;cursor:crosshair;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+.spark svg,.spark .sp-dot,.spark .sp-vline,.spark .sp-legend{pointer-events:none}
+.sp-hit{position:absolute;inset:0;z-index:2;touch-action:none;background:transparent}
+.sp-vline{position:absolute;top:-4px;bottom:16px;width:1px;margin-left:-.5px;background:var(--ink);opacity:.35;pointer-events:none;z-index:1}
+.spark.scrub .sp-dot{width:11px;height:11px;margin:-5.5px 0 0 -5.5px;box-shadow:0 0 0 5px color-mix(in srgb,var(--accent) 25%,transparent);animation:none!important;z-index:1}
 .spark.scrub .sp-area,.spark.scrub .sp-line{animation:none!important}
