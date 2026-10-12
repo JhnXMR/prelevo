@@ -485,8 +485,19 @@ button.kv{width:100%;border:0;background:transparent;font:inherit;color:inherit;
 .tx .mid{flex:1;min-width:0}
 .tx .name{font-size:15px;font-weight:550;letter-spacing:-.005em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tx .meta{font-size:12.5px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tx .amt{font-size:15px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
-.tx .amt.pos{color:var(--accent)}
+.tx.pp{align-items:center;gap:14px;padding:15px 0;border-top:0;border-bottom:1px solid var(--line)}
+.tx.pp .cat{width:46px;height:46px;border-radius:50%;background:#fff;color:#0A0B0D}
+.tx.pp .cat.mark{font-weight:700;font-size:13px;letter-spacing:-.03em}
+.tx.pp .cat .i{width:22px;height:22px}
+.tx.pp .name{font-size:16.5px;font-weight:500;letter-spacing:-.022em;line-height:1.2}
+.tx.pp .meta{font-size:13.5px;margin-top:3px;color:var(--muted);font-weight:400}
+.tx.pp .amt{font-size:16.5px;font-weight:500;letter-spacing:-.02em;padding-top:1px}
+.tx.pp .amt.pos{color:#1FA971}
+.mo h2{font-size:32px;font-weight:700;letter-spacing:-.04em;line-height:1.05;margin:26px 0 4px}
+.mo:first-child h2{margin-top:6px}
+.act,.act-list{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif}
+.act .ops-seg{margin:0 0 8px}
+.act-list{margin-top:4px}
 .cat{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;flex:none;background:var(--chip);color:var(--ink)}
 .cat .i{width:19px;height:19px}
 .cat-revenu{background:var(--tint);color:var(--accent)}

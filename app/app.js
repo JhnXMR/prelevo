@@ -537,18 +537,28 @@ function spark(curve){
   <div class="sp-legend"><span>${tf[3]}</span><span>aujourd’hui</span></div></div>`;
 }
 const catChip = c => `<span class="cat cat-${c}" aria-hidden="true">⟦${(CATS[c] || CATS.autre).ic}⟧</span>`;
-const txRow = x => `<a class="tx" href="${x.sub ? '#/abo/' + x.sub : '#/operations'}">${catChip(x.cat)}
-  <div class="mid"><div class="name">${esc(x.name)}</div><div class="meta">${(CATS[x.cat] || CATS.autre).l}${x.where ? ' · ' + esc(x.where) : ''}</div></div>
-  <div class="amt ${x.amt > 0 ? 'pos' : ''}">${signed(x.amt)}${x.bank ? bankTile(x.bank, 'tx-bk') : ''}</div></a>`;
-function txGroups(list, maxDays = 99, maxRows = 999){
+const MOIS_LONG = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+function txKind(x){
+  if (x.cat === 'revenu' || x.amt > 0 && x.cat !== 'virement') return 'Reçu';
+  if (x.cat === 'virement') return x.amt > 0 ? 'Virement reçu' : 'Virement';
+  if (x.cat === 'abo') return 'Prélèvement';
+  if (x.cat === 'retrait') return 'Retrait';
+  return 'Paiement';
+}
+const txRow = (x, pp) => `<a class="tx${pp ? ' pp' : ''}" href="${x.sub ? '#/abo/' + x.sub : '#/operations'}">${catChip(x.cat)}
+  <div class="mid"><div class="name">${esc(x.name)}</div><div class="meta">${pp ? `${x.t.getDate()} ${MOIS[x.t.getMonth()]} • ${txKind(x)}` : (CATS[x.cat] || CATS.autre).l + (x.where ? ' · ' + esc(x.where) : '')}</div></div>
+  <div class="amt ${x.amt > 0 ? 'pos' : ''}">${pp ? (x.amt > 0 ? '+' : '−') + eur(Math.abs(x.amt)) : signed(x.amt)}${!pp && x.bank ? bankTile(x.bank, 'tx-bk') : ''}</div></a>`;
+function txGroups(list, maxDays = 99, maxRows = 999, byMonth = false){
   const groups = []; let rows = 0;
   for (const x of list){
-    const k = day0(x.t).getTime(); let g = groups[groups.length - 1];
+    const k = byMonth ? x.t.getFullYear() * 12 + x.t.getMonth() : day0(x.t).getTime();
+    let g = groups[groups.length - 1];
     if (!g || g.k !== k){ if (groups.length >= maxDays || rows >= maxRows) break; g = { k, d:x.t, items:[] }; groups.push(g); }
     if (rows >= maxRows) break; g.items.push(x); rows++;
   }
+  if (byMonth) return groups.map(g => `<section class="mo"><h2>${MOIS_LONG[g.d.getMonth()]}</h2>${g.items.map(x => txRow(x, true)).join('')}</section>`).join('');
   return groups.map(g => { const net = g.items.reduce((a, x) => a + x.amt, 0);
-    return `<div class="day"><div class="day-h"><span>${dayLabel(g.d)}</span><span>${signed(net)}</span></div>${g.items.map(txRow).join('')}</div>`; }).join('');
+    return `<div class="day"><div class="day-h"><span>${dayLabel(g.d)}</span><span>${signed(net)}</span></div>${g.items.map(x => txRow(x)).join('')}</div>`; }).join('');
 }
 let _homeAnimated = QS.has('static');  // ?static=1 : sans animation (captures)
 function animateHome(){
@@ -644,15 +654,11 @@ let opsFilter = 'all';
 screens.operations = () => {
   const L = ledger();
   const list = L.tx.filter(x => opsFilter === 'all' || (opsFilter === 'out' ? x.amt < 0 : x.amt > 0));
-  const out = L.tx.filter(x => x.amt < 0 && day0(x.t) > new Date(nowRef() - 30 * DAY_MS)).reduce((a, x) => a + x.amt, 0);
-  const inc = L.tx.filter(x => x.amt > 0 && day0(x.t) > new Date(nowRef() - 30 * DAY_MS)).reduce((a, x) => a + x.amt, 0);
   return `
-<div class="screen home static">
-  <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a><h1 style="font-size:19px">Opérations</h1>${demoTag}</div>
-  <div class="grid2 sums"><div class="kpi"><div class="lbl">Dépensé · 30 j</div><div class="val">${eur(-out)}</div></div><div class="kpi"><div class="lbl">Reçu · 30 j</div><div class="val t-blue">${eur(inc)}</div></div></div>
+<div class="screen act home static">
+  <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a><span></span>${demoTag}</div>
   <div class="seg ops-seg" role="tablist">${[['all','Tout'],['out','Dépenses'],['in','Revenus']].map(([k, l]) => `<button type="button" role="tab" class="${opsFilter === k ? 'on' : ''}" data-ops="${k}">${l}</button>`).join('')}</div>
-  <div class="panel">${list.length ? txGroups(list) : emptyState('search', 'Aucune opération ici', 'Rien à afficher pour ce filtre. Choisissez « Tout » pour revoir les 35 derniers jours.')}</div>
-  <p class="muted small center" style="margin-top:6px">${L.live ? 'Opérations des 35 derniers jours, lues chez votre banque.' : 'Opérations d’exemple des 35 derniers jours.'}</p>
+  <div class="act-list">${list.length ? txGroups(list, 24, 400, true) : emptyState('search', 'Aucune opération ici', 'Rien à afficher pour ce filtre. Choisissez « Tout » pour revoir les 35 derniers jours.')}</div>
 </div>`;
 };
 
@@ -667,11 +673,10 @@ screens.abonnements = (q) => {
   if (f==='eco') list = t.list.filter(s=>increase(s)||s.small||t.dups.includes(s));
   const showSmall = P && (f==='all' || f==='small');
   if (f==='small') list = [];
-  const row = s => `<a class="row" href="#/abo/${s.id}">${logo(s)}
-      <div class="mid"><div class="name">${s.name}${P ? `${increase(s)?`<span class="badge b-red">+${pct(s)} %</span>`:''}${s.doubleCharge?'<span class="badge b-red">2× prélevé</span>':''}${t.dups.includes(s)?'<span class="badge b-blue">Doublon</span>':''}${s.trial?'<span class="badge b-amber">Essai fini</span>':''}` : ((increase(s)||s.small||s.doubleCharge||t.dups.includes(s)) ? lockBadge('Alerte') : '')}</div>
-      <div class="meta">${P ? (s.note || s.cat) : s.cat}${cadTxt(s)}${s.variable?' · montant variable':''}</div>
-      <div class="meta sub-next">${cap(FREQ[s.cadence || 'month'] || 'mensuel')} · prochain : ${dayLabel(nextDebit(s)).toLowerCase()}</div></div>
-      <div class="amt">${s.cadence&&s.cadence!=='month'?'≈ ':''}${eur(s.price)}${P && increase(s)?`<small class="strike">${eur(s.prev)}</small>`:'<small>/mois</small>'}${bankTile(subBank(s), 'tx-bk')}</div></a>`;
+  const row = s => { const d = nextDebit(s); const fg = lum(s.color) > .45 ? '#0A0B0D' : '#fff'; return `<a class="tx pp" href="#/abo/${s.id}"><span class="cat mark" style="background:${s.color};color:${fg}">${esc(s.ini)}</span>
+      <div class="mid"><div class="name">${esc(s.name)}${P ? `${increase(s)?`<span class="badge b-red">+${pct(s)} %</span>`:''}${s.doubleCharge?'<span class="badge b-red">2×</span>':''}${t.dups.includes(s)?'<span class="badge b-blue">Doublon</span>':''}${s.trial?'<span class="badge b-amber">Essai</span>':''}` : ((increase(s)||s.small||s.doubleCharge||t.dups.includes(s)) ? lockBadge('Alerte') : '')}</div>
+      <div class="meta">${d.getDate()} ${MOIS[d.getMonth()]} • ${cap(FREQ[s.cadence || 'month'] || 'mensuel')}</div></div>
+      <div class="amt">−${eur(s.price)}</div></a>`; };
   const chip = (k,l) => P ? `<a class="chip ${f===k?'on':''}" href="#/abonnements${k==='all'?'':'?f='+k}">${l}</a>` : `<a class="chip ${k==='all'?'on':''}" href="${k==='all'?'#/abonnements':'#/premium'}">${k==='all'?l:'⟦lock⟧ '+l.replace(/^\S+ /,'')}</a>`;
   return `
 <div class="screen">
@@ -685,12 +690,12 @@ screens.abonnements = (q) => {
   ${LIVE && LIVE.history && LIVE.history.limited ? `<div class="banner amber"><span class="ic">⟦info⟧</span><div><b>Historique court : détection partielle</b>La banque de test ne fournit que ${LIVE.history.days} jours d’opérations (${LIVE.history.debits} débits). Il faut au moins 2 prélèvements pour confirmer un abonnement : ceux vus une seule fois sont marqués « probable ».</div></div>` : ''}
   ${LIVE && !t.list.length ? emptyState('search', 'Aucun prélèvement récurrent', 'Rien de régulier pour le moment. Avec deux mois d’historique ou plus, la détection sera plus complète. Vos comptes restent en lecture seule.') : ''}
   ${P && t.ups.length && f==='all' ? `<div class="banner red"><span class="ic">⟦trend⟧</span><div><b>${t.ups.length} hausse${t.ups.length>1?'s':''} de prix détectée${t.ups.length>1?'s':''}</b>${t.ups.map(s=>`${esc(s.name)} : ${eur(s.prev)} → ${eur(s.price)}`).join(' · ')}. Soit ${eur(t.ups.reduce((a,s)=>a+increase(s),0)*12)} de plus par an.</div></div>` : ''}
-  ${list.length?`<div class="card" style="padding:4px 16px">${list.map(row).join('')}</div>`:''}
+  ${list.length?`<div class="act-list">${list.map(row).join('')}</div>`:''}
   ${adSlot('subs')}
   ${showSmall && t.smalls.length?`
   <div class="section-h"><h2>⟦search⟧ Petits prélèvements oubliés</h2><span class="muted small">${eur(t.smalls.reduce((a,s)=>a+s.price,0))}/mois</span></div>
   <p class="muted small" style="margin:-4px 2px 10px">Moins de ${LIVE?10:5} € chacun, mais ${eur0(t.smalls.reduce((a,s)=>a+s.price,0)*12)} par an au total.</p>
-  <div class="card" style="padding:4px 16px">${t.smalls.map(row).join('')}</div>`:''}
+  <div class="act-list">${t.smalls.map(row).join('')}</div>`:''}
   ${state.resiliated.length?`<div class="section-h"><h2>⟦check⟧ Résiliés</h2></div><div class="card" style="padding:4px 16px">${SUBS.filter(s=>state.resiliated.includes(s.id)).map(s=>`<div class="row">${logo(s)}<div class="mid"><div class="name">${s.name}</div><div class="meta">Résiliation envoyée</div></div><div class="amt" style="color:var(--mint)">−${eur(s.price)}</div></div>`).join('')}</div>`:''}
 </div>`;
 };
