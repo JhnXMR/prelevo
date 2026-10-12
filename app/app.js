@@ -632,7 +632,7 @@ screens.dashboard = () => {
   </div>
 
   <a class="subs-card rise" style="--d:4" href="#/abonnements">
-    <div class="sc-top">${catChip('abo')}<div class="mid"><div class="name">Abonnements</div><div class="meta">${t.list.length} actif${t.list.length > 1 ? 's' : ''}${nextSub ? ' · prochain : ' + esc(nextSub.name) + ', ' + dayLabel(nextSub.t).toLowerCase() : ''}</div></div>
+    <div class="sc-top">${catChip('abo')}<div class="mid"><div class="name">Transactions</div><div class="meta">${t.list.length} actif${t.list.length > 1 ? 's' : ''}${nextSub ? ' · prochain : ' + esc(nextSub.name) + ', ' + dayLabel(nextSub.t).toLowerCase() : ''}</div></div>
       <div class="amt">${eur(t.monthly)}<small>/mois</small></div></div>
     <div class="hchips">
       ${t.ups.length ? `<span class="hchip">⟦trend⟧ ${t.ups.length} hausse${t.ups.length > 1 ? 's' : ''}</span>` : ''}
@@ -680,7 +680,7 @@ screens.abonnements = (q) => {
   const chip = (k,l) => P ? `<a class="chip ${f===k?'on':''}" href="#/abonnements${k==='all'?'':'?f='+k}">${l}</a>` : `<a class="chip ${k==='all'?'on':''}" href="${k==='all'?'#/abonnements':'#/premium'}">${k==='all'?l:'⟦lock⟧ '+l.replace(/^\S+ /,'')}</a>`;
   return `
 <div class="screen">
-  <div class="topbar"><h1>Abonnements</h1>${demoTag}</div>
+  <div class="topbar"><h1>Transactions</h1>${demoTag}</div>
   <div class="card" style="display:flex;justify-content:space-between;align-items:center">
     <div><div class="muted small">Total mensuel</div><div style="font-size:26px;font-weight:760;letter-spacing:-.02em">${eur(t.monthly)}</div></div>
     <div style="text-align:right"><div class="muted small">Sur un an</div><div style="font-weight:700">${eur0(t.monthly*12)}</div></div>
@@ -732,7 +732,7 @@ screens.abo = (q, id) => {
     <div class="kv"><span>Détection</span><span>${s.confirmed ? `Récurrent confirmé (${s.count}×)` : 'Probable (1×)'}</span></div>
     ${s.duplicate?`<div class="kv"><span>Doublon possible</span><span>même usage que ${s.dupOf}</span></div>`:''}` : ''}
   </div>
-  ${done?`<a class="btn ghost" href="#/abonnements">Retour aux abonnements</a>` : P ? `
+  ${done?`<a class="btn ghost" href="#/abonnements">Retour aux transactions</a>` : P ? `
   <a class="btn danger" href="#/resilier/${s.id}/1">⟦scissors⟧ Résilier cet abonnement</a>
   <button class="btn ghost" id="keep">Je le garde, ne plus m’alerter</button>` : `
   <a class="btn danger locked-btn" href="#/premium">⟦lock⟧ Résiliation guidée · Premium</a>
@@ -937,7 +937,7 @@ screens.compte = () => {
   <p class="acct-k">Services</p>
   <div class="menu-card">
     ${row('#/banques','bank','Mes banques')}
-    ${row('#/abonnements','scissors','Abonnements')}
+    ${row('#/abonnements','scissors','Transactions')}
     ${row('#/operations','calendar','Opérations')}
     ${row('#/alertes','bell','Alertes', unread ? String(unread) : '')}
   </div>
