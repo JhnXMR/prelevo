@@ -507,3 +507,10 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .ptr{position:fixed;top:0;left:50%;transform:translate(-50%,-40px);width:30px;height:30px;border-radius:50%;background:var(--bg);border:1px solid var(--line);z-index:50;transition:transform .2s}
 .ptr.ready{border-color:var(--accent)}
 .total .lbl{padding-right:118px}
+/* ---------- Abonnements / résiliation ---------- */
+.row .meta.sub-next{color:var(--ink2);margin-top:1px}
+.row .amt{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.cancel-steps{margin:0 0 16px;padding:0;list-style:none;counter-reset:st}
+.cancel-steps li{counter-increment:st;position:relative;padding:10px 0 10px 40px;border-top:1px solid var(--line);font-size:14.5px;line-height:1.4}
+.cancel-steps li:first-child{border-top:0}
+.cancel-steps li::before{content:counter(st);position:absolute;left:0;top:9px;width:26px;height:26px;border-radius:50%;background:var(--tint);color:var(--accent);font-weight:700;font-size:13px;display:grid;place-items:center}

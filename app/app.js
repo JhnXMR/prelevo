@@ -184,6 +184,42 @@ const eur0 = n => Math.round(n).toLocaleString('fr-FR') + ' €';
 const $ = s => document.querySelector(s);
 const active = () => SUBS.filter(s => !state.resiliated.includes(s.id));
 const byId = id => SUBS.find(s => s.id === id);
+// Pages officielles de résiliation des services connus (reconnus par leur libellé bancaire).
+const CANCEL_DB = [
+  [/netflix/i, 'Netflix', 'https://www.netflix.com/cancelplan', 'Compte › Abonnement › Annuler l’abonnement', 'Sans préavis, fin à la date de renouvellement'],
+  [/spotify/i, 'Spotify', 'https://www.spotify.com/fr/account/subscription/', 'Compte › Votre abonnement › Changer d’offre › Annuler Premium', 'Sans préavis, fin à la date de renouvellement'],
+  [/disney/i, 'Disney+', 'https://www.disneyplus.com/account/subscription', 'Profil › Compte › Abonnement › Résilier', 'Sans préavis, fin à la date de renouvellement'],
+  [/amazon|prime ?video|amzn/i, 'Amazon Prime', 'https://www.amazon.fr/gp/primecentral', 'Votre compte › Prime › Gérer › Mettre fin à l’abonnement', 'Sans préavis'],
+  [/canal ?\+|canalplus|canal plus/i, 'Canal+', 'https://www.canalplus.com/espace-client/', 'Espace client › Mon abonnement › Résilier', 'Selon engagement, préavis jusqu’à 1 mois'],
+  [/deezer/i, 'Deezer', 'https://www.deezer.com/account/subscription', 'Paramètres › Gérer mon abonnement › Résilier', 'Sans préavis'],
+  [/youtube/i, 'YouTube Premium', 'https://www.youtube.com/paid_memberships', 'Abonnements souscrits › Désactiver', 'Sans préavis'],
+  [/apple|itunes/i, 'Apple', 'https://support.apple.com/fr-fr/118428', 'Réglages › votre nom › Abonnements › Annuler', 'Sans préavis'],
+  [/\bsfr\b|red by sfr/i, 'SFR', 'https://www.sfr.fr/mon-espace-client/', 'Espace client › Mon offre › Résilier (ou 1023)', 'Préavis 10 jours'],
+  [/orange|sosh/i, 'Orange', 'https://espace-client.orange.fr/', 'Espace client › Contrats › Résilier (ou 3900)', 'Préavis 10 jours'],
+  [/free ?mobile/i, 'Free Mobile', 'https://mobile.free.fr/account/', 'Espace abonné › Mon forfait › Résilier', 'Préavis 10 jours'],
+  [/\bfree\b|freebox/i, 'Free', 'https://subscribe.free.fr/login/', 'Espace abonné › Ma Freebox › Résilier', 'Préavis 10 jours'],
+  [/bouygues|b ?& ?you/i, 'Bouygues Telecom', 'https://www.bouyguestelecom.fr/mon-compte', 'Espace client › Mes offres › Résilier (ou 614)', 'Préavis 10 jours'],
+  [/basic.?fit/i, 'Basic-Fit', 'https://www.basic-fit.com/fr-fr/faq', 'Espace membre › Résilier mon abonnement', 'Préavis 4 semaines selon contrat'],
+  [/fitness park/i, 'Fitness Park', 'https://www.fitnesspark.fr/', 'Lettre ou e-mail au club', 'Selon contrat, souvent 1 mois'],
+  [/keep ?cool/i, 'Keep Cool', 'https://www.keepcool.fr/', 'Lettre ou e-mail au club', 'Selon contrat, souvent 1 mois'],
+  [/l.?orange bleue/i, 'L’Orange Bleue', 'https://www.lorangebleue.fr/', 'Lettre ou e-mail au club', 'Selon contrat, souvent 1 mois'],
+];
+const GYM = /sport|gym|fit|club|salle/i;
+function cancelInfo(s){
+  const k = CANCEL_DB.find(([re]) => re.test(s.name || ''));
+  if (k) return { online:true, brand:k[1], url:k[2], where:k[3], notice:k[4], known:true };
+  if (s.cancel) return s.cancel;
+  return GYM.test((s.name || '') + ' ' + (s.cat || '')) ? { online:false, where:'Lettre recommandée au club (ou en ligne si souscrit en ligne)', notice:'Selon contrat, souvent 1 mois' }
+    : { online:false, where:'Lettre recommandée ou espace client du service', notice:'Selon les conditions générales' };
+}
+const FREQ = { week:'hebdo', month:'mensuel', quarter:'trimestriel', year:'annuel' };
+function nextDebit(s){
+  if (s.live) return nextLive(s);
+  const n = nowRef(); let d = new Date(n.getFullYear(), n.getMonth(), s.day || 1);
+  if (d < day0(n)) d = new Date(n.getFullYear(), n.getMonth() + 1, s.day || 1);
+  return d;
+}
+const subBank = s => { if (LIVE){ const b = liveLedger().banks[0]; return b; } return LINKED[0]; };
 // Tuile banque : logo officiel de l'agrégateur si fourni (mode réel), sinon monogramme à la couleur de la marque.
 const lum = hex => { const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return 0; const n = parseInt(m[1], 16), c = [n >> 16, n >> 8 & 255, n & 255].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
 const bankTile = (b, cls = '', extra = '') => {
@@ -593,8 +629,9 @@ screens.abonnements = (q) => {
   if (f==='small') list = [];
   const row = s => `<a class="row" href="#/abo/${s.id}">${logo(s)}
       <div class="mid"><div class="name">${s.name}${P ? `${increase(s)?`<span class="badge b-red">+${pct(s)} %</span>`:''}${s.doubleCharge?'<span class="badge b-red">2× prélevé</span>':''}${t.dups.includes(s)?'<span class="badge b-blue">Doublon</span>':''}${s.trial?'<span class="badge b-amber">Essai fini</span>':''}` : ((increase(s)||s.small||s.doubleCharge||t.dups.includes(s)) ? lockBadge('Alerte') : '')}</div>
-      <div class="meta">${P ? (s.note || s.cat) : s.cat}${cadTxt(s)}${s.variable?' · montant variable':''}${s.cadence==='week'?'':' · le '+s.day}</div></div>
-      <div class="amt">${s.cadence&&s.cadence!=='month'?'≈ ':''}${eur(s.price)}${P && increase(s)?`<small class="strike">${eur(s.prev)}</small>`:'<small>/mois</small>'}</div></a>`;
+      <div class="meta">${P ? (s.note || s.cat) : s.cat}${cadTxt(s)}${s.variable?' · montant variable':''}</div>
+      <div class="meta sub-next">${cap(FREQ[s.cadence || 'month'] || 'mensuel')} · prochain : ${dayLabel(nextDebit(s)).toLowerCase()}</div></div>
+      <div class="amt">${s.cadence&&s.cadence!=='month'?'≈ ':''}${eur(s.price)}${P && increase(s)?`<small class="strike">${eur(s.prev)}</small>`:'<small>/mois</small>'}${bankTile(subBank(s), 'tx-bk')}</div></a>`;
   const chip = (k,l) => P ? `<a class="chip ${f===k?'on':''}" href="#/abonnements${k==='all'?'':'?f='+k}">${l}</a>` : `<a class="chip ${k==='all'?'on':''}" href="${k==='all'?'#/abonnements':'#/premium'}">${k==='all'?l:'⟦lock⟧ '+l.replace(/^\S+ /,'')}</a>`;
   return `
 <div class="screen">
@@ -607,6 +644,7 @@ screens.abonnements = (q) => {
   ${P?'':teaser(`${eur(t.found)}/mois d’économies repérées`, LIVE ? `${t.ups.length} hausse${t.ups.length>1?'s':''}, ${t.smalls.length} petit${t.smalls.length>1?'s':''} prélèvement${t.smalls.length>1?'s':''} sous 10 €` : `${t.ups.length} hausses, 1 doublon, 1 double prélèvement, ${t.smalls.length} oubliés`)}
   ${LIVE && LIVE.history && LIVE.history.limited ? `<div class="banner amber"><span class="ic">⟦info⟧</span><div><b>Historique court : détection partielle</b>La banque de test ne fournit que ${LIVE.history.days} jours d’opérations (${LIVE.history.debits} débits). Il faut au moins 2 prélèvements pour confirmer un abonnement : ceux vus une seule fois sont marqués « probable ».</div></div>` : ''}
   ${LIVE && !t.list.length ? `<div class="card center"><b>Aucun prélèvement récurrent trouvé</b><p class="muted small" style="margin-top:6px">Rien de régulier dans ces ${LIVE.txCount} opérations de test. Avec plus d’historique (2 mois ou plus), la détection sera plus complète.</p></div>` : ''}
+  ${P && t.ups.length && f==='all' ? `<div class="banner red"><span class="ic">⟦trend⟧</span><div><b>${t.ups.length} hausse${t.ups.length>1?'s':''} de prix détectée${t.ups.length>1?'s':''}</b>${t.ups.map(s=>`${esc(s.name)} : ${eur(s.prev)} → ${eur(s.price)}`).join(' · ')}. Soit ${eur(t.ups.reduce((a,s)=>a+increase(s),0)*12)} de plus par an.</div></div>` : ''}
   ${list.length?`<div class="card" style="padding:4px 16px">${list.map(row).join('')}</div>`:''}
   ${adSlot('subs')}
   ${showSmall && t.smalls.length?`
@@ -642,7 +680,7 @@ screens.abo = (q, id) => {
     <div class="kv"><span>Prochain prélèvement</span><span>${s.live ? (s.confirmed||s.nextDate ? '' : '≈ ') + (d => d.toLocaleDateString('fr-FR', d.getFullYear() === new Date().getFullYear() ? {day:'numeric',month:'short'} : {day:'numeric',month:'short',year:'numeric'}))(nextLive(s)) : `${s.day} ${s.day>=9?'oct.':'nov.'}`}</span></div>
     <div class="kv"><span>Rappel avant prélèvement</span><span>${P?'la veille ⟦bell⟧':'⟦lock⟧ Premium'}</span></div>
     <div class="kv"><span>Coût sur un an</span><span>${eur(s.price*12)}</span></div>
-    <div class="kv"><span>Client depuis</span><span>${s.since}</span></div>
+    <div class="kv"><span>Client depuis</span><span>${s.since || '—'}</span></div>
     ${s.live ? `<div class="kv"><span>Libellé bancaire</span><span class="small">${s.label}</span></div>
     <div class="kv"><span>Dernier prélèvement</span><span>${new Date(s.lastDate+'T12:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</span></div>
     <div class="kv"><span>Fréquence</span><span>${eur(s.amount)} ${s.cadenceLabel}${s.variable?' (variable)':''}</span></div>
@@ -671,9 +709,12 @@ screens.resilier = (q, id, step) => {
   ${[
     ['lettre','⟦mail⟧','Lettre de résiliation','Lettre prête à imprimer ou à envoyer en recommandé'],
     ['email','⟦mail⟧','E-mail au service client','Texte prêt à copier-coller'],
-    ['enligne','⟦globe⟧','En ligne en 3 clics', s.cancel.online ? s.cancel.where : 'Non proposé par ce service'],
-  ].map(([k,ic,b,sp])=>`<button class="option ${resil.method===k?'on':''}" data-method="${k}" ${k==='enligne'&&!s.cancel.online?'disabled style="opacity:.5"':''}><span class="ic">${ic}</span><div><b>${b}</b><span>${sp}</span></div></button>`).join('')}
-  <div class="card" style="padding:4px 16px"><div class="kv"><span>Comment résilier</span><span style="text-align:right;max-width:58%">${s.cancel.where}</span></div><div class="kv"><span>Préavis</span><span style="text-align:right;max-width:58%">${s.cancel.notice}</span></div></div>
+    ['enligne','⟦globe⟧','En ligne en 3 clics', cancelInfo(s).online ? cancelInfo(s).where : 'Non proposé par ce service'],
+  ].map(([k,ic,b,sp])=>`<button class="option ${resil.method===k?'on':''}" data-method="${k}" ${k==='enligne'&&!cancelInfo(s).online?'disabled style="opacity:.5"':''}><span class="ic">${ic}</span><div><b>${b}</b><span>${sp}</span></div></button>`).join('')}
+  <div class="card" style="padding:4px 16px"><div class="kv"><span>Comment résilier</span><span style="text-align:right;max-width:58%">${cancelInfo(s).where}</span></div><div class="kv"><span>Préavis</span><span style="text-align:right;max-width:58%">${cancelInfo(s).notice}</span></div></div>
+  ${cancelInfo(s).url ? `<a class="btn ghost" href="${cancelInfo(s).url}" target="_blank" rel="noopener">⟦globe⟧ Page officielle de résiliation ${esc(cancelInfo(s).brand)}</a>` : `<p class="muted small" style="margin:0 2px 12px">Pas de page de résiliation en ligne connue pour ce service : la lettre préremplie est la voie la plus sûre.</p>`}
+  <div class="section-h"><h2>Les étapes</h2></div>
+  <ol class="cancel-steps">${(cancelInfo(s).url ? [`Ouvrez la page officielle ${esc(cancelInfo(s).brand)} et connectez-vous.`, `Suivez : ${esc(cancelInfo(s).where)}.`, 'Gardez l’e-mail de confirmation, puis revenez confirmer ici.'] : ['Choisissez la lettre (ou l’e-mail) : tout est prérempli.', 'Envoyez-la en recommandé avec accusé de réception.', 'Revenez confirmer ici : on surveille que le prélèvement s’arrête.']).map(x=>`<li>${x}</li>`).join('')}</ol>
   <div class="banner blue"><span class="ic">⟦info⟧</span><div>Pour un contrat souscrit en ligne, la loi impose au service de proposer une résiliation en ligne simple (« résiliation en 3 clics »).</div></div>
   <a class="btn" href="#/resilier/${s.id}/2">Continuer</a>
 </div>`;
@@ -684,7 +725,7 @@ screens.resilier = (q, id, step) => {
 
 Bonjour,
 
-Je vous demande par la présente de résilier mon abonnement ${s.name} (identifiant client : EX-${s.id.toUpperCase()}-0042), à compter de la prochaine échéance, conformément aux conditions générales.
+Je vous demande par la présente de résilier mon abonnement ${s.name} (identifiant client : ${LIVE ? '[votre numéro client]' : 'EX-' + s.id.toUpperCase() + '-0042'}), à compter de la prochaine échéance, conformément aux conditions générales.
 
 Merci de me confirmer la prise en compte de cette demande et la date effective de fin de contrat, et de cesser tout prélèvement à compter de cette date.
 
@@ -699,12 +740,12 @@ Adresse du service résiliation
 Paris, le ${today}
 
 Objet : Résiliation de mon abonnement
-Réf. client : EX-${s.id.toUpperCase()}-0042
+Réf. client : ${LIVE ? '[votre numéro client]' : 'EX-' + s.id.toUpperCase() + '-0042'}
 Lettre recommandée avec accusé de réception
 
 Madame, Monsieur,
 
-Par la présente, je vous informe de ma volonté de résilier mon abonnement ${s.name}, souscrit en ${s.since}, à compter de la prochaine échéance (${s.cancel.notice.toLowerCase()}).
+Par la présente, je vous informe de ma volonté de résilier mon abonnement ${s.name}${s.since ? ', souscrit en ' + s.since + ',' : ''} à compter de la prochaine échéance (${cancelInfo(s).notice.toLowerCase()}).
 
 Je vous remercie de bien vouloir me confirmer la date effective de résiliation et de cesser tout prélèvement à compter de cette date.
 
@@ -716,11 +757,11 @@ ${USER.prenom} ${USER.nom}`;
   <h1 style="font-size:23px;letter-spacing:-.02em">Votre ${resil.method==='email'?'demande':'lettre'} est prête</h1>
   <p class="muted small" style="margin:6px 0 14px">Vérifiez les informations, tout est prérempli.</p>
   ${resil.method==='enligne'
-    ? `<div class="card"><b>Résiliez directement chez ${s.name}</b><p class="muted small" style="margin-top:6px">Chemin : ${s.cancel.where}</p><p class="muted small" style="margin-top:6px">On vous guide écran par écran, puis vous revenez confirmer ici.</p></div>`
+    ? `<div class="card"><b>Résiliez directement chez ${s.name}</b><p class="muted small" style="margin-top:6px">Chemin : ${cancelInfo(s).where}</p><p class="muted small" style="margin-top:6px">On vous guide écran par écran, puis vous revenez confirmer ici.</p>${cancelInfo(s).url ? `<a class="btn" style="margin-top:12px" href="${cancelInfo(s).url}" target="_blank" rel="noopener">⟦globe⟧ Ouvrir la page officielle</a>` : ''}</div>`
     : `<div class="letter">${letter}</div>`}
   <div class="btn-pair">
-    <button class="btn ghost" data-toast="Lettre copiée (simulation)">⟦copy⟧ Copier</button>
-    <button class="btn ghost" data-toast="PDF téléchargé (simulation)">⟦download⟧ PDF</button>
+    <button class="btn ghost" id="copy-letter">⟦copy⟧ Copier</button>
+    <button class="btn ghost" id="print-letter">⟦download⟧ Imprimer / PDF</button>
   </div>
   <a class="btn" href="#/resilier/${s.id}/3">C’est envoyé</a>
   <a class="help-link" href="#/chat">⟦user⟧ Un doute ? Un humain vous aide à rédiger</a>
@@ -1211,7 +1252,7 @@ document.addEventListener('click', e => {
   const ops = e.target.closest('[data-ops]'); if (ops){ opsFilter = ops.dataset.ops; render(); return; }
   const th = e.target.closest('[data-theme-set]');
   if (th){ if (window.PrelevoTheme) PrelevoTheme.set(th.dataset.themeSet); document.querySelectorAll('[data-theme-set]').forEach(b=>{ const on=b===th; b.classList.toggle('on',on); b.setAttribute('aria-checked',on); }); return; }
-  const el = e.target.closest('[data-bank],[data-method],[data-toast],[data-billing],[data-alert],[data-plan],#go-scan,#keep,#confirm-resil,#go-premium,#reset,#pw-connect,#pw-quit,#pw-refresh,#api-connect,#api-sync,#api-logout,#api-delete,#login-again,#del-check');
+  const el = e.target.closest('[data-bank],[data-method],[data-toast],[data-billing],[data-alert],[data-plan],#go-scan,#keep,#confirm-resil,#go-premium,#reset,#pw-connect,#pw-quit,#pw-refresh,#api-connect,#api-sync,#api-logout,#api-delete,#login-again,#del-check,#copy-letter,#print-letter');
   if (!el) return;
   if (el.dataset.toast){ e.preventDefault(); toast(el.dataset.toast); }
   else if (el.dataset.bank){ state.bank = el.dataset.bank; save(); render(); }
@@ -1221,6 +1262,8 @@ document.addEventListener('click', e => {
   else if (el.dataset.alert){ if(!state.readAlerts.includes(el.dataset.alert)){ state.readAlerts.push(el.dataset.alert); save(); } }
   else if (el.id==='api-connect'){ e.preventDefault(); toast('Ouverture de la connexion bancaire…'); API.connectBank().catch(apiFail); }
   else if (el.id==='home-sync') homeSync();
+  else if (el.id==='copy-letter'){ const l = $('.letter'); navigator.clipboard && l ? navigator.clipboard.writeText(l.innerText).then(()=>toast('Lettre copiée'), ()=>toast('Copie impossible')) : toast('Copie impossible'); }
+  else if (el.id==='print-letter'){ const l = $('.letter'); if (!l) return; const w = open('', '_blank'); if (!w) return toast('Autorisez les fenêtres pour imprimer'); w.document.write('<pre style="font:14px/1.5 Georgia,serif;white-space:pre-wrap;max-width:640px;margin:40px auto">' + esc(l.innerText) + '</pre>'); w.document.close(); w.print(); }
   else if (el.id==='api-sync'){ toast('Synchronisation…'); API.sync().then(apiLoadMe).then(()=>{ render(); toast('Comptes à jour'); }).catch(apiFail); }
   else if (el.id==='api-logout'){ API.logout().then(()=>{ ME = null; LIVE = null; state.connected = false; save(); location.replace(location.pathname + '#/onboarding'); location.reload(); }); }
   else if (el.id==='del-check'){ const b = $('#api-delete'); if (b) b.disabled = !el.checked; }
