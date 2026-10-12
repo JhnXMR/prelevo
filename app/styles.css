@@ -38,7 +38,12 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 /* barre du haut */
 .topbar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:22px;min-height:40px}
 .topbar h1{font-size:24px;font-weight:650;letter-spacing:-.025em}
-.back,.gear{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;color:var(--ink)}
+.back,.gear{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;color:var(--ink);
+  background:color-mix(in srgb, var(--bg) 35%, transparent);
+  border:1px solid color-mix(in srgb, #fff 28%, transparent);
+  -webkit-backdrop-filter:blur(18px) saturate(1.7);
+  backdrop-filter:blur(18px) saturate(1.7);
+  box-shadow:inset 0 1px 0 color-mix(in srgb, #fff 45%, transparent)}
 .brand{display:flex;align-items:center;gap:10px;font-weight:600;font-size:16px;letter-spacing:-.01em}
 .brand .lg{display:flex}.brand img{width:auto;height:28px}
 .demo{font-size:10.5px;color:var(--muted);letter-spacing:.02em;white-space:nowrap}
@@ -214,8 +219,14 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .trial .sel{color:var(--ink);font-weight:600}
 .trial .i{width:17px;height:17px;color:var(--accent)}
 
-/* barre d'onglets */
-.tabbar{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;background:var(--bg);border-top:1px solid var(--line);display:flex;padding:8px 6px calc(10px + env(safe-area-inset-bottom));z-index:10}
+/* barre d'onglets — liquid glass */
+.tabbar{position:fixed;bottom:calc(8px + env(safe-area-inset-bottom));left:14px;right:14px;max-width:452px;margin:0 auto;display:flex;gap:2px;padding:5px;z-index:10;border-radius:32px;isolation:isolate;overflow:hidden;
+  background:color-mix(in srgb, var(--bg) 28%, transparent);
+  border:1px solid color-mix(in srgb, #fff 32%, transparent);
+  -webkit-backdrop-filter:blur(28px) saturate(1.85);
+  backdrop-filter:blur(28px) saturate(1.85);
+  box-shadow:inset 0 1px 0 color-mix(in srgb, #fff 55%, transparent), inset 0 -1px 0 color-mix(in srgb, #fff 8%, transparent), 0 12px 32px rgba(0,0,0,.28)}
+.tabbar::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(180deg, color-mix(in srgb, #fff 22%, transparent), transparent 46%);z-index:0}
 .tabbar[hidden]{display:none}
 .tabbar a{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;font-weight:500;color:var(--muted);position:relative}
 .tabbar a .ti{line-height:0}
@@ -656,19 +667,15 @@ body{overflow-x:hidden}
 .btn{border-radius:14px;transition:transform .12s cubic-bezier(.2,.7,.2,1),opacity .12s,background .12s}
 .btn:active:not(:disabled){transform:scale(.98)}
 .back,.gear{width:44px;height:44px}
-.sync-btn{min-height:40px;padding:8px 12px;transition:transform .12s,background .12s}
+.sync-btn{min-height:40px;padding:8px 12px;transition:transform .12s,background .12s;
+  background:color-mix(in srgb, var(--bg) 30%, transparent);
+  border-color:color-mix(in srgb, #fff 24%, transparent);
+  -webkit-backdrop-filter:blur(16px) saturate(1.6);
+  backdrop-filter:blur(16px) saturate(1.6);
+  box-shadow:inset 0 1px 0 color-mix(in srgb, #fff 35%, transparent)}
 .sync-btn:active{transform:scale(.98)}
-.tabbar{
-  background:var(--bg);
-  -webkit-backdrop-filter:none;
-  backdrop-filter:none;
-  border-top:1px solid var(--line);
-  box-shadow:0 -10px 30px rgba(10,11,13,.04);
-  padding:6px 4px calc(8px + env(safe-area-inset-bottom));
-}
-:root[data-theme="dark"] .tabbar{box-shadow:none}
-.tabbar a{min-height:44px;justify-content:center;font-size:11px;font-weight:550;gap:2px}
-.tabbar a.on{color:var(--ink)}
+.tabbar a{position:relative;z-index:1;min-height:48px;justify-content:center;font-size:11px;font-weight:550;gap:2px;border-radius:24px}
+.tabbar a.on{color:var(--ink);background:color-mix(in srgb, #fff 16%, transparent);box-shadow:inset 0 1px 0 color-mix(in srgb, #fff 42%, transparent)}
 .tabbar a:active{opacity:.65}
 .hchip,.chip{min-height:44px}
 .toggle button{min-height:44px;height:44px}
