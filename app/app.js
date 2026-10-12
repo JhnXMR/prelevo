@@ -945,10 +945,89 @@ screens.compte = () => {
   </div>
   <p class="acct-k">${APP_NAME}</p>
   <div class="menu-card">
+    ${row('#/parrainage','gift','Parrainage','1 mois offert')}
     ${row('#/aide','chat','Aide')}
     ${row('#/aide','info','À propos')}
   </div>
   <p class="acct-foot">${APP_NAME} n’est pas une banque. Lecture seule, aucun virement. ${demoTag}</p>
+</div>`;
+};
+function refCode(){
+  try {
+    const saved = localStorage.getItem('prelevo-ref');
+    if (saved) return saved;
+    const base = (USER.prenom || 'PRELEVO').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/gi, '').toUpperCase().slice(0, 8) || 'PRELEVO';
+    const n = [...base].reduce((a, ch) => (a * 33 + ch.charCodeAt(0)) % 90, 11);
+    const code = base + String(10 + n);
+    localStorage.setItem('prelevo-ref', code);
+    return code;
+  } catch (e) { return 'CAMILLE21'; }
+}
+function refShareText(){
+  return `${USER.prenom} vous invite sur ${APP_NAME}. Code ${refCode()} : 1 mois de Premium offert pour vous deux, dès qu’une banque est connectée. https://jhnxmr.github.io/prelevo/app/?demo=1`;
+}
+const REF_SEED = [
+  { name:'Léa M.', date:'12 sept.', status:'offert', detail:'1 mois Premium crédité' },
+  { name:'Noah B.', date:'2 oct.', status:'inscrit', detail:'Compte créé, banque pas encore connectée' },
+  { name:'Inès K.', date:'8 oct.', status:'envoye', detail:'Invitation envoyée' },
+];
+function myRefs(){
+  let extra = [];
+  try { extra = JSON.parse(localStorage.getItem('prelevo-refs') || '[]'); } catch (e) {}
+  return (Array.isArray(extra) ? extra : []).concat(REF_SEED);
+}
+const REF_LABEL = { offert:'Offert', inscrit:'Inscrit', envoye:'Envoyé' };
+screens.parrainage = (qs, sub) => {
+  const back = `<div class="topbar look-bar"><a class="back" href="${sub ? '#/parrainage' : '#/compte'}" aria-label="Retour">⟦back⟧</a><h1>${sub === 'inviter' ? 'Parrainer' : sub === 'suivi' ? 'Vos parrainages' : sub === 'comment' ? 'Le parrainage' : 'Parrainage'}</h1><span></span></div>`;
+  if (sub === 'inviter') return `
+<div class="screen parrain">
+  ${back}
+  <div class="ref-box">
+    <p class="muted">Votre code</p>
+    <p class="ref-code">${esc(refCode())}</p>
+    <p>1 mois de Premium pour vous, 1 mois pour votre proche, dès qu’il connecte une banque.</p>
+  </div>
+  <div class="btn-pair">
+    <button class="btn mint" id="share-ref" type="button">⟦send⟧ Partager</button>
+    <button class="btn ghost" id="copy-ref" type="button">⟦copy⟧ Copier</button>
+  </div>
+  <form class="ref-note" id="ref-form">
+    <label for="ref-who">Noter une invitation</label>
+    <div class="ref-line"><input id="ref-who" maxlength="40" placeholder="Prénom" autocomplete="off"><button class="btn" id="ref-add" type="button">Ajouter</button></div>
+  </form>
+</div>`;
+  if (sub === 'suivi') {
+    const list = myRefs();
+    const won = list.filter(r => r.status === 'offert').length;
+    return `
+<div class="screen parrain">
+  ${back}
+  <div class="ref-sum"><b>${won} mois</b><span>de Premium gagné${won > 1 ? 's' : ''} · ${list.length} proche${list.length > 1 ? 's' : ''}</span></div>
+  <div class="menu-card">${list.map(r => `<div class="ref-person"><div><b>${esc(r.name)}</b><span>${esc(r.date)} · ${esc(r.detail)}</span></div><em class="ref-status ${r.status}">${REF_LABEL[r.status] || ''}</em></div>`).join('')}</div>
+  <p class="acct-foot">Les mois offerts s’ajoutent à votre essai. Ils ne sont pas convertibles en argent. ${demoTag}</p>
+</div>`;
+  }
+  if (sub === 'comment') return `
+<div class="screen parrain">
+  ${back}
+  <ol class="ref-steps">
+    <li><b>Vous envoyez votre code</b><span>À un proche qui n’a pas encore de compte ${APP_NAME}.</span></li>
+    <li><b>Il crée son compte</b><span>Et connecte au moins une banque, en lecture seule.</span></li>
+    <li><b>Vous êtes deux à gagner</b><span>1 mois de Premium chacun, dans la limite de 12 parrainages par an.</span></li>
+  </ol>
+  <div class="card about">
+    <p>Le parrainage ne déplace jamais d’argent : ${APP_NAME} n’est pas une banque. Aucune commission, aucun avantage caché sur vos prélèvements.</p>
+    <p>Un même proche ne peut être parrainé qu’une fois. Le mois offert se cumule avec l’essai, il ne se transforme pas en remboursement.</p>
+  </div>
+</div>`;
+  return `
+<div class="screen parrain">
+  ${back}
+  <div class="menu-card parrain-card">
+    <a class="acct-row" href="#/parrainage/inviter"><span class="acct-lab">Parrainer vos proches</span><span class="acct-go">⟦chev⟧</span></a>
+    <a class="acct-row" href="#/parrainage/suivi"><span class="acct-lab">Suivre vos parrainages</span><span class="acct-go">⟦chev⟧</span></a>
+    <a class="acct-row" href="#/parrainage/comment"><span class="acct-lab">Comprendre le parrainage</span><span class="acct-go">⟦chev⟧</span></a>
+  </div>
 </div>`;
 };
 screens.apparence = () => {
@@ -1366,7 +1445,7 @@ function render(){
   const [name, ...args] = path.split('/');
   const fn = screens[name] || screens.dashboard;
   $('#app').innerHTML = icons(fn(new URLSearchParams(qs||''), ...args));
-  const tabbed = ['dashboard','operations','abonnements','alertes','premium','abo','aide','banques','compte','apparence'].includes(name) || (!screens[name]);
+  const tabbed = ['dashboard','operations','abonnements','alertes','premium','abo','aide','banques','compte','apparence','parrainage'].includes(name) || (!screens[name]);
   $('#tabbar').hidden = !tabbed;
   if (API && ['onboarding','connexion','dashboard','connect','banques'].includes(name)){ const sc = $('#app').firstElementChild; if (sc && !sc.querySelector('.alpha-note')) sc.insertAdjacentHTML('afterbegin', '<div class="alpha-note" role="note"><b>Alpha</b> — banques de test uniquement pour l’instant</div>'); }
   const tabName = name==='abo' ? 'abonnements' : name==='operations' || !screens[name] ? 'dashboard' : name;
@@ -1409,6 +1488,26 @@ document.addEventListener('click', e => {
   else if (el.id==='api-connect'){ e.preventDefault(); toast('Ouverture de la connexion bancaire…'); API.connectBank().catch(apiFail); }
   else if (el.id==='toggle-balance'){ state.hideBalance = !state.hideBalance; save(); render(); }
   else if (el.id==='copy-letter'){ const l = $('.letter'); navigator.clipboard && l ? navigator.clipboard.writeText(l.innerText).then(()=>toast('Lettre copiée'), ()=>toast('Copie impossible')) : toast('Copie impossible'); }
+  else if (el.id==='copy-ref'){ const t = refShareText(); navigator.clipboard ? navigator.clipboard.writeText(t).then(()=>toast('Code copié'), ()=>toast(refCode())) : toast(refCode()); }
+  else if (el.id==='share-ref'){
+    const t = refShareText();
+    if (navigator.share) navigator.share({ title: APP_NAME, text: t }).catch(() => {});
+    else if (navigator.clipboard) navigator.clipboard.writeText(t).then(()=>toast('Lien copié'), ()=>toast(refCode()));
+    else toast(refCode());
+  }
+  else if (el.id==='ref-add'){
+    const input = $('#ref-who');
+    const name = (input && input.value || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+    if (name.length < 2) return toast('Indiquez un prénom');
+    let extra = [];
+    try { extra = JSON.parse(localStorage.getItem('prelevo-refs') || '[]'); } catch (e) {}
+    if (!Array.isArray(extra)) extra = [];
+    extra.unshift({ name, date: new Date().toLocaleDateString('fr-FR', { day:'numeric', month:'short' }).replace(/\.$/, ''), status:'envoye', detail:'Invitation envoyée' });
+    try { localStorage.setItem('prelevo-refs', JSON.stringify(extra.slice(0, 20))); } catch (e) {}
+    location.hash = '#/parrainage/suivi';
+    toast('Invitation notée');
+    render();
+  }
   else if (el.id==='print-letter'){ const l = $('.letter'); if (!l) return; const w = open('', '_blank'); if (!w) return toast('Autorisez les fenêtres pour imprimer'); w.document.write('<pre style="font:14px/1.5 Georgia,serif;white-space:pre-wrap;max-width:640px;margin:40px auto">' + esc(l.innerText) + '</pre>'); w.document.close(); w.print(); }
   else if (el.id==='api-sync'){ toast('Synchronisation…'); API.sync().then(apiLoadMe).then(()=>{ render(); toast('Comptes à jour'); }).catch(apiFail); }
   else if (el.id==='api-logout'){ API.logout().then(()=>{ ME = null; LIVE = null; state.connected = false; save(); location.replace(location.pathname + '#/onboarding'); location.reload(); }); }
