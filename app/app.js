@@ -522,13 +522,8 @@ function spark(curve){
   const pts = curve.map((p, i) => [x(i), y(p.v)]);
   const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
   const last = pts[pts.length - 1];
-  const daily = [];
-  curve.forEach((p, i) => {
-    const k = homeTf === '24H' ? p.t.getTime() : day0(p.t).getTime();
-    const o = { x: pts[i][0] / W * 100, y: pts[i][1] / H * 100, v: p.v, t: p.t };
-    if (daily.length && daily[daily.length - 1].k === k) daily[daily.length - 1] = { k, ...o }; else daily.push({ k, ...o });
-  });
-  SPARK = { daily, first: curve[0].v, tf: homeTf };
+  const track = curve.map((p, i) => ({ x: pts[i][0] / W * 100, y: pts[i][1] / H * 100, v: p.v, t: p.t }));
+  SPARK = { pts: track, first: curve[0].v, tf: homeTf };
   return `<div class="spark" role="img" aria-label="Évolution du solde sur ${tf[2]}. Glissez pour voir le détail."><div class="spark-plot"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
     <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".16"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
     <path class="sp-area" d="${d} L${W},${H} L0,${H} Z" fill="url(#spk)"/>
@@ -1593,36 +1588,38 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     const vl = el.querySelector('.sp-vline'); if (vl) vl.hidden = true;
   };
   const paint = () => {
-    if (!st || !SPARK || st.axis === 'y' || st.i < 0) return;
-    const D = SPARK.daily, p = D[st.i]; if (!p) return;
-    const amt = document.querySelector('.total [data-count]'), dl = document.getElementById('sp-delta'), dv = p.v - SPARK.first;
+    if (!st || !SPARK || st.axis === 'y' || st.f == null) return;
+    const P = SPARK.pts, f = st.f;
+    let i = 1;
+    while (i < P.length - 1 && P[i].x < f) i++;
+    const a = P[Math.max(0, i - 1)], b = P[Math.min(P.length - 1, i)];
+    const span = b.x - a.x, u = span ? Math.min(1, Math.max(0, (f - a.x) / span)) : 0;
+    const y = a.y + (b.y - a.y) * u, v = a.v + (b.v - a.v) * u;
+    const t = new Date(a.t.getTime() + (b.t.getTime() - a.t.getTime()) * u);
+    const amt = document.querySelector('.total [data-count]'), dl = document.getElementById('sp-delta');
     st.el.classList.add('scrub');
-    if (st.vl) { st.vl.hidden = false; st.vl.style.left = p.x + '%'; }
-    if (st.dot) { st.dot.style.left = p.x + '%'; st.dot.style.top = p.y + '%'; }
-    if (amt && !state.hideBalance) { amt.dataset.scrub = '1'; amt.innerHTML = money(p.v); }
+    if (st.vl) { st.vl.hidden = false; st.vl.style.left = f + '%'; }
+    if (st.dot) { st.dot.style.left = f + '%'; st.dot.style.top = y + '%'; }
+    if (amt && !state.hideBalance) { amt.dataset.scrub = '1'; amt.innerHTML = money(v); }
     if (dl && !state.hideBalance) {
-      const when = SPARK.tf === '24H'
-        ? `${String(p.t.getHours()).padStart(2,'0')} h`
-        : `${JC[p.t.getDay()]} ${p.t.getDate()} ${MOIS[p.t.getMonth()]}`;
-      dl.innerHTML = `<b class="${dv >= 0 ? 'pos' : ''}">${signed(dv)}</b> · ${when}`;
+      const hh = String(t.getHours()).padStart(2, '0'), mm = String(t.getMinutes()).padStart(2, '0');
+      dl.innerHTML = `<span class="scrub-when">${JC[t.getDay()]} ${t.getDate()} ${MOIS[t.getMonth()]} à ${hh}:${mm}</span>`;
     }
   };
   const frame = () => { raf = 0; paint(); };
   const sched = () => { if (!raf) raf = requestAnimationFrame(frame); };
-  const dayAt = clientX => {
-    const r = st.el.getBoundingClientRect(), w = r.width || 1;
-    const f = Math.min(1, Math.max(0, (clientX - r.left) / w)) * 100, D = SPARK.daily;
-    let i = 0, best = 1e9;
-    for (let k = 0; k < D.length; k++) { const dist = Math.abs(D[k].x - f); if (dist < best) { best = dist; i = k; } }
-    return i;
+  const xOf = clientX => {
+    const box = st.el.querySelector('.spark-plot') || st.el;
+    const r = box.getBoundingClientRect(), w = r.width || 1;
+    return Math.min(100, Math.max(0, (clientX - r.left) / w * 100));
   };
   const syncDay = (clientX, haptic) => {
     if (!st || !SPARK) return;
-    const i = dayAt(clientX);
-    if (i !== st.i) {
-      const was = st.i; st.i = i;
-      if (haptic && !(was < 0 && i === SPARK.daily.length - 1)) buzz(8);
-    }
+    const f = xOf(clientX), P = SPARK.pts;
+    let i = 0, best = 1e9;
+    for (let k = 0; k < P.length; k++) { const dist = Math.abs(P[k].x - f); if (dist < best) { best = dist; i = k; } }
+    if (haptic && st.i >= 0 && i !== st.i) buzz(8);
+    st.i = i; st.f = f;
   };
   const arm = (el, clientX, clientY) => {
     const amt = document.querySelector('.total [data-count]'), dl = document.getElementById('sp-delta'), dot = el.querySelector('.sp-dot');
