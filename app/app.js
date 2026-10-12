@@ -298,7 +298,13 @@ function alerts(){
 
 // ---------- écrans ----------
 const screens = {};
-const brandBar = (right=demoTag) => `<div class="topbar"><div class="brand"><span class="lg"><img class="lg-l" src="icons/logo-mark.svg" alt=""><img class="lg-d" src="icons/logo-mark-white.svg" alt=""></span>${APP_NAME}</div>${right}</div>`;
+const brandBar = (right=demoTag) => `<div class="topbar"><div class="brand">${brandLogo()}${APP_NAME}</div>${right}</div>`;
+function brandLogo(){
+  const id = appIcon();
+  if (id === 'defaut') return `<span class="lg"><img class="lg-l" src="icons/logo-mark.svg" alt=""><img class="lg-d" src="icons/logo-mark-white.svg" alt=""></span>`;
+  const src = id === 'noir' ? 'icons/logo-mark-white.svg' : 'icons/logo-mark.svg';
+  return `<span class="logo-chip mini t-${id}"><img src="${src}" alt=""></span>`;
+}
 const yearSave = () => Math.round((1 - CFG.priceYear / (CFG.priceMonth*12)) * 100);
 
 screens.onboarding = () => `
@@ -901,6 +907,19 @@ const themeLabel = () => ({ light:'Clair', dark:'Sombre', auto:'Automatique' }[t
 function appIcon(){ try { const v = localStorage.getItem('prelevo-icon'); if (v === 'noir' || v === 'bleu') return v; } catch (e) {} return 'defaut'; }
 function setAppIcon(v){ try { if (v === 'noir' || v === 'bleu') localStorage.setItem('prelevo-icon', v); else localStorage.removeItem('prelevo-icon'); } catch (e) {} document.documentElement.setAttribute('data-icon', appIcon()); }
 setAppIcon(appIcon());
+let _pickAt = 0;
+function pickTheme(v){
+  const now = Date.now(); if (now - _pickAt < 350) return; _pickAt = now;
+  if (window.PrelevoTheme) PrelevoTheme.set(v);
+  render();
+  toast(v === 'auto' ? 'Thème automatique' : v === 'dark' ? 'Thème sombre' : 'Thème clair');
+}
+function pickIcon(v){
+  const now = Date.now(); if (now - _pickAt < 350) return; _pickAt = now;
+  setAppIcon(v);
+  render();
+  toast(v === 'bleu' ? 'Icône bleue' : v === 'noir' ? 'Icône noire' : 'Icône par défaut');
+}
 screens.compte = () => {
   const P = isP(), unread = alerts().filter(a => !state.readAlerts.includes(a.id)).length;
   const row = (href, ic, lab, aside='') => `<a class="acct-row" href="${href}"><span class="acct-ic">⟦${ic}⟧</span><span class="acct-lab">${lab}</span>${aside ? `<span class="acct-aside">${aside}</span>` : ''}<span class="acct-go">⟦chev⟧</span></a>`;
@@ -935,7 +954,7 @@ screens.compte = () => {
 };
 screens.apparence = () => {
   const t = themePref(), icon = appIcon();
-  const radio = (v, lab) => `<button type="button" class="th-radio" data-theme-set="${v}" role="radio" aria-checked="${t===v}"><span class="rdot"></span>${lab}</button>`;
+  const radio = (v, lab) => `<button type="button" class="th-radio" data-theme-set="${v}" onclick="pickTheme('${v}')" role="radio" aria-checked="${t===v}"><span class="rdot"></span>${lab}</button>`;
   const tiles = [['defaut','Défaut','icons/logo-mark.svg'],['noir','Noir','icons/logo-mark-white.svg'],['bleu','Bleu','icons/logo-mark.svg']];
   return `
 <div class="screen look-page">
@@ -944,15 +963,15 @@ screens.apparence = () => {
   <div class="menu-card th-card">
     ${radio('light','Clair')}
     ${radio('dark','Sombre')}
-    <button type="button" class="th-auto" data-theme-auto aria-pressed="${t==='auto'}">
+    <button type="button" class="th-auto" data-theme-auto onclick="pickTheme(PrelevoTheme.get()==='auto'?(document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light'):'auto')" aria-pressed="${t==='auto'}">
       <span><b>Automatique</b><small>Le thème utilisera la valeur par défaut de votre appareil</small></span>
       <span class="sw ${t==='auto'?'on':''}"></span>
     </button>
   </div>
   <p class="acct-k">Icône de l’app</p>
   <div class="menu-card icon-card">
-    <div class="icon-grid">${tiles.map(([id,lab,src])=>`<button type="button" class="icon-opt ${icon===id?'on':''}" data-app-icon="${id}" aria-pressed="${icon===id}"><span class="tile t-${id}"><img src="${src}" alt=""></span>${icon===id?'<i class="ibadge">⟦check⟧</i>':''}<span class="ilab">${lab}</span></button>`).join('')}</div>
-    <p class="icon-note">Le logo en haut de Mon compte suit ce choix. L’icône sur l’écran d’accueil de l’iPhone, elle, reste celle installée.</p>
+    <div class="icon-grid">${tiles.map(([id,lab,src])=>`<button type="button" class="icon-opt ${icon===id?'on':''}" data-app-icon="${id}" onclick="pickIcon('${id}')" aria-pressed="${icon===id}"><span class="tile t-${id}"><img src="${src}" alt=""></span>${icon===id?'<i class="ibadge">⟦check⟧</i>':''}<span class="ilab">${lab}</span></button>`).join('')}</div>
+    <p class="icon-note">Le logo Prelevo en haut de l’écran change tout de suite. L’icône déjà posée sur l’écran d’accueil de l’iPhone ne peut pas changer.</p>
   </div>
 </div>`;
 };
@@ -1372,15 +1391,14 @@ function runScan(){
 document.addEventListener('click', e => {
   const ops = e.target.closest('[data-ops]'); if (ops){ opsFilter = ops.dataset.ops; render(); return; }
   const th = e.target.closest('[data-theme-set]');
-  if (th){ if (window.PrelevoTheme) PrelevoTheme.set(th.dataset.themeSet); render(); return; }
+  if (th){ pickTheme(th.dataset.themeSet); return; }
   const thAuto = e.target.closest('[data-theme-auto]');
   if (thAuto && window.PrelevoTheme){
-    if (PrelevoTheme.get() === 'auto') PrelevoTheme.set(document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light');
-    else PrelevoTheme.set('auto');
-    render(); return;
+    pickTheme(PrelevoTheme.get() === 'auto' ? (document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light') : 'auto');
+    return;
   }
   const appIco = e.target.closest('[data-app-icon]');
-  if (appIco){ setAppIcon(appIco.dataset.appIcon); render(); return; }
+  if (appIco){ pickIcon(appIco.dataset.appIcon); return; }
   const el = e.target.closest('[data-bank],[data-method],[data-toast],[data-billing],[data-alert],[data-plan],#go-scan,#keep,#confirm-resil,#go-premium,#reset,#pw-connect,#pw-quit,#pw-refresh,#api-connect,#api-sync,#api-logout,#api-delete,#login-again,#del-check,#copy-letter,#print-letter,#billing-portal,#toggle-balance');
   if (!el) return;
   if (el.dataset.toast){ e.preventDefault(); toast(el.dataset.toast); }

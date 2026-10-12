@@ -403,6 +403,9 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .t-noir{background:#0A0B0D}
 .t-bleu{background:#0066FF}
 .t-bleu img{filter:brightness(0) invert(1)}
+.brand .logo-chip.mini{width:32px;height:32px;border-radius:9px;flex:none}
+.brand .logo-chip.mini img{width:22px;height:auto}
+.icon-opt.on .tile{box-shadow:0 0 0 3px var(--accent)}
 .ibadge{position:absolute;top:2px;left:calc(50% + 16px);width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center}
 .ibadge .i{width:14px;height:14px}
 .icon-note{margin:4px 4px 14px;color:var(--muted);font-size:12.5px;line-height:1.4}
