@@ -298,7 +298,7 @@ function alerts(){
 
 // ---------- écrans ----------
 const screens = {};
-const brandBar = (right=demoTag) => `<div class="topbar"><div class="brand">${logoMark('mini')}${APP_NAME}</div>${right}</div>`;
+const brandBar = (right=demoTag) => `<div class="topbar"><div class="brand"><i class="brand-mark" aria-hidden="true"></i>${APP_NAME}</div>${right}</div>`;
 function logoMark(size){
   const id = appIcon();
   const src = id === 'noir' ? 'icons/logo-mark-white.svg' : 'icons/logo-mark.svg';
@@ -1612,7 +1612,7 @@ async function homeSync(){
   const ptr = document.createElement('div');
   ptr.className = 'ptr';
   ptr.setAttribute('aria-hidden', 'true');
-  ptr.innerHTML = logoMark('ptr');
+  ptr.innerHTML = '<i class="ptr-logo"></i>';
   document.body.appendChild(ptr);
   const TRIGGER = 16;
   const onChart = e => !!(e.target && e.target.closest && e.target.closest('.spark'));

@@ -407,10 +407,9 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .onb .logo-chip.xl img{width:56px}
 .login .logo-chip.l{width:64px;height:64px;border-radius:18px;margin-top:8px}
 .login .logo-chip.l img{width:42px}
-.brand .logo-chip.mini{width:36px;height:36px;border-radius:11px;flex:none}
-.brand .logo-chip.mini img{width:24px}
-.logo-chip.ptr{width:36px;height:36px;border-radius:11px}
-.logo-chip.ptr img{width:24px}
+.brand-mark{width:22px;height:28px;flex:none;display:block;background:#fff;-webkit-mask:url("icons/logo-mark-white.svg") center / contain no-repeat;mask:url("icons/logo-mark-white.svg") center / contain no-repeat}
+:root[data-theme="light"] .brand-mark{background:#0A0B0D}
+@media (prefers-color-scheme: light){ :root:not([data-theme]) .brand-mark{background:#0A0B0D} }
 .icon-opt.on .tile{box-shadow:0 0 0 3px var(--accent)}
 .ibadge{position:absolute;top:2px;left:calc(50% + 16px);width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center}
 .ibadge .i{width:14px;height:14px}
@@ -606,14 +605,14 @@ button.kv{width:100%;border:0;background:transparent;font:inherit;color:inherit;
 .bk-tile.tx-bk{width:18px;height:18px;border-radius:6px}
 .bk-tile.tx-bk b{font-size:7.5px}
 .bk-tile.tx-bk img{max-width:100%}
-.ptr{position:fixed;left:50%;top:0;width:36px;z-index:40;opacity:0;transform:translate(-50%,0) scale(.72);pointer-events:none}
-.ptr .logo-chip{display:grid}
-.ptr.on .logo-chip{animation:radar 1.05s ease-in-out infinite}
-.ptr::after{content:"";position:absolute;left:50%;top:40%;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;border:1.5px solid var(--accent);opacity:0;pointer-events:none}
+.ptr{position:fixed;left:50%;top:0;width:30px;height:38px;z-index:40;opacity:0;transform:translate(-50%,0) scale(.72);pointer-events:none}
+.ptr-logo{display:block;width:30px;height:38px;background:#0066FF;-webkit-mask:url("icons/logo-mark-white.svg") center / contain no-repeat;mask:url("icons/logo-mark-white.svg") center / contain no-repeat}
+.ptr.on .ptr-logo{animation:radar 1.05s ease-in-out infinite}
+.ptr::after{content:"";position:absolute;left:50%;top:36%;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;border:1.5px solid #0066FF;opacity:0;pointer-events:none}
 .ptr.on::after{animation:radar-ping 1.05s ease-out infinite}
-@keyframes radar{0%,100%{transform:scale(.82);opacity:.7}50%{transform:scale(1.14);opacity:1}}
-@keyframes radar-ping{0%{transform:scale(.55);opacity:.5}100%{transform:scale(1.85);opacity:0}}
-@media (prefers-reduced-motion: reduce){ .ptr.on .logo-chip,.ptr.on::after{animation:none} }
+@keyframes radar{0%,100%{transform:scale(.86);opacity:.72}50%{transform:scale(1.12);opacity:1}}
+@keyframes radar-ping{0%{transform:scale(.45);opacity:.55}100%{transform:scale(2.1);opacity:0}}
+@media (prefers-reduced-motion: reduce){ .ptr.on .ptr-logo,.ptr.on::after{animation:none} }
 .total .lbl{padding-right:118px}
 /* ---------- Abonnements / résiliation ---------- */
 .row .meta.sub-next{color:var(--ink2);margin-top:1px}
