@@ -298,18 +298,18 @@ function alerts(){
 
 // ---------- écrans ----------
 const screens = {};
-const brandBar = (right=demoTag) => `<div class="topbar"><div class="brand">${brandLogo()}${APP_NAME}</div>${right}</div>`;
-function brandLogo(){
+const brandBar = (right=demoTag) => `<div class="topbar"><div class="brand">${logoMark('mini')}${APP_NAME}</div>${right}</div>`;
+function logoMark(size){
   const id = appIcon();
-  if (id === 'defaut') return `<span class="lg"><img class="lg-l" src="icons/logo-mark.svg" alt=""><img class="lg-d" src="icons/logo-mark-white.svg" alt=""></span>`;
   const src = id === 'noir' ? 'icons/logo-mark-white.svg' : 'icons/logo-mark.svg';
-  return `<span class="logo-chip mini t-${id}"><img src="${src}" alt=""></span>`;
+  const tone = id === 'noir' ? 't-noir' : id === 'defaut' ? 't-defaut' : 't-bleu';
+  return `<span class="logo-chip ${size || ''} ${tone}"><img src="${src}" alt=""></span>`;
 }
 const yearSave = () => Math.round((1 - CFG.priceYear / (CFG.priceMonth*12)) * 100);
 
 screens.onboarding = () => `
 <div class="onb">
-  <span class="lg"><img class="logo-xl lg-l" src="icons/logo-mark.svg" alt=""><img class="logo-xl lg-d" src="icons/logo-mark-white.svg" alt="Prelevo"></span>
+  ${logoMark('xl')}
   <h1>Arrêtez de payer pour des abonnements <em>que vous avez oubliés.</em></h1>
   <p class="lead">${APP_NAME} analyse vos comptes, repère tous vos prélèvements récurrents et vous prévient quand un prix augmente.</p>
   <ul>
@@ -927,13 +927,12 @@ function pickIcon(v){
 screens.compte = () => {
   const P = isP(), unread = alerts().filter(a => !state.readAlerts.includes(a.id)).length;
   const row = (href, ic, lab, aside='') => `<a class="acct-row" href="${href}"><span class="acct-ic">⟦${ic}⟧</span><span class="acct-lab">${lab}</span>${aside ? `<span class="acct-aside">${aside}</span>` : ''}<span class="acct-go">⟦chev⟧</span></a>`;
-  const chip = { defaut:['icons/logo-mark.svg','t-defaut'], noir:['icons/logo-mark-white.svg','t-noir'], bleu:['icons/logo-mark.svg','t-bleu'] }[appIcon()];
   return `
 <div class="screen account">
   <div class="acct-top"><a class="back" href="#/dashboard" aria-label="Fermer">⟦back⟧</a></div>
   <div class="acct-head">
     <h1>${esc(USER.prenom)}</h1>
-    <span class="logo-chip ${chip[1]}" aria-hidden="true"><img src="${chip[0]}" alt=""></span>
+    ${logoMark()}
   </div>
   <p class="acct-k">Services</p>
   <div class="menu-card">
@@ -1054,7 +1053,7 @@ screens.apparence = () => {
   <p class="acct-k">Icône de l’app</p>
   <div class="menu-card icon-card">
     <div class="icon-grid">${tiles.map(([id,lab,src])=>`<button type="button" class="icon-opt ${icon===id?'on':''}" data-app-icon="${id}" onclick="pickIcon('${id}')" aria-pressed="${icon===id}"><span class="tile t-${id}"><img src="${src}" alt=""></span>${icon===id?'<i class="ibadge">⟦check⟧</i>':''}<span class="ilab">${lab}</span></button>`).join('')}</div>
-    <p class="icon-note">Le logo Prelevo en haut de l’écran change tout de suite. L’icône déjà posée sur l’écran d’accueil de l’iPhone ne peut pas changer.</p>
+    <p class="icon-note">Le logo bleu est le logo officiel de Prelevo, partout dans l’app. Noir et Blanc restent des variantes. L’icône déjà posée sur l’écran d’accueil de l’iPhone ne change pas toute seule.</p>
   </div>
 </div>`;
 };
@@ -1377,7 +1376,7 @@ screens.connexion = (q) => {
   return `
 <div class="screen login">
   <div class="topbar"><a class="back" href="#/onboarding">⟦back⟧</a></div>
-  <span class="lg"><img class="logo-l lg-l" src="icons/logo-mark.svg" alt=""><img class="logo-l lg-d" src="icons/logo-mark-white.svg" alt="Prelevo"></span>
+  ${logoMark('l')}
   <h1 style="font-size:26px;letter-spacing:-.02em;margin-top:18px">${loginSent ? 'Regardez vos e-mails' : 'Connexion'}</h1>
   ${loginSent ? `<p class="muted" style="margin-top:8px;line-height:1.5">Si l’adresse <b>${esc(loginSent)}</b> est la bonne, un lien vient de partir. Il est valable 15 minutes et ne sert qu’une fois. Pensez aussi aux courriers indésirables.</p>
   <button class="btn ghost" id="login-again" style="margin-top:22px">Utiliser une autre adresse</button>`
@@ -1613,7 +1612,7 @@ async function homeSync(){
   const ptr = document.createElement('div');
   ptr.className = 'ptr';
   ptr.setAttribute('aria-hidden', 'true');
-  ptr.innerHTML = '<img class="lg-l" src="icons/logo-mark.svg" alt=""><img class="lg-d" src="icons/logo-mark-white.svg" alt="">';
+  ptr.innerHTML = logoMark('ptr');
   document.body.appendChild(ptr);
   const TRIGGER = 16;
   const onChart = e => !!(e.target && e.target.closest && e.target.closest('.spark'));
