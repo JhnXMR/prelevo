@@ -504,13 +504,13 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .bk-tile.tx-bk{width:18px;height:18px;border-radius:6px}
 .bk-tile.tx-bk b{font-size:7.5px}
 .bk-tile.tx-bk img{max-width:100%}
-.ptr{position:fixed;left:50%;top:calc(env(safe-area-inset-top, 0px) + 18px);width:76px;z-index:40;opacity:0;transform:translate(-50%,0) scale(.72);pointer-events:none}
-.ptr img{width:76px;height:auto;display:block;transform-origin:50% 40%}
+.ptr{position:fixed;left:50%;top:0;width:52px;z-index:40;opacity:0;transform:translate(-50%,0) scale(.72);pointer-events:none}
+.ptr img{width:52px;height:auto;display:block;transform-origin:50% 40%}
 .ptr .lg-d{display:none}
 [data-theme="dark"] .ptr .lg-l{display:none}
 [data-theme="dark"] .ptr .lg-d{display:block}
 @media (prefers-color-scheme: dark){ :root:not([data-theme]) .ptr .lg-l{display:none} :root:not([data-theme]) .ptr .lg-d{display:block} }
-.ptr::after{content:"";position:absolute;left:50%;top:40%;width:78px;height:78px;margin:-39px 0 0 -39px;border-radius:50%;border:2px solid var(--accent);opacity:0;pointer-events:none}
+.ptr::after{content:"";position:absolute;left:50%;top:40%;width:56px;height:56px;margin:-28px 0 0 -28px;border-radius:50%;border:2px solid var(--accent);opacity:0;pointer-events:none}
 .ptr.on img{animation:radar 1.05s ease-in-out infinite}
 .ptr.on::after{animation:radar-ping 1.05s ease-out infinite}
 @keyframes radar{0%,100%{transform:scale(.82);opacity:.7}50%{transform:scale(1.14);opacity:1}}

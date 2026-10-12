@@ -548,6 +548,7 @@ screens.dashboard = () => {
   return `
 <div class="screen home ${_homeAnimated ? 'static' : ''}">
   ${brandBar(`<a class="gear" href="#/aide" aria-label="Aide et réglages">⟦settings⟧</a>`)}
+  <div class="home-body">
   <div class="greet rise" style="--d:0"><div class="g-row"><p class="g-day">${cap(JOURS[nowRef().getDay()])} ${nowRef().getDate()} ${MOIS[nowRef().getMonth()]}</p>
     <div class="g-tags"><span class="plan-pill ${P ? 'p' : ''}">${P ? 'Premium' : 'Gratuit'}</span>${demoTag}</div></div><h1>Bonjour${prenom}</h1></div>
 
@@ -606,6 +607,7 @@ screens.dashboard = () => {
   ${adSlot('dash')}
 
   ${neutral}
+  </div>
 </div>`;
 };
 
@@ -1336,44 +1338,46 @@ if (API){
 
 // ---------- synchro depuis l'accueil (bouton + tirer pour actualiser) ----------
 let _syncing = false;
-async function homeSync(){
-  if (_syncing) return; _syncing = true;
-  document.querySelector('#home-sync')?.classList.add('on');
+const PTR_GAP = 92;
+function placeRadar(open){
+  const body = document.querySelector('.screen.home .home-body');
+  const bar = document.querySelector('.screen.home .topbar');
   const ptr = document.querySelector('.ptr');
-  const app = document.querySelector('.app');
-  if (app) {
-    app.style.transition = 'transform .34s cubic-bezier(.2,.7,.2,1)';
-    app.style.transform = 'translateY(calc(env(safe-area-inset-top, 0px) + 128px))';
+  if (body) {
+    body.style.transition = 'transform .32s cubic-bezier(.2,.7,.2,1)';
+    body.style.transform = open ? `translateY(${PTR_GAP}px)` : '';
   }
-  if (ptr) {
+  if (!ptr) return;
+  if (open && bar) {
+    const h = ptr.offsetHeight || 64;
+    ptr.style.top = Math.round(bar.getBoundingClientRect().bottom + Math.max(8, (PTR_GAP - h) / 2)) + 'px';
     ptr.classList.add('on');
     ptr.style.transition = 'opacity .2s ease, transform .2s ease';
     ptr.style.opacity = '1';
     ptr.style.transform = 'translate(-50%, 0) scale(1)';
+  } else if (!open) {
+    ptr.classList.remove('on');
+    ptr.style.transition = 'opacity .25s ease, transform .25s ease';
+    ptr.style.opacity = '0';
+    ptr.style.transform = 'translate(-50%, 0) scale(.72)';
   }
+}
+async function homeSync(){
+  if (_syncing) return; _syncing = true;
+  document.querySelector('#home-sync')?.classList.add('on');
+  placeRadar(true);
   const shownAt = Date.now();
   try {
-    if (API && ME){ toast('Synchronisation…'); await API.sync(); await apiLoadMe(); _ledger = null; render(); toast('Comptes à jour'); }
+    if (API && ME){ toast('Synchronisation…'); await API.sync(); await apiLoadMe(); _ledger = null; render(); placeRadar(true); toast('Comptes à jour'); }
     else if (PWX && LIVE) await pwRefresh();
     else { await new Promise(r => setTimeout(r, 900)); toast('Comptes à jour (exemple)'); }
   } catch(e){ API ? apiFail(e) : toast('Synchronisation impossible'); }
   finally {
-    const wait = Math.max(0, 2200 - (Date.now() - shownAt));
+    const wait = Math.max(0, 1800 - (Date.now() - shownAt));
     if (wait) await new Promise(r => setTimeout(r, wait));
     _syncing = false;
     document.querySelector('#home-sync')?.classList.remove('on');
-    const app = document.querySelector('.app');
-    if (app) {
-      app.style.transition = 'transform .34s cubic-bezier(.2,.7,.2,1)';
-      app.style.transform = '';
-    }
-    const p = document.querySelector('.ptr');
-    if (p) {
-      p.classList.remove('on');
-      p.style.transition = 'opacity .28s ease, transform .28s ease';
-      p.style.opacity = '0';
-      p.style.transform = 'translate(-50%, 0) scale(.72)';
-    }
+    placeRadar(false);
   }
 }
 (() => {
@@ -1392,10 +1396,11 @@ async function homeSync(){
   };
   const place = (dist, animate) => {
     if (ptr.classList.contains('on')) return;
-    const p = Math.max(0, Math.min(1, dist / TRIGGER));
-    ptr.style.transition = animate ? 'opacity .22s ease, transform .22s ease' : 'none';
-    ptr.style.opacity = String(p);
-    ptr.style.transform = `translate(-50%, 0) scale(${0.72 + p * 0.28})`;
+    const body = document.querySelector('.screen.home .home-body');
+    if (!body) return;
+    const shown = Math.max(0, Math.min(dist, 14));
+    body.style.transition = animate ? 'transform .22s ease' : 'none';
+    body.style.transform = shown ? `translateY(${shown}px)` : '';
   };
   addEventListener('touchstart', e => {
     if (_syncing || onChart(e) || !e.touches || e.touches.length !== 1) { y0 = null; d = 0; pulling = false; return; }
