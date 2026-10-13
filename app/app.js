@@ -535,14 +535,19 @@ function spark(curve){
   const track = curve.map((p, i) => ({ x: pts[i][0] / W * 100, y: pts[i][1] / H * 100, v: p.v, t: p.t }));
   const line = d, area = `${d} L${last[0].toFixed(1)},${H} L${first[0].toFixed(1)},${H} Z`;
   SPARK = { pts: track, poly: pts, H, line, area, first: curve[0].v, tf: homeTf };
+  const nLab = homeTf === '24H' || homeTf === '7J' ? 4 : 5;
+  const seen = new Set(), idxs = [];
+  for (let k = 0; k < nLab; k++){ const i = Math.round(k * (curve.length - 1) / (nLab - 1)); if (!seen.has(i)) { seen.add(i); idxs.push(i); } }
+  const lab = d => homeTf === '24H' ? String(d.getHours()).padStart(2, '0') + ' h' : (homeTf === '1A' || homeTf === 'TOUT') ? MOIS[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2) : d.getDate() + ' ' + MOIS[d.getMonth()];
+  const axis = idxs.map((i, k) => `<span class="${k === 0 ? 'a0' : k === idxs.length - 1 ? 'a1' : ''}" style="left:${track[i].x.toFixed(2)}%">${lab(curve[i].t)}</span>`).join('');
   return `<div class="spark" role="img" aria-label="Évolution du solde sur ${tf[2]}. Glissez pour voir le détail."><div class="spark-plot"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
     <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".5"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
     <path class="sp-area" d="${area}" fill="url(#spk)"/>
     <path class="sp-dim" d="" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
     <path class="sp-line" d="${line}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
-  </svg><i class="sp-vline" hidden></i><i class="sp-dot" hidden style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%"></i>
+  </svg><i class="sp-vline" hidden></i><i class="sp-dot" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%"></i>
   <div class="sp-hit" aria-hidden="true"></div></div>
-  <div class="sp-legend"><span>${tf[3]}</span><span>aujourd’hui</span></div></div>`;
+  <div class="sp-axis">${axis}</div></div>`;
 }
 const catChip = c => `<span class="cat cat-${c}" aria-hidden="true">⟦${(CATS[c] || CATS.autre).ic}⟧</span>`;
 const MOIS_LONG = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
@@ -583,6 +588,8 @@ screens.dashboard = () => {
   const unread = al.filter(a => !state.readAlerts.includes(a.id)).length;
   const curve = homeCurve();
   const first = curve.length ? curve[0].v : L.total, delta = L.total - first;
+  const pp = (delta / (Math.abs(first) || 1)) * 100;
+  const ppTxt = (pp > 0 ? '+' : pp < 0 ? '−' : '') + Math.abs(pp).toLocaleString('fr-FR', { minimumFractionDigits:1, maximumFractionDigits:1 }) + ' %';
   const tf = homeTfMeta();
   const upSum = L.up.reduce((a, x) => a + x.amt, 0);
   const nextSub = L.up.find(x => x.sub);
@@ -602,7 +609,7 @@ screens.dashboard = () => {
       <div class="amount" data-count="${L.total.toFixed(2)}" ${state.hideBalance ? 'data-hidden="1"' : ''}>${state.hideBalance ? '<span class="masked">••••</span>' : money(L.total)}</div>
       <button type="button" class="eye" id="toggle-balance" aria-pressed="${state.hideBalance ? 'true' : 'false'}" aria-label="${state.hideBalance ? 'Afficher le solde' : 'Masquer le solde'}">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</button>
     </div>
-    <div class="delta" id="sp-delta">${state.hideBalance ? 'Solde masqué' : `${delta >= 0 ? '⟦trend⟧' : ''}<b class="${delta >= 0 ? 'pos' : ''}">${signed(delta)}</b> ${homeTf === 'TOUT' ? 'depuis le début' : 'sur ' + tf[2]}`}</div>
+    <div class="delta" id="sp-delta">${state.hideBalance ? 'Solde masqué' : `${delta >= 0 ? '⟦trend⟧' : ''}<b class="${delta >= 0 ? 'pos' : ''}">${signed(delta)}</b> <i class="delta-pct ${delta >= 0 ? 'up' : 'down'}">${ppTxt}</i> ${homeTf === 'TOUT' ? 'depuis le début' : 'sur ' + tf[2]}`}</div>
     <div class="tf" role="tablist" aria-label="Période du graphique">${HOME_TF.map(([k, lab]) => `<button type="button" role="tab" data-tf="${k}" aria-selected="${k === homeTf ? 'true' : 'false'}" class="${k === homeTf ? 'on' : ''}">${lab}</button>`).join('')}</div>
     ${spark(curve)}
     ${P ? `<a class="rav" href="#/abonnements"><span>Reste à vivre jusqu’à la paie</span><b>${state.hideBalance ? '<span class="masked">••••</span>' : eur(t.reste)}</b></a>`
@@ -1225,7 +1232,7 @@ function timeline(){
     const fixed = []; 
     ds.forEach(d => {
       if (d.getDate() === 21) {
-        const prime = d.getMonth() === 4 ? 3800 : d.getMonth() === 11 ? 4500 : 0;
+        const prime = d.getMonth() === 4 ? 5200 : d.getMonth() === 11 ? 6800 : 0;
         fixed.push({ t:new Date(d.getFullYear(), d.getMonth(), 21, 7, 30), amt:INCOME + prime, name: prime ? 'Salaire et prime' : 'Salaire', k:'in' });
       }
       if (d.getDate() === 5) fixed.push({ t:new Date(d.getFullYear(), d.getMonth(), 5, 6, 10), amt:-RENT, name:'Loyer', k:'rent' });
@@ -1717,7 +1724,7 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     const amt = document.querySelector('.total [data-count]'), dl = document.getElementById('sp-delta');
     if (amt) { delete amt.dataset.scrub; amt.innerHTML = o.a; }
     if (dl) dl.innerHTML = o.d;
-    const dot = el.querySelector('.sp-dot'); if (dot) { dot.hidden = true; dot.style.left = o.l; dot.style.top = o.t; }
+    const dot = el.querySelector('.sp-dot'); if (dot) { dot.hidden = false; dot.style.left = o.l; dot.style.top = o.t; }
     const vl = el.querySelector('.sp-vline'); if (vl) vl.hidden = true;
     if (SPARK) {
       const line = el.querySelector('.sp-line'), dim = el.querySelector('.sp-dim'), area = el.querySelector('.sp-area');
