@@ -17,7 +17,8 @@ img{display:block;max-width:100%;height:auto}
 .nav-links a:hover{color:var(--ink)}
 .theme{display:flex;flex:none;gap:2px;padding:3px;background:var(--soft);border:1px solid var(--line);border-radius:99px}
 .theme button{width:32px;height:32px;border:0;border-radius:99px;background:transparent;color:var(--muted);display:grid;place-items:center;cursor:pointer;padding:0}
-.theme button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.theme button svg{width:16px;height:16px;display:block;fill:currentColor;stroke:none}
+.theme button .ic-phone{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 html[data-theme-pref="light"] .theme [data-theme-set="light"],
 html[data-theme-pref="dark"] .theme [data-theme-set="dark"],
 html[data-theme-pref="auto"] .theme [data-theme-set="auto"]{background:var(--bg);color:var(--accent);box-shadow:0 1px 2px rgba(10,11,13,.12),0 0 0 1px var(--line)}
