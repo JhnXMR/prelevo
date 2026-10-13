@@ -1188,7 +1188,9 @@ screens.compte = () => {
     ${row('#/apparence','auto','Apparence', themeLabel())}
     ${row('#/premium','star',APP_NAME+' Premium', P ? 'Actif' : 'Gratuit')}
     ${row('#/parrainage','gift','Parrainage','1 mois offert')}
+    <button type="button" class="acct-row danger" id="reset"><span class="acct-ic">⟦refresh⟧</span><span class="acct-lab">Réinitialiser les données</span></button>
   </div>
+  <p class="acct-foot">Sur cet appareil seulement. Le thème et l’icône restent.</p>
   <a class="help-card" href="#/aide"><div><b>Obtenir de l’aide</b><span>Questions fréquentes, ou un humain au chat.</span></div><span class="help-ic">⟦chat⟧</span></a>
   <p class="acct-legal"><i class="brand-mark" aria-hidden="true"></i>${APP_NAME} n’est pas une banque. Lecture seule, aucun virement.<br><a href="#/apropos">À propos</a> · ${demoTag}</p>
 </div>`;
@@ -1205,7 +1207,7 @@ screens.apropos = () => `
     <div class="kv"><span>Version</span><span class="muted">Bêta privée</span></div>
     <div class="kv"><span>Formule</span><span class="muted">${isP() ? 'Premium' : 'Gratuit'}</span></div>
   </div>
-  <button class="btn ghost" id="reset" type="button">Recommencer la démo</button>
+  <button class="btn ghost" id="reset" type="button">Réinitialiser les données</button>
 </div>`;
 function refCode(){
   try {
@@ -1346,7 +1348,7 @@ screens.aide = () => `
   <div class="card">
     <div style="font-weight:700;margin-bottom:8px">Mode démo</div>
     <div class="toggle"><button class="${isP()?'':'on'}" data-plan="free">Gratuit</button><button class="${isP()?'on':''}" data-plan="premium">Premium</button></div>
-    <button class="btn ghost" id="reset" style="margin-top:8px">Recommencer la démo</button>
+    <button class="btn ghost" id="reset" style="margin-top:8px">Réinitialiser les données</button>
   </div>
 </div>`;
 
@@ -1828,7 +1830,20 @@ document.addEventListener('click', e => {
     if (API && ME){ el.disabled = true; el.textContent = 'Ouverture du paiement…'; API.checkout(billing).then(r => location.assign(r.url)).catch(e => { el.disabled = false; render(); toast(e.message || 'Paiement indisponible'); }); }
     else { state.premium = true; save(); toast(CFG.trial + ' : Premium activé (simulation)'); render(); } }
   else if (el.id==='billing-portal'){ el.disabled = true; API.portal().then(r => location.assign(r.url)).catch(e => { el.disabled = false; toast(e.message || 'Portail indisponible'); }); }
-  else if (el.id==='reset'){ localStorage.removeItem(KEY); location.href = location.pathname + '#/onboarding'; location.reload(); }
+  else if (el.id==='reset'){
+    if (!el.dataset.arm) {
+      el.dataset.arm = '1';
+      const lab = el.querySelector('.acct-lab');
+      if (lab) lab.textContent = 'Touchez encore pour confirmer'; else el.textContent = 'Touchez encore pour confirmer';
+      setTimeout(() => { if (!el.isConnected) return; delete el.dataset.arm; if (lab) lab.textContent = 'Réinitialiser les données'; else el.textContent = 'Réinitialiser les données'; }, 4000);
+      return;
+    }
+    try { localStorage.removeItem(KEY); localStorage.removeItem('prelevo-refs'); } catch (e) {}
+    const demo = QS.has('demo') || (!API && !LIVE);
+    const q = location.search || (demo ? '?demo=1' : '');
+    location.replace(location.pathname + q + (demo ? '#/dashboard' : '#/onboarding'));
+    location.reload();
+  }
 });
 
 document.addEventListener('submit', e => {

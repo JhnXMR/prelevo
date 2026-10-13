@@ -432,6 +432,9 @@ body:has(.sub-bar) .app{padding-bottom:calc(150px + env(safe-area-inset-bottom))
 .help-card b{display:block;font-size:16.5px;font-weight:650}
 .help-card span{display:block;margin-top:3px;color:var(--muted);font-size:13.5px;line-height:1.35}
 .help-ic{width:42px;height:42px;border-radius:50%;background:color-mix(in srgb, var(--ink) 10%, transparent);color:var(--ink);display:grid;place-items:center;flex:none}
+.acct-row.danger{color:#FF5A6A}
+.acct-row.danger .acct-ic{color:#FF5A6A}
+.acct-foot{margin:8px 4px 0;color:var(--muted);font-size:12.5px;line-height:1.4}
 .acct-legal{margin:26px 12px 0;text-align:center;color:var(--muted);font-size:12.5px;line-height:1.5}
 .acct-legal .brand-mark{margin:0 auto 12px}
 .acct-legal a{color:var(--ink2);text-decoration:underline}
