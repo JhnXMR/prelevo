@@ -17,6 +17,7 @@ Renommer l'app : modifier `name` dans config.js (tout le texte de l'interface su
 Le nom apparaît aussi en dur dans manifest.json (name, short_name) et dans <title>/<meta> d'index.html :
   sed -i 's/Prelevo/NouveauNom/g' manifest.json index.html config.js
 Après une modification, changer CACHE dans sw.js (ex. prelevo-app-v11) pour forcer la mise à jour hors ligne.
+L’app propose un bandeau « Installer Prelevo » (beforeinstallprompt / tip iOS) et un bandeau « Nouvelle version » quand un nouveau service worker est prêt (clic → SKIP_WAITING + rechargement).
 
 Prix et essai : config.js (priceMonth, priceYear, trial).
 
