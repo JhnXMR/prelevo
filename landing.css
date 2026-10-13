@@ -20,6 +20,8 @@ img{display:block;max-width:100%;height:auto}
 .theme button svg{width:18px;height:18px;display:block;fill:currentColor;stroke:none}
 .theme .ic-sun .rays{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round}
 .theme .ic-moon .corona{fill:none;stroke:currentColor;stroke-width:1.25}
+.theme .ic-moon .keep{fill:#fff}
+.theme .ic-moon .cut{fill:#000}
 .theme button .ic-phone{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 html[data-theme-pref="light"] .theme [data-theme-set="light"],
 html[data-theme-pref="dark"] .theme [data-theme-set="dark"],
