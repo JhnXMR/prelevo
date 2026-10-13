@@ -10,7 +10,7 @@ img{display:block;max-width:100%;height:auto}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .blue{color:var(--accent-d)}
 .mark{display:inline-block;width:22px;height:28px;flex:none;background:var(--ink);-webkit-mask:url("assets/logo-mark-white.svg") center/contain no-repeat;mask:url("assets/logo-mark-white.svg") center/contain no-repeat}
-.nav{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;height:68px;background:color-mix(in srgb,var(--bg) 78%,transparent);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
+.nav{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;height:68px;background:color-mix(in srgb,var(--bg) 42%,transparent);-webkit-backdrop-filter:blur(22px) saturate(1.6);backdrop-filter:blur(22px) saturate(1.6)}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:650;font-size:18px;letter-spacing:-.02em}
 .nav-links{display:flex;align-items:center;gap:22px;font-size:14.5px}
 .nav-links a{text-decoration:none;color:var(--ink2)}
