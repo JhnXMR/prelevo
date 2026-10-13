@@ -679,6 +679,18 @@ button.kv{width:100%;border:0;background:transparent;font:inherit;color:inherit;
 .bk-card.add::before{display:none}
 .bk-card.add b{font-size:11.5px;color:var(--accent)}
 .bk-card.add svg{width:20px;height:20px}
+.bank-hero{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:22px;padding:16px 16px 14px;margin:0 0 8px;background:var(--bg);box-shadow:var(--shadow)}
+.bank-hero::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--bk,#0066FF)}
+.bank-hero .bh-top{display:flex;align-items:center;gap:12px}
+.bank-hero .bh-name{font-weight:700;font-size:17px;letter-spacing:-.02em}
+.bank-hero .bh-sub,.bank-hero .bh-meta{font-size:13px;color:var(--muted);margin-top:2px}
+.bank-hero .amount{font-size:34px;margin-top:16px;letter-spacing:-.03em}
+.bank-hero .bh-meta{margin-top:6px}
+.bank-accs{padding:4px 16px}
+.acc-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--line);font-size:15px}
+.acc-row:first-child{border-top:0}
+.acc-row b{font-weight:650;font-variant-numeric:tabular-nums;white-space:nowrap}
+.acc-row.off{opacity:.55}
 .tx .amt{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 .bk-tile.tx-bk{width:18px;height:18px;border-radius:6px}
 .bk-tile.tx-bk b{font-size:7.5px}

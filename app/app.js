@@ -617,7 +617,7 @@ screens.dashboard = () => {
 
   <div class="section-h rise" style="--d:2"><h2>Mes banques</h2><a href="#/banques">Gérer</a></div>
   <div class="bk-cards rise" style="--d:2">
-    ${L.banks.map(b => `<a class="bk-card" href="#/banques" style="--bk:${/^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '#0066FF'}">
+    ${L.banks.map(b => `<a class="bk-card" href="#/banque/${b.id}" style="--bk:${/^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '#0066FF'}">
       <div class="bc-top">${bankTile(b, 'bk-ini', b.status === 'error' ? '<i class="st err"></i>' : b.status === 'expired' ? '<i class="st warn"></i>' : '')}<span class="bc-n">${b.accs.length} compte${b.accs.length > 1 ? 's' : ''}</span></div>
       <div class="bc-name">${esc(b.name)}</div><div class="bc-bal">${state.hideBalance ? '<span class="masked">••••</span>' : eur(b.total)}</div>
       <div class="bc-meta ${b.status === 'error' ? 't-red' : ''}">${b.status === 'error' ? 'Synchro en échec' : b.status === 'expired' ? 'Session expirée' : 'À jour · ' + b.sync}</div></a>`).join('')}
@@ -637,7 +637,7 @@ screens.dashboard = () => {
   <div class="section-h rise" style="--d:3"><h2>Mes comptes</h2><a href="#/banques">Gérer</a></div>
   <div class="panel accts rise" style="--d:3">
     ${L.banks.map(b => `<div class="bank-g">
-      <a class="bank-h" href="#/banques">${bankTile(b, 'bk-ini', b.status === 'error' ? '<i class="st err"></i>' : b.status === 'expired' ? '<i class="st warn"></i>' : '')}
+      <a class="bank-h" href="#/banque/${b.id}">${bankTile(b, 'bk-ini', b.status === 'error' ? '<i class="st err"></i>' : b.status === 'expired' ? '<i class="st warn"></i>' : '')}
         <div class="mid"><div class="name">${esc(b.name)}</div><div class="meta ${b.status === 'error' ? 't-red' : ''}">${b.status === 'error' ? 'Synchro en échec · reconnecter' : b.status === 'expired' ? 'Session expirée' : 'À jour · ' + b.sync}</div></div>
         <div class="amt">${eur(b.total)}</div></a>
       ${b.accs.map(a => `<div class="acc ${a.counted === false ? 'off' : ''}"><span>${esc(a.name)}</span><span>${state.hideBalance ? '<span class="masked">••••</span>' : (a.currency && a.currency !== 'EUR' ? (a.balance || 0).toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' ' + esc(a.currency) : eur(a.balance))}</span></div>`).join('')}
@@ -924,6 +924,7 @@ screens.banques = () => {
       <span class="status ${b.status==='error'?'err':'ok'}">${b.status==='error'?'Erreur':'Synchronisée'}</span></div>
     <div class="kv"><span>Dernière synchro</span><span>${b.sync}</span></div>
     <div class="kv"><span>Accès valable jusqu’au</span><span class="${b.expiresIn<=7?'t-amber':''}">${b.expires} ${b.expiresIn<=7?`(dans ${b.expiresIn} j)`:''}</span></div>
+    <a class="kv lnk" href="#/banque/${b.id}"><span>Voir les comptes et opérations</span><span>›</span></a>
     <div class="meter"><i style="width:${Math.max(3, b.expiresIn/180*100)}%;background:${b.expiresIn<=7?'var(--accent)':'var(--ink)'}"></i></div>
     ${b.status==='error' ? `<div class="banner err" style="margin:10px 0 0"><span class="ic">⟦link⟧</span><div><b>La banque refuse la connexion</b>Souvent après un changement de mot de passe. Reconnectez-la en 30 secondes.</div></div><button class="btn small-btn" data-toast="Reconnexion lancée (simulation)">Reconnecter</button>`
       : b.expiresIn<=7 ? `<div class="banner amber" style="margin:10px 0 0"><span class="ic">⟦key⟧</span><div><b>Renouvelez votre accès avant le ${b.expires}</b>Votre banque exige une nouvelle validation tous les 180 jours (règle européenne DSP2). On vous le rappellera aussi la veille.</div></div><button class="btn mint small-btn" data-toast="Accès renouvelé pour 180 jours (simulation)">Renouveler l’accès</button>` : ''}
@@ -932,6 +933,37 @@ screens.banques = () => {
       : `<a class="btn ghost" href="#/premium">⟦lock⟧ Ajouter une autre banque · Premium</a><p class="muted small center" style="margin-top:8px">La version gratuite inclut 1 banque.</p>`}
   <div class="banner blue" style="margin-top:14px"><span class="ic">⟦lock⟧</span><div><b>Lecture seule</b>${APP_NAME} ne voit jamais vos identifiants et ne peut faire aucun virement. Vous pouvez couper l’accès ici à tout moment.</div></div>
   ${PWX ? `<button class="btn ghost" id="pw-connect" style="margin-top:4px">⟦bank⟧ Connecter une banque de test (Powens)</button>${pwNote()}` : ''}
+</div>`;
+};
+
+screens.banque = (q, id) => {
+  const L = ledger();
+  const b = (L.banks || []).find(x => x.id === id);
+  if (!b) return screens.banques();
+  const hid = state.hideBalance;
+  const moneyOr = n => hid ? '<span class="masked">••••</span>' : eur(n);
+  const tx = L.tx.filter(x => x.bank && x.bank.id === b.id);
+  const up = (L.banks[0] && L.banks[0].id === b.id ? L.up : []).slice(0, 4);
+  const st = b.status === 'error' ? 'Synchro en échec' : b.status === 'expired' ? 'Session expirée' : 'À jour · ' + b.sync;
+  const color = /^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '#0066FF';
+  return `
+<div class="screen bank-page">
+  <div class="topbar"><a class="back" href="#/banques" aria-label="Retour">⟦back⟧</a><h1 style="font-size:19px">${esc(b.name)}</h1>${demoTag}</div>
+  <section class="bank-hero" style="--bk:${color}">
+    <div class="bh-top">${bankTile(b, 'lg', b.status === 'error' ? '<i class="st err"></i>' : b.status === 'expired' ? '<i class="st warn"></i>' : '')}
+      <div><div class="bh-name">${esc(b.name)}</div><div class="bh-sub ${b.status === 'error' ? 't-red' : ''}">${esc(st)}</div></div></div>
+    <div class="amount">${moneyOr(b.total)}</div>
+    <div class="bh-meta">${b.accs.length} compte${b.accs.length > 1 ? 's' : ''}${b.accounts ? ' · ' + esc(b.accounts) : ''}</div>
+  </section>
+  <p class="acct-k">Comptes</p>
+  <div class="panel bank-accs">
+    ${b.accs.map(a => `<div class="acc-row ${a.counted === false ? 'off' : ''}"><span>${esc(a.name)}</span><b>${hid ? '<span class="masked">••••</span>' : (a.currency && a.currency !== 'EUR' ? (a.balance || 0).toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' ' + esc(a.currency) : eur(a.balance))}</b></div>`).join('')}
+  </div>
+  ${up.length ? `<p class="acct-k">À venir</p><div class="panel">${up.map(x => `<a class="tx up" href="${x.sub ? '#/abo/' + x.sub : '#/operations'}">${catChip(x.cat)}<div class="mid"><div class="name">${esc(x.name)}</div><div class="meta">${dayLabel(x.t)}</div></div><div class="amt">${signed(x.amt)}</div></a>`).join('')}</div>` : ''}
+  <p class="acct-k">Dernières opérations</p>
+  <div class="panel">${tx.length ? txGroups(tx, 4, 8) : '<p class="insight">Aucune opération récente sur cette banque.</p>'}</div>
+  ${b.status === 'error' ? `<button class="btn" data-toast="Reconnexion lancée (simulation)">Reconnecter ${esc(b.name)}</button>` : `<a class="btn ghost" href="#/operations">Toutes les transactions</a>`}
+  <div class="banner blue"><span class="ic">⟦lock⟧</span><div><b>Lecture seule</b>Prelevo ne peut rien virer depuis ${esc(b.name)}. Vous pouvez couper l’accès à tout moment.</div></div>
 </div>`;
 };
 
@@ -1512,7 +1544,7 @@ function render(){
   const fn = screens[name] || screens.dashboard;
   $('#app').innerHTML = icons(fn(new URLSearchParams(qs||''), ...args));
   const bar = $('#app .sub-bar'); if (bar) document.body.appendChild(bar);
-  const tabbed = ['dashboard','operations','abonnements','alertes','premium','abo','aide','apropos','banques','compte','apparence','parrainage'].includes(name) || (!screens[name]);
+  const tabbed = ['dashboard','operations','abonnements','alertes','premium','abo','aide','apropos','banques','banque','compte','apparence','parrainage'].includes(name) || (!screens[name]);
   $('#tabbar').hidden = !tabbed;
   if (API && ['onboarding','connexion','dashboard','connect','banques'].includes(name)){ const sc = $('#app').firstElementChild; if (sc && !sc.querySelector('.alpha-note')) sc.insertAdjacentHTML('afterbegin', '<div class="alpha-note" role="note"><b>Bêta privée</b> — banques de test uniquement pour l’instant</div>'); }
   const tabName = name==='abo' || name==='operations' ? 'abonnements' : !screens[name] ? 'dashboard' : name;
