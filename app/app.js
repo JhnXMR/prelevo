@@ -1140,23 +1140,37 @@ screens.premium = () => {
       ${B.manageable ? `<button class="btn ghost" id="billing-portal">Gérer mon abonnement</button>` : ''}</div>`
     : `<div class="card plan-status"><div class="ps-h"><span class="plan-pill p">Premium</span><b>Formule annuelle (exemple)</b></div><p class="muted small">Période d’essai gratuite jusqu’au ${fd(new Date(nowRef().getTime() + 30 * DAY_MS))}. Factures, carte et résiliation : en 1 clic depuis « Gérer mon abonnement ».</p><button class="btn ghost" data-toast="Portail de paiement (simulation)">Gérer mon abonnement</button></div>`;
   const perks = open => `<details class="perks"${open ? ' open' : ''}><summary>Principaux avantages</summary><ul><li>Zéro publicité</li><li>Alertes de hausse de prix</li><li>Rappel avant chaque prélèvement</li><li>Doubles prélèvements, oubliés et doublons</li><li>Résiliation guidée et lettres</li><li>Reste à vivre et suivi des économies</li><li>Banques illimitées</li><li>Support prioritaire</li></ul></details>`;
+  const monthEq = Y ? CFG.priceYear / 12 : CFG.priceMonth;
+  const times = t.found > 0 ? Math.max(1, Math.round(t.found / monthEq)) : 0;
+  const hits = [];
+  t.list.filter(s => s.doubleCharge).forEach(s => hits.push(`${s.name} prélevé deux fois`));
+  t.dups.forEach(s => { const o = byId(s.duplicate); hits.push(o ? `Doublon : ${s.name} et ${o.name}` : `Doublon : ${s.name}`); });
+  t.ups.forEach(s => hits.push(`${s.name} a augmenté de ${eur(increase(s))}`));
+  t.smalls.forEach(s => hits.push(`${s.name} · ${eur(s.price)} oubliés`));
+  const shown = hits.slice(0, 4), rest = hits.length - shown.length;
   return `
 <div class="screen">
   <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a>${demoTag}</div>
   <div class="center" style="margin-bottom:6px">
     
     <h1 style="font-size:25px;letter-spacing:-.02em;margin-top:4px">${APP_NAME} Premium</h1>
-    <p class="muted" style="margin-top:6px;font-size:14.5px">L’app qui vous fait économiser plus qu’elle ne coûte.</p>
+    <p class="muted" style="margin-top:6px;font-size:14.5px">${P ? 'Vos alertes et le reste à vivre sont débloqués.' : 'L’app qui vous fait économiser plus qu’elle ne coûte.'}</p>
   </div>
   ${status}
-  <div class="banner green" style="margin-top:14px"><span class="ic">⟦coin⟧</span><div><b>Chez ${USER.prenom} (exemple) : ${eur(t.found)}/mois d’économies trouvées</b>Premium coûte ${prix(CFG.priceMonth)}/mois. Il est remboursé dès la première résiliation.</div></div>
+  <div class="payoff">
+    <div class="win"><div class="k">${P ? 'Économies débloquées' : 'Trouvées chez ' + USER.prenom}</div><b>${eur(t.found)}</b><div class="k">par mois</div></div>
+    <div><div class="k">${Y ? 'Premium annuel' : 'Premium mensuel'}</div><b>${prix(monthEq)}</b><div class="k">par mois${times ? ` · remboursé ${times}×` : ''}</div></div>
+  </div>
+  ${shown.length ? `<ul class="found-list">${shown.map(h => `<li>${h}</li>`).join('')}${rest > 0 ? `<li>et ${rest} autre${rest > 1 ? 's' : ''}</li>` : ''}</ul>` : ''}
   <div class="plans" role="radiogroup" aria-label="Formules">
     <div class="plan free"><div class="pl-l"><h3>Gratuit</h3><span>Scan + liste · avec pubs</span></div><div class="pl-r"><div class="p">0 €</div></div></div>
-    <div class="plan-stack ${Y?'':'on'}"><button class="plan ${Y?'':'on'}" data-billing="month" role="radio" aria-checked="${!Y}"><i class="radio"></i><div class="pl-l"><h3>Premium Mensuel</h3><span>Sans engagement · Zéro pub</span></div><div class="pl-r"><div class="p">${prix(CFG.priceMonth)}<small>/mois</small></div></div></button>${Y ? '' : perks(true)}</div>
-    <div class="plan-stack ${Y?'on':''}"><button class="plan rec ${Y?'on':''}" data-billing="year" role="radio" aria-checked="${Y}"><em class="rec-b">Recommandé</em><i class="radio"></i><div class="pl-l"><h3>Premium Annuel <b class="save">−${yearSave()} %</b></h3><span>soit ${prix(CFG.priceYear/12)}/mois · Zéro pub</span></div><div class="pl-r"><div class="p">${prix(CFG.priceYear)}<small>/an</small></div></div></button>${Y ? perks(true) : ''}</div>
+    <div class="plan-stack ${Y?'':'on'}"><button class="plan ${Y?'':'on'}" data-billing="month" role="radio" aria-checked="${!Y}">${P && !Y ? '<em class="rec-b">Votre formule</em>' : ''}<i class="radio"></i><div class="pl-l"><h3>Premium Mensuel</h3><span>Sans engagement · Zéro pub</span></div><div class="pl-r"><div class="p">${prix(CFG.priceMonth)}<small>/mois</small></div></div></button>${Y ? '' : perks(true)}</div>
+    <div class="plan-stack ${Y?'on':''}"><button class="plan rec ${Y?'on':''}" data-billing="year" role="radio" aria-checked="${Y}"><em class="rec-b">${P && Y ? 'Votre formule' : 'Recommandé'}</em><i class="radio"></i><div class="pl-l"><h3>Premium Annuel <b class="save">−${yearSave()} %</b></h3><span>soit ${prix(CFG.priceYear/12)}/mois · Zéro pub</span></div><div class="pl-r"><div class="p">${prix(CFG.priceYear)}<small>/an</small></div></div></button>${Y ? perks(true) : ''}</div>
   </div>
-  <div class="trial">⟦gift⟧ <span><b>${CFG.trial}</b><br>puis <span class="${Y?'':'sel'}">${prix(CFG.priceMonth)}/mois</span> ou <span class="${Y?'sel':''}">${prix(CFG.priceYear)}/an</span></span></div>
-  <div class="card">
+  ${P ? '' : `<div class="trial">⟦gift⟧ <span><b>${CFG.trial}</b><br>puis <span class="${Y?'':'sel'}">${prix(CFG.priceMonth)}/mois</span> ou <span class="${Y?'sel':''}">${prix(CFG.priceYear)}/an</span></span></div>`}
+  <details class="cmp-more">
+    <summary>Comparer Gratuit et Premium</summary>
+    <div class="card">
     <table class="cmp">
       <tr><th></th><th>Gratuit</th><th>Premium</th></tr>
       <tr><td>Scan des comptes</td><td class="y">⟦check⟧</td><td class="y">⟦check⟧</td></tr>
@@ -1172,7 +1186,8 @@ screens.premium = () => {
       <tr><td>Sans publicité</td><td class="n">—</td><td class="y">⟦check⟧</td></tr>
       <tr><td>Conseils neutres (aucun sponsor n’influence vos résultats)</td><td class="y">⟦check⟧</td><td class="y">⟦check⟧</td></tr>
     </table>
-  </div>
+    </div>
+  </details>
   ${neutral}
   <a class="card sup-mini" href="#/chat"><span class="avatars"><span class="avc a">S</span><span class="avc b">K</span></span><div><b>Une question avant de vous abonner ?</b><span>Un humain vous répond, pas un robot.</span></div><span class="chev">⟦chev⟧</span></a>
   ${P ? '' : `<button class="btn mint" id="go-premium">Commencer : ${CFG.trial}</button>`}
