@@ -1050,6 +1050,11 @@ screens.alertes = (q) => {
   const groups = order.filter(g => visible.some(a => a.group === g)).map(g => `<section class="mo"><h2>${g}</h2>${visible.filter(a => a.group === g).map(row).join('')}</section>`).join('');
   const chip = (k, l) => `<button type="button" class="${f === k ? 'on' : ''}" data-af="${k}">${l}</button>`;
   const tog = (k, lab, open) => `<button type="button" class="acct-row" data-alert-set="${k}"><span class="acct-lab">${lab}</span>${!open && !P ? '<span class="acct-aside">Premium</span><span class="acct-go">⟦lock⟧</span>' : `<span class="sw ${alertOn(k) ? 'on' : ''}"></span>`}</button>`;
+  const push = window.PrelevoPush ? PrelevoPush.status() : { supported:false, enabled:false, permission:'denied' };
+  const pushHint = !push.supported ? 'Cet appareil ne gère pas les notifications web.'
+    : push.permission === 'denied' ? 'Notifications bloquées — autorisez-les dans les réglages du navigateur.'
+    : push.enabled ? 'Actives : hausses, rappels et banque à reconnecter.'
+    : 'Recevez les alertes même quand l’app est fermée.';
   return `
 <div class="screen act">
   <div class="topbar"><h1>Alertes</h1>${demoTag}</div>
@@ -1058,6 +1063,15 @@ screens.alertes = (q) => {
   ${unread ? '<div class="al-tools"><button type="button" id="read-all">Tout marquer comme lu</button></div>' : ''}
   <div class="act-list">${groups || (!prem.length ? emptyState('bell', 'Tout est calme', 'Rien dans ce filtre. On vous prévient ici dès qu’un prix bouge ou qu’une banque demande votre attention.') : '')}</div>
   ${P || !prem.length ? '' : `<a class="one-card" href="#/premium"><div><b>${prem.length} alertes d’économies</b><span>Hausses, doublons et rappels. ${CFG.trial}.</span></div>${logoMark()}</a>`}
+  <p class="acct-k">Sur votre téléphone</p>
+  <div class="menu-card push-card">
+    <button type="button" class="acct-row" data-push="toggle" ${push.supported ? '' : 'disabled'}>
+      <span class="acct-lab">⟦bell⟧ Notifications push</span>
+      <span class="sw ${push.enabled ? 'on' : ''}"></span>
+    </button>
+  </div>
+  <p class="push-hint muted small">${pushHint}</p>
+  ${push.supported ? `<button type="button" class="btn ghost" data-push="preview" style="margin:0 0 18px">Envoyer un aperçu</button>` : ''}
   <p class="acct-k">Réglages</p>
   <div class="menu-card">
     ${tog('bank','Accès bancaire bientôt expiré', true)}
@@ -1764,6 +1778,37 @@ document.addEventListener('input', e => {
   });
 });
 document.addEventListener('click', e => {
+  const pushEl = e.target.closest('[data-push]');
+  if (pushEl){
+    e.preventDefault();
+    e.stopPropagation();
+    if (!window.PrelevoPush) return toast('Notifications indisponibles');
+    const act = pushEl.getAttribute('data-push');
+    if (act === 'toggle'){
+      pushEl.disabled = true;
+      const turningOn = !PrelevoPush.enabled();
+      PrelevoPush.toggle().then(async s => {
+        toast(s.enabled ? 'Notifications activées' : 'Notifications désactivées');
+        if (turningOn && s.enabled) {
+          const sample = alerts().find(a => a.kind === 'up') || alerts()[0];
+          try {
+            await PrelevoPush.preview(sample ? { title: sample.title, body: sample.text, url: './' + (sample.link || '#/alertes'), tag: 'prelevo-preview-' + sample.id } : null);
+          } catch (err) {}
+        }
+        render();
+      }).catch(err => { toast(err.message || 'Impossible d’activer les notifications'); render(); });
+      return;
+    }
+    if (act === 'preview'){
+      const sample = alerts().find(a => a.kind === 'up') || alerts()[0];
+      const payload = sample ? { title: sample.title, body: sample.text, url: './' + (sample.link || '#/alertes'), tag: 'prelevo-preview-' + sample.id }
+        : { title: 'Flixo+', body: 'Prix passé de 10,99 € à 13,49 €', url: './#/alertes?f=up', tag: 'prelevo-preview-up' };
+      pushEl.disabled = true;
+      PrelevoPush.preview(payload).then(() => { toast('Aperçu envoyé'); pushEl.disabled = false; render(); })
+        .catch(err => { toast(err.message || 'Aperçu impossible'); pushEl.disabled = false; render(); });
+      return;
+    }
+  }
   const ops = e.target.closest('[data-ops]'); if (ops){ opsFilter = ops.dataset.ops; const q = document.getElementById('tx-q'); if (q) opsQuery = q.value; render(); return; }
   const th = e.target.closest('[data-theme-set]');
   if (th){ pickTheme(th.dataset.themeSet); return; }

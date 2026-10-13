@@ -50,6 +50,10 @@
     sync: () => call('POST', '/bank/sync'),
     checkout: interval => call('POST', '/billing/checkout', { interval }),
     portal: () => call('POST', '/billing/portal'),
-    async deleteAccount(){ const r = await call('DELETE', '/me'); session.clear(); return r; }
+    async deleteAccount(){ const r = await call('DELETE', '/me'); session.clear(); return r; },
+    // Web Push (optionnel côté serveur) : clé publique + enregistrement de l’abonnement
+    vapidPublicKey: () => call('GET', '/push/vapid'),
+    pushSubscribe: sub => call('POST', '/push/subscribe', sub),
+    pushUnsubscribe: body => call('POST', '/push/unsubscribe', body)
   };
 })();

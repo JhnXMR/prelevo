@@ -18,6 +18,7 @@ Le nom apparaît aussi en dur dans manifest.json (name, short_name) et dans <tit
   sed -i 's/Prelevo/NouveauNom/g' manifest.json index.html config.js
 Après une modification, changer CACHE dans sw.js (ex. prelevo-app-v11) pour forcer la mise à jour hors ligne.
 L’app propose un bandeau « Installer Prelevo » (beforeinstallprompt / tip iOS) et un bandeau « Nouvelle version » quand un nouveau service worker est prêt (clic → SKIP_WAITING + rechargement).
+Notifications : interrupteur dans `#/alertes` (`push.js`). Sans `vapidPublicKey` / API, mode local (aperçu via le service worker). Avec clé VAPID + `POST /push/subscribe`, abonnement Web Push réel.
 
 Prix et essai : config.js (priceMonth, priceYear, trial).
 
