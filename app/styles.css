@@ -693,6 +693,23 @@ button.kv{width:100%;border:0;background:transparent;font:inherit;color:inherit;
 .spend-card{padding:14px 14px 12px}
 .spend-cats{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .spend-cats span{font-size:12px;font-weight:550;color:var(--ink2);background:var(--chip);border-radius:99px;padding:4px 8px}
+.desk .tape{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:2px 0 12px}
+.desk .tape div{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px 10px 11px;min-width:0}
+.desk .tape span{display:block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.desk .tape b{display:block;margin-top:5px;font-size:15px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.desk .tape b.up{color:#1FA971}
+.desk .tape b.down{color:#FF5A6A}
+.desk-tf{grid-template-columns:repeat(3,1fr);margin-bottom:6px}
+.mbar svg{width:100%;height:108px;display:block}
+.mplot{position:relative;height:108px}
+.mplot .sp-dot{position:absolute}
+.mbar .sp-axis span{font-size:10.5px}
+.postes{padding:6px 14px 8px}
+.poste{display:grid;grid-template-columns:minmax(72px,34%) 1fr auto;gap:8px;align-items:center;padding:9px 0;font-size:13px}
+.poste + .poste{border-top:1px solid var(--line)}
+.poste .bar{display:block;height:6px;border-radius:99px;background:var(--chip);overflow:hidden}
+.poste .bar i{display:block;height:100%;border-radius:99px;background:#0066FF}
+.poste b{font-weight:700;font-variant-numeric:tabular-nums;font-size:13px}
 .bk-list{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
 .bk-row{display:flex;align-items:center;gap:12px;padding:14px 14px 14px 16px;border:1px solid var(--line);border-radius:18px;background:var(--bg);color:var(--ink);position:relative;overflow:hidden;box-shadow:var(--shadow)}
 .bk-row::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--bk,#0066FF)}

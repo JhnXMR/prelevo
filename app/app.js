@@ -612,6 +612,114 @@ function incomeOf(tx){
   return tx.filter(x => x.amt > 0 && x.cat === 'revenu' && +x.t >= from);
 }
 function incomeBars(tx){ return flowBars(incomeOf(tx), '#1FA971', 'Revenus'); }
+let deskRange = '12';
+const kEUR = n => Math.abs(Math.round(n)).toLocaleString('fr-FR') + ' €';
+const sgnEUR = n => (n > 0 ? '+' : n < 0 ? '−' : '') + kEUR(n);
+function deskEvents(){
+  if (LIVE) return ledger().tx.filter(x => x.cat !== 'virement').map(x => ({ t: x.t, amt: x.amt, inc: x.cat === 'revenu' || x.amt > 0 }));
+  return timeline().ev.filter(e => e.k !== 'xfer').map(e => ({ t: e.t, amt: e.amt, inc: e.k === 'in' }));
+}
+function deskSeries(){
+  const ev = deskEvents();
+  const now = nowRef();
+  const end = new Date(now.getFullYear(), now.getMonth(), 1);
+  let n = deskRange === '6' ? 6 : deskRange === '12' ? 12 : 18;
+  if (deskRange === 'all') {
+    const oldest = ev.reduce((m, e) => Math.min(m, +e.t), +now);
+    const o = new Date(oldest);
+    n = Math.max(1, Math.min(18, (end.getFullYear() - o.getFullYear()) * 12 + end.getMonth() - o.getMonth() + 1));
+  }
+  const rows = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const start = new Date(end.getFullYear(), end.getMonth() - i, 1);
+    const stop = new Date(start.getFullYear(), start.getMonth() + 1, 1);
+    const slice = ev.filter(e => e.t >= start && e.t < stop && e.t <= now);
+    const income = slice.filter(e => e.inc).reduce((a, e) => a + Math.abs(e.amt), 0);
+    const spend = slice.filter(e => !e.inc && e.amt < 0).reduce((a, e) => a + -e.amt, 0);
+    rows.push({ t: start, income, spend, net: income - spend });
+  }
+  return rows;
+}
+function monthAxis(series, key){
+  const n = series.length;
+  const vals = key ? series.map(s => Math.abs(s[key])) : [];
+  const max = vals.length ? Math.max(...vals, 0) : 0;
+  const peak = new Set();
+  if (max > 0) vals.forEach((v, i) => { if (v >= max * .7) peak.add(i); });
+  return series.map((s, i) => {
+    const show = n <= 6 || i === 0 || i === n - 1 || (key ? peak.has(i) : i % 2 === 0);
+    if (!show) return '';
+    return `<span style="left:${((i + .5) / n * 100).toFixed(2)}%">${MOIS[s.t.getMonth()]}</span>`;
+  }).join('');
+}
+function monthBars(series, key, color){
+  const vals = series.map(s => s[key]);
+  const max = Math.max(...vals, 1);
+  const W = 340, H = 108, gap = series.length > 12 ? 4 : 7, n = vals.length, bw = (W - gap * (n - 1)) / n;
+  const bars = vals.map((v, i) => {
+    const h = v <= 0 ? 2 : Math.max(4, v / max * (H - 4));
+    return `<rect x="${(i * (bw + gap)).toFixed(2)}" y="${(H - h).toFixed(2)}" width="${Math.max(bw, 1).toFixed(2)}" height="${h.toFixed(2)}" rx="2" fill="${color}" opacity="${v ? .95 : .22}"/>`;
+  }).join('');
+  const total = vals.reduce((a, b) => a + b, 0);
+  return `<div class="spend mbar" role="img" aria-label="${kEUR(total)}"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>
+    <div class="sp-axis">${monthAxis(series, key === 'income' ? 'income' : '')}</div></div>`;
+}
+function netLine(series){
+  const vals = series.map(s => s.net);
+  const lo = Math.min(0, ...vals), hi = Math.max(0, ...vals), span = hi - lo || 1;
+  const W = 340, H = 108, padX = 8, padY = 10;
+  const x = i => padX + (vals.length < 2 ? W / 2 : i / (vals.length - 1) * (W - padX * 2));
+  const y = v => padY + (hi - v) / span * (H - padY * 2);
+  const pts = vals.map((v, i) => [x(i), y(v)]);
+  const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const last = pts[pts.length - 1], zero = y(0);
+  const period = vals.reduce((a, b) => a + b, 0);
+  const color = period >= 0 ? '#1FA971' : '#FF5A6A';
+  const dot = vals[vals.length - 1] >= 0 ? '#1FA971' : '#FF5A6A';
+  const area = `${d} L${last[0].toFixed(1)},${zero.toFixed(1)} L${pts[0][0].toFixed(1)},${zero.toFixed(1)} Z`;
+  const net = vals.reduce((a, b) => a + b, 0);
+  return `<div class="spend mbar" role="img" aria-label="Net ${sgnEUR(net)}"><div class="mplot"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+    <line x1="0" y1="${zero.toFixed(1)}" x2="${W}" y2="${zero.toFixed(1)}" stroke="currentColor" stroke-opacity=".18" stroke-dasharray="3 4"/>
+    <path d="${area}" fill="${color}" opacity=".18"/><path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg><i class="sp-dot" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%;background:${dot};box-shadow:0 0 0 4px var(--bg)"></i></div>
+    <div class="sp-axis">${monthAxis(series, 'net')}</div></div>`;
+}
+function posteRows(tx){
+  const rows = spendOf(tx);
+  const by = {};
+  rows.forEach(x => { const k = x.cat || 'autre'; by[k] = (by[k] || 0) + -x.amt; });
+  const tops = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const max = tops.length ? tops[0][1] : 1;
+  if (!tops.length) return '<p class="insight">Aucune dépense sur 30 jours.</p>';
+  return tops.map(([k, v]) => `<div class="poste"><span>${esc((CATS[k] || CATS.autre).l)}</span><i class="bar"><i style="width:${Math.max(6, v / max * 100).toFixed(1)}%"></i></i><b>${kEUR(v)}</b></div>`).join('');
+}
+screens.graphiques = () => {
+  const hid = state.hideBalance;
+  const series = deskSeries();
+  const inc = series.reduce((a, s) => a + s.income, 0);
+  const out = series.reduce((a, s) => a + s.spend, 0);
+  const net = inc - out;
+  const ranges = [['6', '6 mois'], ['12', '12 mois'], ['all', 'Tout']];
+  return `
+<div class="screen desk">
+  <div class="topbar"><h1>Graphiques</h1>${demoTag}</div>
+  <div class="tape">
+    <div><span>Revenus</span><b class="up">${hid ? '••••' : kEUR(inc)}</b></div>
+    <div><span>Dépenses</span><b class="down">${hid ? '••••' : kEUR(out)}</b></div>
+    <div><span>Net</span><b class="${net >= 0 ? 'up' : 'down'}">${hid ? '••••' : sgnEUR(net)}</b></div>
+  </div>
+  <div class="tf desk-tf" role="tablist" aria-label="Période">${ranges.map(([k, l]) => `<button type="button" role="tab" data-desk="${k}" aria-selected="${deskRange === k}" class="${deskRange === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+  ${hid ? '<p class="insight">Graphiques masqués avec le solde.</p>' : `
+  <p class="acct-k">Dépenses mensuelles</p>
+  <div class="panel spend-card">${monthBars(series, 'spend', '#0066FF')}</div>
+  <p class="acct-k">Rentrées d’argent</p>
+  <div class="panel spend-card">${monthBars(series, 'income', '#1FA971')}</div>
+  <p class="acct-k">Net</p>
+  <div class="panel spend-card">${netLine(series)}</div>
+  <p class="acct-k">Postes · 30 jours</p>
+  <div class="panel postes">${posteRows(ledger().tx)}</div>`}
+</div>`;
+};
 const catChip = c => `<span class="cat cat-${c}" aria-hidden="true">⟦${(CATS[c] || CATS.autre).ic}⟧</span>`;
 const MOIS_LONG = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 function txKind(x){
@@ -688,9 +796,9 @@ screens.dashboard = () => {
     ${!LIVE && !P ? `<a class="bk-card add" href="#/premium">⟦plus⟧<span>Ajouter une banque</span><b>Premium</b></a>` : ''}
   </div>
 
-  <div class="section-h rise" style="--d:2"><h2>Dépenses</h2><span class="sec-sum">30 jours</span></div>
+  <div class="section-h rise" style="--d:2"><h2>Dépenses</h2><a href="#/graphiques">Mensuel</a></div>
   <div class="panel spend-card rise" style="--d:2">${state.hideBalance ? '<p class="insight">Graphique masqué avec le solde.</p>' : spendBars(L.tx, '#0066FF')}</div>
-  <div class="section-h rise" style="--d:2"><h2>Revenus</h2><span class="sec-sum">30 jours</span></div>
+  <div class="section-h rise" style="--d:2"><h2>Revenus</h2><a href="#/graphiques">Mensuel</a></div>
   <div class="panel spend-card rise" style="--d:2">${state.hideBalance ? '<p class="insight">Graphique masqué avec le solde.</p>' : incomeBars(L.tx)}</div>
 
   <div class="section-h rise" style="--d:3"><h2>Dernières opérations</h2><a href="#/operations">Tout voir</a></div>
@@ -1493,6 +1601,8 @@ document.addEventListener('pointerleave', e => { if (e.target.id === 'balance') 
 document.addEventListener('click', e => {
   const tf = e.target.closest && e.target.closest('[data-tf]');
   if (tf && tf.dataset.tf !== homeTf) { homeTf = tf.dataset.tf; render(); return; }
+  const dk = e.target.closest && e.target.closest('[data-desk]');
+  if (dk && dk.dataset.desk !== deskRange) { deskRange = dk.dataset.desk; render(); return; }
   const b = e.target.closest && e.target.closest('[data-period]'); if (!b) return;
   balPeriod = b.dataset.period;
   const sec = document.getElementById('balance'); if (sec) sec.outerHTML = balanceChart();
@@ -1615,7 +1725,7 @@ function render(){
   const fn = screens[name] || screens.dashboard;
   $('#app').innerHTML = icons(fn(new URLSearchParams(qs||''), ...args));
   const bar = $('#app .sub-bar'); if (bar) document.body.appendChild(bar);
-  const tabbed = ['dashboard','operations','abonnements','alertes','premium','abo','aide','apropos','banques','banque','compte','apparence','parrainage'].includes(name) || (!screens[name]);
+  const tabbed = ['dashboard','graphiques','operations','abonnements','alertes','premium','abo','aide','apropos','banques','banque','compte','apparence','parrainage'].includes(name) || (!screens[name]);
   $('#tabbar').hidden = !tabbed;
   if (API && ['onboarding','connexion','dashboard','connect','banques'].includes(name)){ const sc = $('#app').firstElementChild; if (sc && !sc.querySelector('.alpha-note')) sc.insertAdjacentHTML('afterbegin', '<div class="alpha-note" role="note"><b>Bêta privée</b> — banques de test uniquement pour l’instant</div>'); }
   const tabName = name==='abo' || name==='operations' ? 'abonnements' : !screens[name] ? 'dashboard' : name;
