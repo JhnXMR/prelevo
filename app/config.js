@@ -9,4 +9,7 @@ window.APP_CONFIG = {
   // Adresse de l'API Prelevo (backend). Vide = maquette seule (comportement actuel du site publié).
   // Ex. en local : 'http://localhost:8795'
   apiBase: 'https://app-109fa828-abfc-432e-921d-a6ec8590c26c.cleverapps.io',
+  // Clé publique VAPID (Web Push). Vide = notifications locales uniquement (aperçu dans l’app) ;
+  // si renseignée (ou fournie par GET /push/vapid), l’app s’abonne au push navigateur.
+  vapidPublicKey: '',
 };

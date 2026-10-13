@@ -827,6 +827,9 @@ input,select,textarea{font-size:16px}
   .screen,.sk i,.btn,.sync-btn,.tx,.row,.bk-card,.ptr.on img,.ptr.on::after{animation:none!important;transition:none!important}
 }
 
+.push-hint{margin:8px 4px 10px;line-height:1.4}
+.push-card .acct-row:disabled{opacity:.55;cursor:not-allowed}
+
 /* Bandeaux PWA : mise à jour (haut) + install (bas, au-dessus de la tabbar) */
 .pwa-bar{position:fixed;left:14px;right:14px;max-width:452px;margin:0 auto;z-index:30;opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .22s ease,transform .22s ease}
 .pwa-bar.on{opacity:1;pointer-events:auto;transform:translateY(0)}

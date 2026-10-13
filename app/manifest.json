@@ -35,5 +35,20 @@
       "purpose": "any"
     }
   ],
+  "shortcuts": [
+    {
+      "name": "Alertes",
+      "short_name": "Alertes",
+      "description": "Hausses de prix, doublons et rappels",
+      "url": "./index.html#/alertes",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Accueil",
+      "short_name": "Accueil",
+      "url": "./index.html#/dashboard",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
   "id": "./"
 }
