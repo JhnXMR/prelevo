@@ -463,7 +463,7 @@ function demoLedger(){
   banks.forEach(b => b.total = b.accs.reduce((a, x) => a + x.balance, 0));
   const total = banks.reduce((a, b) => a + b.total, 0), others = total - T.end;
   const from = NOW.getTime() - 100 * DAY_MS;
-  const tx = T.ev.filter(e => e.t.getTime() >= from).map(e => {
+  const tx = T.ev.filter(e => e.k !== 'xfer' && e.t.getTime() >= from).map(e => {
     if (e.k === 'spend'){ const a = -e.amt, pool = a < 9 ? MERCH.s : a < 40 ? MERCH.m : MERCH.l, m = pool[Math.floor(e.t.getTime() / 6e4) % pool.length];
       const bk = banks[(Math.floor(e.t.getTime() / 864e5) % 3) % banks.length] || banks[0];
       return { t:e.t, name:m[0], cat:m[1], amt:e.amt, where:bk.name, bank:bk }; }
@@ -512,15 +512,7 @@ function homeCurve(){
     const c = L.curve.filter(p => +p.t >= from);
     return c.length > 1 ? c : L.curve.slice(-2);
   }
-  const raw = samples(homeTf).map(p => ({ t:p.t, v:p.bal + (L.total - timeline().end) }));
-  if (!raw.length) return raw;
-  const endV = L.total;
-  const min = Math.min(...raw.map(p => p.v));
-  const floor = Math.max(900, endV * 0.42);
-  if (min >= floor - 1) return raw.map((p, i) => i === raw.length - 1 ? { ...p, v: endV } : p);
-  const span = endV - min || 1;
-  const scale = (endV - floor) / span;
-  return raw.map((p, i) => ({ t:p.t, v: i === raw.length - 1 ? endV : endV - (endV - p.v) * scale }));
+  return samples(homeTf).map((p, i, all) => ({ t:p.t, v: i === all.length - 1 ? L.total : p.bal + (L.total - timeline().end) }));
 }
 function spark(curve){
   if (!curve || curve.length < 2) return '';
@@ -609,7 +601,7 @@ screens.dashboard = () => {
       <div class="amount" data-count="${L.total.toFixed(2)}" ${state.hideBalance ? 'data-hidden="1"' : ''}>${state.hideBalance ? '<span class="masked">••••</span>' : money(L.total)}</div>
       <button type="button" class="eye" id="toggle-balance" aria-pressed="${state.hideBalance ? 'true' : 'false'}" aria-label="${state.hideBalance ? 'Afficher le solde' : 'Masquer le solde'}">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</button>
     </div>
-    <div class="delta" id="sp-delta">${state.hideBalance ? 'Solde masqué' : `${delta >= 0 ? '⟦trend⟧' : ''}<b class="${delta >= 0 ? 'pos' : ''}">${signed(delta)}</b> <i class="delta-pct ${delta >= 0 ? 'up' : 'down'}">${ppTxt}</i> ${homeTf === 'TOUT' ? 'depuis le début' : 'sur ' + tf[2]}`}</div>
+    <div class="delta" id="sp-delta">${state.hideBalance ? 'Solde masqué' : `${delta >= 0 ? '⟦trend⟧' : ''}<b class="${delta >= 0 ? 'pos' : ''}">${signed(delta)}</b>${Math.abs(pp) >= 0.5 ? ` <i class="delta-pct ${delta >= 0 ? 'up' : 'down'}">${ppTxt}</i>` : ''} ${homeTf === 'TOUT' ? 'depuis le début' : 'sur ' + tf[2]}`}</div>
     <div class="tf" role="tablist" aria-label="Période du graphique">${HOME_TF.map(([k, lab]) => `<button type="button" role="tab" data-tf="${k}" aria-selected="${k === homeTf ? 'true' : 'false'}" class="${k === homeTf ? 'on' : ''}">${lab}</button>`).join('')}</div>
     ${spark(curve)}
     ${P ? `<a class="rav" href="#/abonnements"><span>Reste à vivre jusqu’à la paie</span><b>${state.hideBalance ? '<span class="masked">••••</span>' : eur(t.reste)}</b></a>`
@@ -1249,6 +1241,17 @@ function timeline(){
     fixed.forEach(e => { if (e.t <= NOW) ev.push(e); });
   });
   ev.sort((a,b)=>a.t-b.t);
+  // Le surplus part en épargne, sauf juste après les primes de mai et décembre : le pic reste visible une quinzaine de jours.
+  let run = 1900;
+  const xfer = [];
+  for (const e of ev) {
+    run += e.amt;
+    const m = e.t.getMonth(), d = e.t.getDate();
+    const spike = (m === 4 && d >= 21) || (m === 5 && d <= 6) || (m === 11 && d >= 21) || (m === 0 && d <= 6);
+    if (!spike && e.k !== 'in' && run > 2600) { const skim = Math.round(run - 1800); xfer.push({ t:new Date(e.t.getTime() + 36e5), amt:-skim, name:'Virement épargne', k:'xfer' }); run = 1800; }
+  }
+  ev.push(...xfer);
+  ev.sort((a,b)=>a.t-b.t);
   const remaining = t.list.filter(s => s.day >= 10 && s.day < 21).reduce((a,s)=>a+s.price,0);
   const end = t.reste + remaining + LEFTOVER;
   let bal = end; for (let i = ev.length - 1; i >= 0; i--){ ev[i].after = bal; bal -= ev[i].amt; }
@@ -1788,7 +1791,7 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
       t: dot ? dot.style.top : ''
     };
     syncDay(clientX, false);
-    sched();
+    paint();
   };
   const end = () => {
     if (!st) return;
