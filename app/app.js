@@ -462,7 +462,7 @@ function demoLedger(){
   const banks = linked().map(b => ({ ...b, accs: (DEMO_ACC[b.id] || []).map(([n, v]) => ({ name:n, balance: v == null ? T.end : v })) }));
   banks.forEach(b => b.total = b.accs.reduce((a, x) => a + x.balance, 0));
   const total = banks.reduce((a, b) => a + b.total, 0), others = total - T.end;
-  const from = NOW.getTime() - 35 * DAY_MS;
+  const from = NOW.getTime() - 100 * DAY_MS;
   const tx = T.ev.filter(e => e.t.getTime() >= from).map(e => {
     if (e.k === 'spend'){ const a = -e.amt, pool = a < 9 ? MERCH.s : a < 40 ? MERCH.m : MERCH.l, m = pool[Math.floor(e.t.getTime() / 6e4) % pool.length];
       const bk = banks[(Math.floor(e.t.getTime() / 864e5) % 3) % banks.length] || banks[0];
@@ -659,21 +659,32 @@ screens.dashboard = () => {
 };
 
 let opsFilter = 'all';
-screens.operations = () => {
+let opsQuery = '';
+function txActivity(){
   const L = ledger();
-  const list = L.tx.filter(x => opsFilter === 'all' || (opsFilter === 'out' ? x.amt < 0 : x.amt > 0));
+  const q = opsQuery.trim().toLowerCase();
+  const list = L.tx.filter(x => {
+    if (opsFilter === 'out' && x.amt >= 0) return false;
+    if (opsFilter === 'in' && x.amt <= 0) return false;
+    if (opsFilter === 'abo' && x.cat !== 'abo') return false;
+    if (q && !x.name.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const t = totals();
   return `
-<div class="screen act home static">
-  <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a><span></span>${demoTag}</div>
-  <div class="seg ops-seg" role="tablist">${[['all','Tout'],['out','Dépenses'],['in','Revenus']].map(([k, l]) => `<button type="button" role="tab" class="${opsFilter === k ? 'on' : ''}" data-ops="${k}">${l}</button>`).join('')}</div>
-  <div class="act-list">${list.length ? txGroups(list, 24, 400, true) : emptyState('search', 'Aucune opération ici', 'Rien à afficher pour ce filtre. Choisissez « Tout » pour revoir les 35 derniers jours.')}</div>
+<div class="screen act">
+  <div class="topbar"><h1>Transactions</h1>${demoTag}</div>
+  <a class="tx-subs" href="#/abonnements?vue=recurrents"><span><b>Abonnements détectés</b><i>${t.list.length} actifs</i></span><strong>${eur(t.monthly)}<small>/mois</small></strong></a>
+  <label class="tx-search">⟦search⟧<input id="tx-q" type="search" placeholder="Rechercher" value="${esc(opsQuery)}" autocomplete="off" enterkeyhint="search"></label>
+  <div class="seg ops-seg four" role="tablist">${[['all','Tout'],['out','Dépenses'],['in','Reçus'],['abo','Abos']].map(([k, l]) => `<button type="button" role="tab" class="${opsFilter === k ? 'on' : ''}" data-ops="${k}">${l}</button>`).join('')}</div>
+  <div class="act-list">${list.length ? txGroups(list, 8, 240, true) : emptyState('search', 'Aucune opération', q ? 'Aucun résultat pour cette recherche.' : 'Rien sur cette période.')}</div>
 </div>`;
-};
-
-const cadTxt = s => s.live && s.cadence && s.cadence !== 'month' ? ' · ' + eur(s.amount) + ' ' + s.cadenceLabel : '';
+}
+screens.operations = () => txActivity();
 const PERIOD_DAYS = { week:7, month:30.4, quarter:91, year:365 };
 const nextLive = s => { if (s.nextDate) return new Date(s.nextDate+'T12:00'); const d = new Date(s.lastDate+'T12:00'); const step = PERIOD_DAYS[s.cadence||'month']; while (d < new Date()) d.setTime(d.getTime() + step*864e5); return d; };
 screens.abonnements = (q) => {
+  if ((q.get('vue') || '') !== 'recurrents') return txActivity();
   const t = totals(); const P = isP(); let f = q.get('f') || 'all';
   if (!P && f!=='all') f = 'all';
   let list = P ? t.list.filter(s=>!s.small) : t.list;
@@ -685,10 +696,10 @@ screens.abonnements = (q) => {
       <div class="mid"><div class="name">${esc(s.name)}${P ? `${increase(s)?`<span class="badge b-red">+${pct(s)} %</span>`:''}${s.doubleCharge?'<span class="badge b-red">2×</span>':''}${t.dups.includes(s)?'<span class="badge b-blue">Doublon</span>':''}${s.trial?'<span class="badge b-amber">Essai</span>':''}` : ((increase(s)||s.small||s.doubleCharge||t.dups.includes(s)) ? lockBadge('Alerte') : '')}</div>
       <div class="meta">${d.getDate()} ${MOIS[d.getMonth()]} • ${cap(FREQ[s.cadence || 'month'] || 'mensuel')}</div></div>
       <div class="amt">−${eur(s.price)}</div></a>`; };
-  const chip = (k,l) => P ? `<a class="chip ${f===k?'on':''}" href="#/abonnements${k==='all'?'':'?f='+k}">${l}</a>` : `<a class="chip ${k==='all'?'on':''}" href="${k==='all'?'#/abonnements':'#/premium'}">${k==='all'?l:'⟦lock⟧ '+l.replace(/^\S+ /,'')}</a>`;
+  const chip = (k,l) => P ? `<a class="chip ${f===k?'on':''}" href="#/abonnements?vue=recurrents${k==='all'?'':'&f='+k}">${l}</a>` : `<a class="chip ${k==='all'?'on':''}" href="${k==='all'?'#/abonnements?vue=recurrents':'#/premium'}">${k==='all'?l:'⟦lock⟧ '+l.replace(/^\S+ /,'')}</a>`;
   return `
 <div class="screen">
-  <div class="topbar"><h1>Transactions</h1>${demoTag}</div>
+  <div class="topbar"><a class="back" href="#/abonnements">⟦back⟧</a><h1>Abonnements</h1>${demoTag}</div>
   <div class="card" style="display:flex;justify-content:space-between;align-items:center">
     <div><div class="muted small">Total mensuel</div><div style="font-size:26px;font-weight:760;letter-spacing:-.02em">${eur(t.monthly)}</div></div>
     <div style="text-align:right"><div class="muted small">Sur un an</div><div style="font-weight:700">${eur0(t.monthly*12)}</div></div>
@@ -1453,7 +1464,7 @@ function render(){
   const tabbed = ['dashboard','operations','abonnements','alertes','premium','abo','aide','banques','compte','apparence','parrainage'].includes(name) || (!screens[name]);
   $('#tabbar').hidden = !tabbed;
   if (API && ['onboarding','connexion','dashboard','connect','banques'].includes(name)){ const sc = $('#app').firstElementChild; if (sc && !sc.querySelector('.alpha-note')) sc.insertAdjacentHTML('afterbegin', '<div class="alpha-note" role="note"><b>Bêta privée</b> — banques de test uniquement pour l’instant</div>'); }
-  const tabName = name==='abo' ? 'abonnements' : name==='operations' || !screens[name] ? 'dashboard' : name;
+  const tabName = name==='abo' || name==='operations' ? 'abonnements' : !screens[name] ? 'dashboard' : name;
   document.querySelectorAll('#tabbar a').forEach(a => { const on = a.dataset.tab === tabName; a.classList.toggle('on', on); if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   $('#alert-dot').classList.toggle('show', alerts().some(a=>!state.readAlerts.includes(a.id)));
   window.scrollTo(0,0);
@@ -1471,8 +1482,22 @@ function runScan(){
   setTimeout(()=>{ state.connected = true; save(); location.hash = '#/dashboard'; toast(SUBS.length + ' abonnements détectés'); }, 400 + items.length*450 + 500);
 }
 
+document.addEventListener('input', e => {
+  if (e.target.id !== 'tx-q') return;
+  opsQuery = e.target.value;
+  const s = opsQuery.trim().toLowerCase();
+  document.querySelectorAll('.act-list .mo').forEach(mo => {
+    let n = 0;
+    mo.querySelectorAll('.tx').forEach(row => {
+      const show = !s || (row.querySelector('.name').textContent || '').toLowerCase().includes(s);
+      row.hidden = !show;
+      if (show) n++;
+    });
+    mo.hidden = !n;
+  });
+});
 document.addEventListener('click', e => {
-  const ops = e.target.closest('[data-ops]'); if (ops){ opsFilter = ops.dataset.ops; render(); return; }
+  const ops = e.target.closest('[data-ops]'); if (ops){ opsFilter = ops.dataset.ops; const q = document.getElementById('tx-q'); if (q) opsQuery = q.value; render(); return; }
   const th = e.target.closest('[data-theme-set]');
   if (th){ pickTheme(th.dataset.themeSet); return; }
   const thAuto = e.target.closest('[data-theme-auto]');

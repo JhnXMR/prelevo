@@ -524,10 +524,22 @@ button.kv{width:100%;border:0;background:transparent;font:inherit;color:inherit;
 .tx.pp .cat .i{width:22px;height:22px}
 .tx.pp .name{font-size:16.5px;font-weight:500;letter-spacing:-.022em;line-height:1.2}
 .tx.pp .meta{font-size:13.5px;margin-top:3px;color:var(--muted);font-weight:400}
-.tx.pp .amt{font-size:16.5px;font-weight:500;letter-spacing:-.02em;padding-top:1px}
+.tx.pp .amt{font-size:16.5px;font-weight:500;letter-spacing:-.02em;padding-top:1px;white-space:nowrap;font-variant-numeric:tabular-nums}
 .tx.pp .amt.pos{color:#1FA971}
-.mo h2{font-size:32px;font-weight:700;letter-spacing:-.04em;line-height:1.05;margin:26px 0 4px}
-.mo:first-child h2{margin-top:6px}
+.mo h2{font-size:28px;font-weight:700;letter-spacing:-.04em;line-height:1.05;margin:22px 0 2px}
+.mo:first-child h2{margin-top:8px}
+.tx-subs{display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--soft);border-radius:16px;padding:14px 16px;margin:4px 0 12px;text-decoration:none}
+.tx-subs span{display:flex;flex-direction:column;gap:2px;min-width:0}
+.tx-subs b{font-size:15.5px;letter-spacing:-.02em}
+.tx-subs i{font-style:normal;font-size:13px;color:var(--muted)}
+.tx-subs strong{font-size:16px;font-weight:650;white-space:nowrap}
+.tx-subs small{font-size:12px;font-weight:500;color:var(--muted)}
+.tx-search{display:flex;align-items:center;gap:8px;height:44px;margin:0 0 12px;padding:0 14px;border-radius:14px;background:var(--soft);color:var(--muted)}
+.tx-search .i{width:18px;height:18px;flex:none}
+.tx-search input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font:inherit;font-size:16px}
+.tx-search input::placeholder{color:var(--muted)}
+.ops-seg.four{grid-template-columns:repeat(4,1fr)}
+.ops-seg.four button{font-size:13px;padding:0 2px}
 .act,.act-list{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif}
 .act .ops-seg{margin:0 0 8px}
 .act-list{margin-top:4px}
