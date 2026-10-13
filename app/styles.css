@@ -697,6 +697,8 @@ button.kv{width:100%;border:0;background:transparent;font:inherit;color:inherit;
 .spend-cats{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .spend-cats span{font-size:12px;font-weight:550;color:var(--ink2);background:var(--chip);border-radius:99px;padding:4px 8px}
 .desk .tape{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:2px 0 12px}
+.desk .tape.on{position:relative}
+.desk .tape.on::before{content:attr(data-mo);grid-column:1 / -1;font-size:12px;font-weight:650;letter-spacing:.02em;color:var(--muted)}
 .desk .tape div{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px 10px 11px;min-width:0}
 .desk .tape span{display:block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}
 .desk .tape b{display:block;margin-top:5px;font-size:15px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;white-space:nowrap}

@@ -578,7 +578,7 @@ function curveChart(curve, opt = {}){
   const gid = 'spk' + idx;
   CURVES.push({
     pts: curve.map((p, i) => ({ x: pts[i][0] / W * 100, y: pts[i][1] / H * 100, v: p.v, t: p.t })),
-    poly: pts, H, line: d, area, fmt: opt.fmt || 'day', signed: !!opt.signed, home: false
+    poly: pts, H, line: d, area, fmt: opt.fmt || 'day', signed: !!opt.signed, home: false, link: opt.link || '', slot: opt.slot || ''
   });
   const n = curve.length, idxs = [];
   if (opt.fmt === 'month'){ for (let i = 0; i < n; i++) if (n <= 6 || i === 0 || i === n - 1 || i % 2 === 0) idxs.push(i); }
@@ -591,7 +591,7 @@ function curveChart(curve, opt = {}){
   const total = opt.total != null ? opt.total : curve[curve.length - 1].v;
   const head = opt.header != null ? opt.header : (opt.signed ? sgnEUR(total) : (opt.fmt === 'month' ? kEUR(total) : total.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'));
   const zero = opt.zero && lo < 0 && hi > 0 ? `<line x1="0" y1="${y(0).toFixed(1)}" x2="${W}" y2="${y(0).toFixed(1)}" stroke="currentColor" stroke-opacity=".2" stroke-dasharray="3 4"/>` : '';
-  return `<div class="spark lite" data-curve="${idx}" style="--spk:${color}" role="img" aria-label="${opt.label || 'Courbe. Glissez pour le détail.'}"><div class="sp-read"><span>${opt.caption || ''}</span><b>${head}</b></div><div class="spark-plot" style="height:${H}px"><svg viewBox="0 0 ${W} ${H}" style="height:${H}px" preserveAspectRatio="none" aria-hidden="true">
+  return `<div class="spark lite" data-curve="${idx}" ${opt.link ? `data-link="${opt.link}"` : ''} style="--spk:${color}" role="img" aria-label="${opt.label || 'Courbe. Glissez pour le détail.'}"><div class="sp-read"><span>${opt.caption || ''}</span><b>${head}</b></div><div class="spark-plot" style="height:${H}px"><svg viewBox="0 0 ${W} ${H}" style="height:${H}px" preserveAspectRatio="none" aria-hidden="true">
     <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".42"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
     ${zero}<path class="sp-area" d="${area}" fill="url(#${gid})"/>
     <path class="sp-dim" d="" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
@@ -674,13 +674,13 @@ function monthBars(series, key, color){
   const curve = series.map(s => ({ t: s.t, v: s[key] }));
   if (curve.length < 2) return '';
   const total = curve.reduce((a, p) => a + p.v, 0);
-  return curveChart(curve, { color, h: 108, fmt: 'month', total, label: key === 'income' ? 'Rentrées' : 'Dépenses mensuelles' });
+  return curveChart(curve, { color, h: 108, fmt: 'month', total, link: 'desk', slot: key === 'income' ? 'income' : 'spend', label: key === 'income' ? 'Rentrées' : 'Dépenses mensuelles' });
 }
 function netLine(series){
   const curve = series.map(s => ({ t: s.t, v: s.net }));
   if (curve.length < 2) return '';
   const net = curve.reduce((a, p) => a + p.v, 0);
-  return curveChart(curve, { color: net >= 0 ? '#1FA971' : '#FF5A6A', h: 108, fmt: 'month', signed: true, zero: true, total: net, label: 'Net' });
+  return curveChart(curve, { color: net >= 0 ? '#1FA971' : '#FF5A6A', h: 108, fmt: 'month', signed: true, zero: true, total: net, link: 'desk', slot: 'net', label: 'Net' });
 }
 function posteRows(tx){
   const rows = spendOf(tx);
@@ -1982,11 +1982,12 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     } catch (e) {}
   };
   let st = null, raf = 0;
-  const restore = el => {
+  const restoreOne = el => {
     if (!el) return;
     el.classList.remove('scrub');
     const o = el._orig; if (!o) return;
-    const amt = document.querySelector('.total [data-count]'), dl = document.getElementById('sp-delta');
+    const amt = el.classList.contains('home-spark') ? document.querySelector('.total [data-count]') : null;
+    const dl = el.classList.contains('home-spark') ? document.getElementById('sp-delta') : null;
     if (amt) { delete amt.dataset.scrub; amt.innerHTML = o.a; }
     if (dl) dl.innerHTML = o.d;
     const dot = el.querySelector('.sp-dot'); if (dot) { dot.hidden = false; dot.style.left = o.l; dot.style.top = o.t; }
@@ -1999,9 +2000,74 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
       if (area) area.setAttribute('d', S.area);
       if (dim) dim.setAttribute('d', '');
     }
+    delete el._orig;
+  };
+  const restore = el => {
+    if (!el) return;
+    const link = el.dataset.link;
+    const group = link ? [...document.querySelectorAll(`.spark[data-link="${link}"]`)] : [el];
+    group.forEach(restoreOne);
+    const tape = document.querySelector('.desk .tape');
+    if (tape && tape._orig) {
+      const bs = tape.querySelectorAll('b');
+      tape._orig.forEach((o, n) => { if (!bs[n]) return; bs[n].textContent = o.t; bs[n].className = o.c; });
+      delete tape._orig;
+      tape.classList.remove('on');
+      delete tape.dataset.mo;
+    }
+  };
+  const segPath = arr => arr.map((p, n) => (n ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const snap = (el, S, i) => {
+    const p = S.pts[i], poly = S.poly;
+    el.classList.add('scrub');
+    const vl = el.querySelector('.sp-vline'), dot = el.querySelector('.sp-dot');
+    if (vl) { vl.hidden = false; vl.style.left = p.x + '%'; }
+    if (dot) { dot.hidden = false; dot.style.left = p.x + '%'; dot.style.top = p.y + '%'; }
+    const left = poly.slice(0, i + 1), right = poly.slice(i);
+    const line = el.querySelector('.sp-line'), dim = el.querySelector('.sp-dim'), area = el.querySelector('.sp-area');
+    if (line) line.setAttribute('d', segPath(left));
+    if (dim) dim.setAttribute('d', segPath(right));
+    const sx = poly[i][0], sy = poly[i][1];
+    if (area) area.setAttribute('d', segPath(left) + ` L${sx.toFixed(1)},${S.H} L${poly[0][0].toFixed(1)},${S.H} Z`);
+    const read = el.querySelector('.sp-read');
+    if (read && !state.hideBalance) {
+      const when = MOIS[p.t.getMonth()] + ' ' + p.t.getFullYear();
+      const num = S.signed ? sgnEUR(p.v) : kEUR(p.v);
+      read.innerHTML = `<span>${when}</span><b>${num}</b>`;
+    }
+  };
+  const paintDesk = () => {
+    const i = Math.max(0, st.i);
+    const group = [...document.querySelectorAll(`.spark[data-link="${st.data.link}"]`)];
+    const bag = {};
+    let when = '';
+    group.forEach(el => {
+      const S = el._data || chartData(el);
+      if (!S || !S.pts.length) return;
+      const at = Math.min(i, S.pts.length - 1);
+      if (!el._orig) {
+        const dot = el.querySelector('.sp-dot'), read = el.querySelector('.sp-read');
+        el._data = S;
+        el._orig = { r: read ? read.innerHTML : null, l: dot ? dot.style.left : '', t: dot ? dot.style.top : '' };
+      }
+      snap(el, S, at);
+      bag[S.slot] = S.pts[at].v;
+      if (!when) when = MOIS[S.pts[at].t.getMonth()] + ' ' + S.pts[at].t.getFullYear();
+    });
+    const tape = document.querySelector('.desk .tape');
+    if (tape && !state.hideBalance) {
+      const bs = [...tape.querySelectorAll('b')];
+      if (!tape._orig) tape._orig = bs.map(b => ({ t: b.textContent, c: b.className }));
+      tape.classList.add('on');
+      tape.dataset.mo = when;
+      if (bag.income != null && bs[0]) bs[0].textContent = kEUR(bag.income);
+      if (bag.spend != null && bs[1]) bs[1].textContent = kEUR(bag.spend);
+      if (bag.net != null && bs[2]) { bs[2].textContent = sgnEUR(bag.net); bs[2].className = bag.net >= 0 ? 'up' : 'down'; }
+    }
   };
   const paint = () => {
     if (!st || !st.data || st.axis === 'y' || st.f == null) return;
+    if (st.data.link) { paintDesk(); return; }
     const S = st.data;
     const P = S.pts;
     const f = Math.min(P[P.length - 1].x, Math.max(P[0].x, st.f));
