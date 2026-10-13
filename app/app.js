@@ -548,6 +548,35 @@ function spark(curve){
   <div class="sp-hit" aria-hidden="true"></div></div>
   <div class="sp-axis">${axis}</div></div>`;
 }
+function bankCurve(b, tx){
+  const days = 30, t0 = day0(nowRef());
+  const mine = tx.filter(x => x.bank && x.bank.id === b.id);
+  const pts = [];
+  for (let d = days; d >= 0; d--){
+    const end = new Date(t0.getTime() - (d - 1) * DAY_MS);
+    const v = b.total - mine.filter(f => +f.t >= +end).reduce((a, f) => a + f.amt, 0);
+    pts.push({ t: new Date(+end - DAY_MS / 2), v });
+  }
+  return pts;
+}
+function sparkLite(curve, color){
+  if (!curve || curve.length < 2) return '';
+  const W = 340, H = 78, PADL = 2, PADR = 10, PADT = 8, PADB = 8;
+  const vs = curve.map(p => p.v), lo = Math.min(...vs), hi = Math.max(...vs), span = hi - lo || 1;
+  const x = i => PADL + (i / (curve.length - 1)) * (W - PADL - PADR);
+  const y = v => PADT + (hi - v) / span * (H - PADT - PADB);
+  const pts = curve.map((p, i) => [x(i), y(p.v)]);
+  const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const last = pts[pts.length - 1], first = pts[0];
+  const area = `${d} L${last[0].toFixed(1)},${H} L${first[0].toFixed(1)},${H} Z`;
+  const delta = curve[curve.length - 1].v - curve[0].v;
+  const fmt = Math.abs(delta).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  return `<div class="spark lite" role="img" aria-label="Solde sur 30 jours"><div class="spark-plot"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+    <defs><linearGradient id="spk-bk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".4"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+    <path d="${area}" fill="url(#spk-bk)"/><path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg><i class="sp-dot" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%;background:${color};box-shadow:0 0 0 4px var(--bg)"></i></div>
+  <div class="sp-axis"><span class="a0" style="left:0">30 jours</span><span class="a1" style="left:100%">${delta >= 0 ? '+' : '−'}${fmt}</span></div></div>`;
+}
 const catChip = c => `<span class="cat cat-${c}" aria-hidden="true">⟦${(CATS[c] || CATS.autre).ic}⟧</span>`;
 const MOIS_LONG = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 function txKind(x){
@@ -913,22 +942,21 @@ screens.banques = () => {
   ${API ? sandboxNote() : `<button class="btn ghost" id="pw-quit">Revenir aux données d’exemple</button>
   ${pwNote()}`}
 </div>`; }
+  const banks = ledger().banks;
   return `
 <div class="screen">
   <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a><h1 style="font-size:19px">Mes banques</h1>${demoTag}</div>
-  <p class="muted small" style="margin:-6px 2px 14px">On vous affiche honnêtement l’état de chaque connexion. Si une banque ne se synchronise pas, vos chiffres peuvent être incomplets.</p>
-  ${L.map(b=>`
-  <div class="card bankcard">
-    <div style="display:flex;gap:12px;align-items:center">${bankTile(b, 'lg')}
-      <div style="flex:1"><div style="font-weight:700">${b.name}</div><div class="muted small">${b.accounts}</div></div>
-      <span class="status ${b.status==='error'?'err':'ok'}">${b.status==='error'?'Erreur':'Synchronisée'}</span></div>
-    <div class="kv"><span>Dernière synchro</span><span>${b.sync}</span></div>
-    <div class="kv"><span>Accès valable jusqu’au</span><span class="${b.expiresIn<=7?'t-amber':''}">${b.expires} ${b.expiresIn<=7?`(dans ${b.expiresIn} j)`:''}</span></div>
-    <a class="kv lnk" href="#/banque/${b.id}"><span>Voir les comptes et opérations</span><span>›</span></a>
-    <div class="meter"><i style="width:${Math.max(3, b.expiresIn/180*100)}%;background:${b.expiresIn<=7?'var(--accent)':'var(--ink)'}"></i></div>
-    ${b.status==='error' ? `<div class="banner err" style="margin:10px 0 0"><span class="ic">⟦link⟧</span><div><b>La banque refuse la connexion</b>Souvent après un changement de mot de passe. Reconnectez-la en 30 secondes.</div></div><button class="btn small-btn" data-toast="Reconnexion lancée (simulation)">Reconnecter</button>`
-      : b.expiresIn<=7 ? `<div class="banner amber" style="margin:10px 0 0"><span class="ic">⟦key⟧</span><div><b>Renouvelez votre accès avant le ${b.expires}</b>Votre banque exige une nouvelle validation tous les 180 jours (règle européenne DSP2). On vous le rappellera aussi la veille.</div></div><button class="btn mint small-btn" data-toast="Accès renouvelé pour 180 jours (simulation)">Renouveler l’accès</button>` : ''}
-  </div>`).join('')}
+  <div class="bk-list">
+  ${banks.map(b => {
+    const color = /^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '#0066FF';
+    const st = b.status === 'error' ? 'Synchro en échec' : b.status === 'expired' ? 'Session expirée' : 'À jour · ' + b.sync;
+    return `<a class="bk-row" href="#/banque/${b.id}" style="--bk:${color}">${bankTile(b, 'bk-ini', b.status === 'error' ? '<i class="st err"></i>' : b.status === 'expired' ? '<i class="st warn"></i>' : '')}
+      <div class="mid"><div class="name">${esc(b.name)}</div><div class="meta ${b.status === 'error' ? 't-red' : ''}">${esc(st)}</div></div>
+      <div class="amt">${state.hideBalance ? '<span class="masked">••••</span>' : eur(b.total)}</div><span class="chev">⟦chev⟧</span></a>
+      ${b.status === 'error' ? `<div class="banner err"><span class="ic">⟦link⟧</span><div><b>${esc(b.name)} refuse la connexion</b>Souvent après un changement de mot de passe.</div></div><button class="btn small-btn" data-toast="Reconnexion lancée (simulation)">Reconnecter</button>`
+        : b.expiresIn <= 7 ? `<div class="banner amber"><span class="ic">⟦key⟧</span><div><b>Renouvelez ${esc(b.name)} avant le ${esc(b.expires)}</b>Votre banque redemande une validation tous les 180 jours.</div></div><button class="btn mint small-btn" data-toast="Accès renouvelé pour 180 jours (simulation)">Renouveler l’accès</button>` : ''}`;
+  }).join('')}
+  </div>
   ${P ? `<button class="btn ghost" data-toast="Ajout d’une banque (simulation)">⟦plus⟧ Ajouter une banque</button>`
       : `<a class="btn ghost" href="#/premium">⟦lock⟧ Ajouter une autre banque · Premium</a><p class="muted small center" style="margin-top:8px">La version gratuite inclut 1 banque.</p>`}
   <div class="banner blue" style="margin-top:14px"><span class="ic">⟦lock⟧</span><div><b>Lecture seule</b>${APP_NAME} ne voit jamais vos identifiants et ne peut faire aucun virement. Vous pouvez couper l’accès ici à tout moment.</div></div>
@@ -954,6 +982,7 @@ screens.banque = (q, id) => {
       <div><div class="bh-name">${esc(b.name)}</div><div class="bh-sub ${b.status === 'error' ? 't-red' : ''}">${esc(st)}</div></div></div>
     <div class="amount">${moneyOr(b.total)}</div>
     <div class="bh-meta">${b.accs.length} compte${b.accs.length > 1 ? 's' : ''}${b.accounts ? ' · ' + esc(b.accounts) : ''}</div>
+    ${hid ? '<p class="bh-meta">Graphique masqué avec le solde.</p>' : sparkLite(bankCurve(b, L.tx), color)}
   </section>
   <p class="acct-k">Comptes</p>
   <div class="panel bank-accs">

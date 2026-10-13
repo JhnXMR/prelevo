@@ -686,6 +686,17 @@ button.kv{width:100%;border:0;background:transparent;font:inherit;color:inherit;
 .bank-hero .bh-sub,.bank-hero .bh-meta{font-size:13px;color:var(--muted);margin-top:2px}
 .bank-hero .amount{font-size:34px;margin-top:16px;letter-spacing:-.03em}
 .bank-hero .bh-meta{margin-top:6px}
+.spark.lite{margin:14px 0 2px}
+.spark.lite .spark-plot,.spark.lite svg{height:78px}
+.spark.lite .sp-axis{font-variant-numeric:tabular-nums}
+.bk-list{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
+.bk-row{display:flex;align-items:center;gap:12px;padding:14px 14px 14px 16px;border:1px solid var(--line);border-radius:18px;background:var(--bg);color:var(--ink);position:relative;overflow:hidden;box-shadow:var(--shadow)}
+.bk-row::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--bk,#0066FF)}
+.bk-row .mid{flex:1;min-width:0}
+.bk-row .name{font-weight:650;font-size:15.5px;letter-spacing:-.02em}
+.bk-row .meta{font-size:12.5px;color:var(--muted);margin-top:2px}
+.bk-row .amt{font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.bk-row .chev{color:var(--muted)}
 .bank-accs{padding:4px 16px}
 .acc-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:14px 0;border-top:1px solid var(--line);font-size:15px}
 .acc-row:first-child{border-top:0}
