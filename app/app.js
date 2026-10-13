@@ -267,33 +267,40 @@ function totals(){
   return { list, monthly, ups, upsAmt, smalls, dups, found, achieved, fixed, reste };
 }
 
+function alertOn(set){
+  const p = state.alertSets || {};
+  return p[set] !== false;
+}
 function alerts(){
   const t = totals(); const out = [];
-  t.ups.forEach(s => out.push({ id:'up-'+s.id, ic:'⟦trend⟧', bg:'var(--redbg)', title:`${s.name} a augmenté de ${eur(increase(s))}`,
-    text:`Vous payez maintenant ${eur(s.price)}/mois au lieu de ${eur(s.prev)} (+${pct(s)} %). Soit ${eur(increase(s)*12)} de plus par an.`, when: s.id==='flixo'?'Il y a 2 h':'Détecté lors du scan', link:'#/abo/'+s.id }));
-  t.list.filter(s=>s.trial).forEach(s => out.push({ id:'trial-'+s.id, ic:'⟦clock⟧', bg:'var(--amberbg)', title:`Essai gratuit devenu payant : ${s.name}`,
-    text:`${eur(s.price)} prélevés le 2 sept. Vous l’utilisez encore ?`, when:'Il y a 5 j', link:'#/abo/'+s.id }));
-  t.dups.forEach(s => out.push({ id:'dup-'+s.id, ic:'⟦copy⟧', bg:'var(--bluebg)', title:'Doublon détecté : 2 abonnements musique',
-    text:`${s.name} et ${byId(s.duplicate).name} font la même chose. Garder un seul = ${eur(s.price*12)} économisés par an.`, when:'Hier', link:'#/abo/'+s.id }));
-  t.list.filter(s=>s.doubleCharge).forEach(s => out.push({ id:'dbl-'+s.id, ic:'⟦alert⟧', bg:'var(--redbg)', title:`Prélevé 2 fois : ${s.name}`,
-    text:`${eur(s.price)} débités deux fois le ${s.doubleCharge}. On vous aide à demander le remboursement.`, when:'Ce matin', link:'#/abo/'+s.id }));
+  const grp = w => /Aujourd|matin|Maintenant|2 h/.test(w) ? 'Aujourd’hui' : /Hier|5 j/.test(w) ? 'Cette semaine' : 'Plus tôt';
+  const add = a => { a.group = grp(a.when); out.push(a); };
+  t.ups.forEach(s => add({ id:'up-'+s.id, kind:'up', set:'up', ic:'⟦trend⟧', amt:'+'+eur(increase(s)), title:s.name,
+    text:`Prix passé de ${eur(s.prev)} à ${eur(s.price)}`, when: s.id==='flixo'?'Il y a 2 h':'Détecté lors du scan', link:'#/abo/'+s.id }));
+  t.list.filter(s=>s.trial).forEach(s => add({ id:'trial-'+s.id, kind:'trial', set:'trial', ic:'⟦clock⟧', amt:'−'+eur(s.price), title:s.name,
+    text:'Essai gratuit devenu payant', when:'Il y a 5 j', link:'#/abo/'+s.id }));
+  t.dups.forEach(s => add({ id:'dup-'+s.id, kind:'dup', set:'dbl', ic:'⟦copy⟧', amt:'−'+eur(s.price), title:s.name,
+    text:`Doublon avec ${byId(s.duplicate).name}`, when:'Hier', link:'#/abo/'+s.id }));
+  t.list.filter(s=>s.doubleCharge).forEach(s => add({ id:'dbl-'+s.id, kind:'dbl', set:'dbl', ic:'⟦alert⟧', amt:'−'+eur(s.price), title:s.name,
+    text:`Prélevé deux fois le ${s.doubleCharge}`, when:'Ce matin', link:'#/abo/'+s.id }));
   const next = t.list.filter(s=>s.day>=9 && s.day<=12).sort((a,b)=>a.day-b.day);
-  next.forEach(s => out.push({ id:'next-'+s.id, ic:'⟦calendar⟧', bg:'var(--mintbg)', title:`Prélèvement le ${s.day} oct. : ${s.name}`,
-    text:`${eur(s.price)} seront prélevés ${s.day===10?'demain':'dans '+(s.day-9)+' jours'}.`, when:'Aujourd’hui', link:'#/abo/'+s.id }));
-  if (t.reste < 700) out.push({ id:'low', ic:'⟦alert⟧', bg:'var(--amberbg)', title:'Reste à vivre en baisse',
-    text:`Il vous reste ${eur(t.reste)} pour ${PAYDAY_IN} jours, soit ${eur(t.reste/PAYDAY_IN)} par jour.`, when:'Aujourd’hui', link:'#/dashboard' });
+  next.forEach(s => add({ id:'next-'+s.id, kind:'next', set:'next', ic:'⟦calendar⟧', amt:'−'+eur(s.price), title:s.name,
+    text:`Prélèvement le ${s.day} oct.`, when:'Aujourd’hui', link:'#/abo/'+s.id }));
+  if (t.reste < 700) add({ id:'low', kind:'low', set:'next', ic:'⟦alert⟧', title:'Reste à vivre',
+    text:`${eur(t.reste)} pour ${PAYDAY_IN} jours`, when:'Aujourd’hui', link:'#/dashboard' });
   out.forEach(a => a.premium = true);
   linked().forEach(b => {
-    if (b.expiresIn <= 7) out.unshift({ id:'exp-'+b.id, ic:'⟦key⟧', bg:'var(--amberbg)', title:`Accès à ${b.name} : expire dans ${b.expiresIn} jours`,
-      text:`Votre banque demande de renouveler l’accès tous les 180 jours. 30 secondes suffisent, sinon vos données ne se mettront plus à jour.`, when:'Aujourd’hui', link:'#/banques' });
-    if (b.status==='expired') out.unshift({ id:'pwexp', ic:'⟦key⟧', bg:'var(--amberbg)', title:'Session de test Powens expirée',
-      text:'Le jeton de test dure 30 minutes. Vos résultats restent affichés ; reconnectez la banque de test pour les relire.', when:'Maintenant', link:'#/banques' });
-    if (b.status==='error') out.unshift({ id:'err-'+b.id, ic:'⟦link⟧', bg:'var(--redbg)', title:`${b.name} ne se synchronise plus`,
-      text:`Dernière tentative ${b.sync}. Reconnectez-la pour garder des chiffres justes.`, when:'Hier', link:'#/banques' });
+    if (b.expiresIn <= 7) out.unshift({ id:'exp-'+b.id, kind:'bank', set:'bank', ic:'⟦key⟧', title:b.name,
+      text:`Accès expire dans ${b.expiresIn} jours`, when:'Aujourd’hui', link:'#/banques', group:'Aujourd’hui' });
+    if (b.status==='expired') out.unshift({ id:'pwexp', kind:'bank', set:'bank', ic:'⟦key⟧', title:b.name,
+      text:'Session de test expirée', when:'Maintenant', link:'#/banques', group:'Aujourd’hui' });
+    if (b.status==='error') out.unshift({ id:'err-'+b.id, kind:'bank', set:'bank', ic:'⟦link⟧', title:b.name,
+      text:'Ne se synchronise plus', when:'Hier', link:'#/banques', group:'Cette semaine' });
   });
-  const first = out.filter(a=>!a.premium).concat(out.filter(a=>a.id==='dbl-mobi'||a.id==='up-flixo'));
-  const rest = out.filter(a=>!first.includes(a));
-  return [...first, ...rest.filter(a=>!a.id.startsWith('up-')), ...rest.filter(a=>a.id.startsWith('up-'))];
+  const kept = out.filter(a => alertOn(a.set || 'bank'));
+  const first = kept.filter(a=>!a.premium).concat(kept.filter(a=>a.id==='dbl-mobi'||a.id==='up-flixo'));
+  const rest = kept.filter(a=>!first.includes(a));
+  return [...first, ...rest.filter(a=>a.kind!=='up'), ...rest.filter(a=>a.kind==='up')];
 }
 
 // ---------- écrans ----------
@@ -855,30 +862,34 @@ ${USER.prenom} ${USER.nom}`;
 </div>`;
 };
 
-screens.alertes = () => {
+screens.alertes = (q) => {
   const al = alerts(); const P = isP();
-  const item = a => `<a class="alert-item ${state.readAlerts.includes(a.id)?'':'unread'}" href="${a.link}" data-alert="${a.id}">
-    <div class="aic" style="background:${a.bg}">${a.ic}</div>
-    <div><b>${a.title}</b><p>${a.text}</p><div class="when">${a.when}</div></div></a>`;
-  const free = al.filter(a=>!a.premium), prem = al.filter(a=>a.premium);
+  const f = (q && q.get('f')) || 'all';
+  const match = a => f === 'all' || a.kind === f || (f === 'dup' && a.kind === 'dbl') || (f === 'next' && (a.kind === 'trial' || a.kind === 'low'));
+  const shown = al.filter(match);
+  const free = shown.filter(a => !a.premium), prem = shown.filter(a => a.premium);
+  const visible = P ? shown : free;
+  const unread = al.filter(a => !state.readAlerts.includes(a.id)).length;
+  const row = a => `<a class="tx pp al-row ${state.readAlerts.includes(a.id) ? '' : 'unread'}" href="${a.link}" data-alert="${a.id}"><span class="cat">${a.ic}</span><div class="mid"><div class="name">${a.title}</div><div class="meta">${a.text}</div></div>${a.amt ? `<div class="amt">${a.amt}</div>` : ''}</a>`;
+  const order = ['Aujourd’hui', 'Cette semaine', 'Plus tôt'];
+  const groups = order.filter(g => visible.some(a => a.group === g)).map(g => `<section class="mo"><h2>${g}</h2>${visible.filter(a => a.group === g).map(row).join('')}</section>`).join('');
+  const chip = (k, l) => `<button type="button" class="${f === k ? 'on' : ''}" data-af="${k}">${l}</button>`;
+  const tog = (k, lab, open) => `<button type="button" class="acct-row" data-alert-set="${k}"><span class="acct-lab">${lab}</span>${!open && !P ? '<span class="acct-aside">Premium</span><span class="acct-go">⟦lock⟧</span>' : `<span class="sw ${alertOn(k) ? 'on' : ''}"></span>`}</button>`;
   return `
-<div class="screen">
+<div class="screen act">
   <div class="topbar"><h1>Alertes</h1>${demoTag}</div>
-  ${free.map(item).join('')}
-  ${P ? prem.map(item).join('') : (prem.length ? `
-  <div class="section-h"><h2>${prem.length} alertes d’économies en attente</h2>${lockBadge()}</div>
-  <div class="locked-wrap">
-    <div class="lock">${prem.slice(0,3).map(a=>item({...a, title:a.title.replace(/[0-9]+,[0-9]+ €/g,'••• €'), text:'•••••••• •••••• ••••• •••••••• ••• •••••• •••••••••'})).join('')}</div>
-    <div class="locked-cta"><div class="lc-box"><b>Hausses de prix, doubles prélèvements, rappels avant chaque prélèvement</b><a href="#/premium">Débloquer · ${prix(CFG.priceMonth)}/mois</a><span class="lc-trial">${CFG.trial}</span></div></div>
-  </div>` : '')}
-  ${!al.length ? emptyState('bell', 'Tout est calme', 'Aucune alerte pour le moment. Nous vous préviendrons ici si un prix augmente ou si une connexion bancaire demande votre attention.') : ''}
-  <div class="section-h"><h2>Réglages des alertes</h2></div>
-  <div class="card" style="padding:4px 16px">
-    <div class="kv"><span>Accès bancaire bientôt expiré</span><span class="y">Activée</span></div>
-    <div class="kv"><span>Hausse de prix</span><span>${P?'<span class="y">Activée</span>':'⟦lock⟧ Premium'}</span></div>
-    <div class="kv"><span>Double prélèvement</span><span>${P?'<span class="y">Activée</span>':'⟦lock⟧ Premium'}</span></div>
-    <div class="kv"><span>Rappel avant prélèvement</span><span>${P?'la veille':'⟦lock⟧ Premium'}</span></div>
-    <div class="kv"><span>Fin d’essai gratuit</span><span>${P?'<span class="y">Activée</span>':'⟦lock⟧ Premium'}</span></div>
+  <p class="al-lead">${unread ? unread + ' non lue' + (unread > 1 ? 's' : '') : 'Tout est lu'} · hausses, doublons, rappels</p>
+  <div class="seg ops-seg four">${chip('all','Toutes')}${chip('up','Hausses')}${chip('dup','Doublons')}${chip('next','Rappels')}</div>
+  ${unread ? '<div class="al-tools"><button type="button" id="read-all">Tout marquer comme lu</button></div>' : ''}
+  <div class="act-list">${groups || (!prem.length ? emptyState('bell', 'Tout est calme', 'Rien dans ce filtre. On vous prévient ici dès qu’un prix bouge ou qu’une banque demande votre attention.') : '')}</div>
+  ${P || !prem.length ? '' : `<a class="one-card" href="#/premium"><div><b>${prem.length} alertes d’économies</b><span>Hausses, doublons et rappels. ${CFG.trial}.</span></div>${logoMark()}</a>`}
+  <p class="acct-k">Réglages</p>
+  <div class="menu-card">
+    ${tog('bank','Accès bancaire bientôt expiré', true)}
+    ${tog('up','Hausse de prix', false)}
+    ${tog('dbl','Doublon et double prélèvement', false)}
+    ${tog('next','Rappel avant prélèvement', false)}
+    ${tog('trial','Fin d’essai gratuit', false)}
   </div>
 </div>`;
 };
@@ -1547,7 +1558,7 @@ document.addEventListener('click', e => {
   }
   const appIco = e.target.closest('[data-app-icon]');
   if (appIco){ pickIcon(appIco.dataset.appIcon); return; }
-  const el = e.target.closest('[data-bank],[data-method],[data-toast],[data-billing],[data-alert],[data-plan],#go-scan,#keep,#confirm-resil,#go-premium,#reset,#pw-connect,#pw-quit,#pw-refresh,#api-connect,#api-sync,#api-logout,#api-delete,#login-again,#del-check,#copy-letter,#print-letter,#billing-portal,#toggle-balance');
+  const el = e.target.closest('[data-bank],[data-method],[data-toast],[data-billing],[data-alert],[data-af],[data-alert-set],[data-plan],#go-scan,#keep,#confirm-resil,#go-premium,#reset,#read-all,#pw-connect,#pw-quit,#pw-refresh,#api-connect,#api-sync,#api-logout,#api-delete,#login-again,#del-check,#copy-letter,#print-letter,#billing-portal,#toggle-balance');
   if (!el) return;
   if (el.dataset.toast){ e.preventDefault(); toast(el.dataset.toast); }
   else if (el.dataset.bank){ state.bank = el.dataset.bank; save(); render(); }
@@ -1555,6 +1566,15 @@ document.addEventListener('click', e => {
   else if (el.dataset.billing){ billing = el.dataset.billing; render(); }
   else if (el.dataset.plan){ state.premium = el.dataset.plan==='premium'; save(); toast('Mode démo : ' + (state.premium?'Premium':'Gratuit')); render(); }
   else if (el.dataset.alert){ if(!state.readAlerts.includes(el.dataset.alert)){ state.readAlerts.push(el.dataset.alert); save(); } }
+  else if (el.dataset.af){ location.hash = '#/alertes' + (el.dataset.af === 'all' ? '' : '?f=' + el.dataset.af); }
+  else if (el.id === 'read-all'){ alerts().forEach(a => { if (!state.readAlerts.includes(a.id)) state.readAlerts.push(a.id); }); save(); toast('Alertes marquées comme lues'); render(); }
+  else if (el.dataset.alertSet){
+    const k = el.dataset.alertSet;
+    if (!isP() && k !== 'bank'){ location.hash = '#/premium'; return; }
+    state.alertSets = Object.assign({}, state.alertSets);
+    state.alertSets[k] = !alertOn(k);
+    save(); render();
+  }
   else if (el.id==='api-connect'){ e.preventDefault(); toast('Ouverture de la connexion bancaire…'); API.connectBank().catch(apiFail); }
   else if (el.id==='toggle-balance'){ state.hideBalance = !state.hideBalance; save(); render(); }
   else if (el.id==='copy-letter'){ const l = $('.letter'); navigator.clipboard && l ? navigator.clipboard.writeText(l.innerText).then(()=>toast('Lettre copiée'), ()=>toast('Copie impossible')) : toast('Copie impossible'); }
