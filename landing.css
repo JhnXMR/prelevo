@@ -17,7 +17,9 @@ img{display:block;max-width:100%;height:auto}
 .nav-links a:hover{color:var(--ink)}
 .theme{display:flex;flex:none;gap:2px;padding:3px;background:var(--soft);border:1px solid var(--line);border-radius:99px}
 .theme button{width:32px;height:32px;border:0;border-radius:99px;background:transparent;color:var(--muted);display:grid;place-items:center;cursor:pointer;padding:0}
-.theme button svg{width:16px;height:16px;display:block;fill:currentColor;stroke:none}
+.theme button svg{width:18px;height:18px;display:block;fill:currentColor;stroke:none}
+.theme .ic-sun .rays{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round}
+.theme .ic-moon .corona{fill:none;stroke:currentColor;stroke-width:1.25}
 .theme button .ic-phone{fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 html[data-theme-pref="light"] .theme [data-theme-set="light"],
 html[data-theme-pref="dark"] .theme [data-theme-set="dark"],
