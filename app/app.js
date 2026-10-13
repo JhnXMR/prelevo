@@ -511,6 +511,7 @@ function liveLedger(){
 }
 
 let SPARK = null;
+let CURVES = [];
 function homeCurve(){
   const L = ledger();
   if (L.live) {
@@ -533,13 +534,13 @@ function spark(curve){
   const last = pts[pts.length - 1], first = pts[0];
   const track = curve.map((p, i) => ({ x: pts[i][0] / W * 100, y: pts[i][1] / H * 100, v: p.v, t: p.t }));
   const line = d, area = `${d} L${last[0].toFixed(1)},${H} L${first[0].toFixed(1)},${H} Z`;
-  SPARK = { pts: track, poly: pts, H, line, area, first: curve[0].v, tf: homeTf };
+  SPARK = { pts: track, poly: pts, H, line, area, first: curve[0].v, tf: homeTf, home: true };
   const nLab = homeTf === '24H' || homeTf === '7J' ? 4 : 5;
   const seen = new Set(), idxs = [];
   for (let k = 0; k < nLab; k++){ const i = Math.round(k * (curve.length - 1) / (nLab - 1)); if (!seen.has(i)) { seen.add(i); idxs.push(i); } }
   const lab = d => homeTf === '24H' ? String(d.getHours()).padStart(2, '0') + ' h' : (homeTf === '1A' || homeTf === 'TOUT') ? MOIS[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2) : d.getDate() + ' ' + MOIS[d.getMonth()];
   const axis = idxs.map((i, k) => `<span class="${k === 0 ? 'a0' : k === idxs.length - 1 ? 'a1' : ''}" style="left:${track[i].x.toFixed(2)}%">${lab(curve[i].t)}</span>`).join('');
-  return `<div class="spark" role="img" aria-label="Évolution du solde sur ${tf[2]}. Glissez pour voir le détail."><div class="spark-plot"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
+  return `<div class="spark home-spark" role="img" aria-label="Évolution du solde sur ${tf[2]}. Glissez pour voir le détail."><div class="spark-plot"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
     <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".5"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
     <path class="sp-area" d="${area}" fill="url(#spk)"/>
     <path class="sp-dim" d="" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
@@ -559,23 +560,50 @@ function bankCurve(b, tx){
   }
   return pts;
 }
-function sparkLite(curve, color){
+function curveChart(curve, opt = {}){
   if (!curve || curve.length < 2) return '';
-  const W = 340, H = 78, PADL = 2, PADR = 10, PADT = 8, PADB = 8;
-  const vs = curve.map(p => p.v), lo = Math.min(...vs), hi = Math.max(...vs), span = hi - lo || 1;
+  const color = opt.color || '#0066FF';
+  const H = opt.h || 92;
+  const W = 340, PADL = 4, PADR = 12, PADT = 10, PADB = 8;
+  let lo = Math.min(...curve.map(p => p.v)), hi = Math.max(...curve.map(p => p.v));
+  if (opt.zero){ lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
+  const span = hi - lo || 1;
   const x = i => PADL + (i / (curve.length - 1)) * (W - PADL - PADR);
   const y = v => PADT + (hi - v) / span * (H - PADT - PADB);
   const pts = curve.map((p, i) => [x(i), y(p.v)]);
   const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
   const last = pts[pts.length - 1], first = pts[0];
   const area = `${d} L${last[0].toFixed(1)},${H} L${first[0].toFixed(1)},${H} Z`;
+  const idx = CURVES.length;
+  const gid = 'spk' + idx;
+  CURVES.push({
+    pts: curve.map((p, i) => ({ x: pts[i][0] / W * 100, y: pts[i][1] / H * 100, v: p.v, t: p.t })),
+    poly: pts, H, line: d, area, fmt: opt.fmt || 'day', signed: !!opt.signed, home: false
+  });
+  const n = curve.length, idxs = [];
+  if (opt.fmt === 'month'){ for (let i = 0; i < n; i++) if (n <= 6 || i === 0 || i === n - 1 || i % 2 === 0) idxs.push(i); }
+  else { const seen = new Set(); for (let k = 0; k < 4; k++){ const i = Math.round(k * (n - 1) / 3); if (!seen.has(i)){ seen.add(i); idxs.push(i); } } }
+  const axis = idxs.map((i, k) => {
+    const txt = opt.fmt === 'month' ? MOIS[curve[i].t.getMonth()] : curve[i].t.getDate() + ' ' + MOIS[curve[i].t.getMonth()];
+    const style = k === 0 ? 'left:0' : k === idxs.length - 1 ? 'left:100%' : `left:${(pts[i][0] / W * 100).toFixed(2)}%`;
+    return `<span class="${k === 0 ? 'a0' : k === idxs.length - 1 ? 'a1' : ''}" style="${style}">${txt}</span>`;
+  }).join('');
+  const total = opt.total != null ? opt.total : curve[curve.length - 1].v;
+  const head = opt.header != null ? opt.header : (opt.signed ? sgnEUR(total) : (opt.fmt === 'month' ? kEUR(total) : total.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'));
+  const zero = opt.zero && lo < 0 && hi > 0 ? `<line x1="0" y1="${y(0).toFixed(1)}" x2="${W}" y2="${y(0).toFixed(1)}" stroke="currentColor" stroke-opacity=".2" stroke-dasharray="3 4"/>` : '';
+  return `<div class="spark lite" data-curve="${idx}" style="--spk:${color}" role="img" aria-label="${opt.label || 'Courbe. Glissez pour le détail.'}"><div class="sp-read"><span>${opt.caption || ''}</span><b>${head}</b></div><div class="spark-plot" style="height:${H}px"><svg viewBox="0 0 ${W} ${H}" style="height:${H}px" preserveAspectRatio="none" aria-hidden="true">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".42"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+    ${zero}<path class="sp-area" d="${area}" fill="url(#${gid})"/>
+    <path class="sp-dim" d="" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+    <path class="sp-line" d="${d}" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg><i class="sp-vline" hidden></i><i class="sp-dot" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%;background:${color};box-shadow:0 0 0 4px var(--bg)"></i>
+  <div class="sp-hit" aria-hidden="true"></div></div><div class="sp-axis">${axis}</div></div>`;
+}
+function sparkLite(curve, color){
+  if (!curve || curve.length < 2) return '';
   const delta = curve[curve.length - 1].v - curve[0].v;
   const fmt = Math.abs(delta).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
-  return `<div class="spark lite" role="img" aria-label="Solde sur 30 jours"><div class="spark-plot"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
-    <defs><linearGradient id="spk-bk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".4"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
-    <path d="${area}" fill="url(#spk-bk)"/><path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
-  </svg><i class="sp-dot" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%;background:${color};box-shadow:0 0 0 4px var(--bg)"></i></div>
-  <div class="sp-axis"><span class="a0" style="left:0">30 jours</span><span class="a1" style="left:100%">${delta >= 0 ? '+' : '−'}${fmt}</span></div></div>`;
+  return curveChart(curve, { color, h: 86, fmt: 'day', caption: '30 jours', header: (delta >= 0 ? '+' : '−') + fmt, label: 'Solde sur 30 jours' });
 }
 function spendOf(tx){
   const from = day0(nowRef()).getTime() - 29 * DAY_MS;
@@ -583,28 +611,18 @@ function spendOf(tx){
 }
 function flowBars(rows, color, word){
   const days = 30, t0 = day0(nowRef());
-  const buckets = [];
+  const curve = [];
   for (let d = days - 1; d >= 0; d--){
     const start = t0.getTime() - d * DAY_MS;
     const v = rows.filter(x => +x.t >= start && +x.t < start + DAY_MS).reduce((a, x) => a + Math.abs(x.amt), 0);
-    buckets.push(v);
+    curve.push({ t: new Date(start + 12 * 3600000), v });
   }
-  const total = buckets.reduce((a, b) => a + b, 0);
-  const max = Math.max(...buckets, 1);
-  const W = 340, H = 84, gap = 3, n = buckets.length, bw = (W - gap * (n - 1)) / n;
-  const bars = buckets.map((v, i) => {
-    const h = v <= 0 ? 2 : Math.max(3, v / max * (H - 6));
-    return `<rect x="${(i * (bw + gap)).toFixed(2)}" y="${(H - h).toFixed(2)}" width="${bw.toFixed(2)}" height="${h.toFixed(2)}" rx="1.6" fill="${color}" opacity="${v ? .95 : .2}"/>`;
-  }).join('');
-  const fmt = total.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  const total = curve.reduce((a, p) => a + p.v, 0);
+  if (!total) return `<p class="insight">${word === 'Revenus' ? 'Aucun revenu' : 'Aucune dépense'} sur 30 jours.</p>`;
   const by = {};
   rows.forEach(x => { const k = x.cat || 'autre'; by[k] = (by[k] || 0) + Math.abs(x.amt); });
-  const tops = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 3);
-  const cats = tops.map(([k, v]) => `<span>${esc((CATS[k] || CATS.autre).l)} · ${v.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €</span>`).join('');
-  if (!total) return `<p class="insight">${word === 'Revenus' ? 'Aucun revenu' : 'Aucune dépense'} sur 30 jours.</p>`;
-  return `<div class="spend" role="img" aria-label="${word} sur 30 jours, ${fmt}"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>
-    <div class="sp-axis"><span class="a0" style="left:0">30 jours</span><span class="a1" style="left:100%">${fmt}</span></div>
-    ${cats ? `<div class="spend-cats">${cats}</div>` : ''}</div>`;
+  const cats = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `<span>${esc((CATS[k] || CATS.autre).l)} · ${v.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €</span>`).join('');
+  return curveChart(curve, { color, fmt: 'day', total, caption: '30 jours', label: word + ' sur 30 jours' }) + (cats ? `<div class="spend-cats">${cats}</div>` : '');
 }
 function spendBars(tx, color){ return flowBars(spendOf(tx), color, 'Dépenses'); }
 function incomeOf(tx){
@@ -653,36 +671,16 @@ function monthAxis(series, key){
   }).join('');
 }
 function monthBars(series, key, color){
-  const vals = series.map(s => s[key]);
-  const max = Math.max(...vals, 1);
-  const W = 340, H = 108, gap = series.length > 12 ? 4 : 7, n = vals.length, bw = (W - gap * (n - 1)) / n;
-  const bars = vals.map((v, i) => {
-    const h = v <= 0 ? 2 : Math.max(4, v / max * (H - 4));
-    return `<rect x="${(i * (bw + gap)).toFixed(2)}" y="${(H - h).toFixed(2)}" width="${Math.max(bw, 1).toFixed(2)}" height="${h.toFixed(2)}" rx="2" fill="${color}" opacity="${v ? .95 : .22}"/>`;
-  }).join('');
-  const total = vals.reduce((a, b) => a + b, 0);
-  return `<div class="spend mbar" role="img" aria-label="${kEUR(total)}"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>
-    <div class="sp-axis">${monthAxis(series, key === 'income' ? 'income' : '')}</div></div>`;
+  const curve = series.map(s => ({ t: s.t, v: s[key] }));
+  if (curve.length < 2) return '';
+  const total = curve.reduce((a, p) => a + p.v, 0);
+  return curveChart(curve, { color, h: 108, fmt: 'month', total, label: key === 'income' ? 'Rentrées' : 'Dépenses mensuelles' });
 }
 function netLine(series){
-  const vals = series.map(s => s.net);
-  const lo = Math.min(0, ...vals), hi = Math.max(0, ...vals), span = hi - lo || 1;
-  const W = 340, H = 108, padX = 8, padY = 10;
-  const x = i => padX + (vals.length < 2 ? W / 2 : i / (vals.length - 1) * (W - padX * 2));
-  const y = v => padY + (hi - v) / span * (H - padY * 2);
-  const pts = vals.map((v, i) => [x(i), y(v)]);
-  const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
-  const last = pts[pts.length - 1], zero = y(0);
-  const period = vals.reduce((a, b) => a + b, 0);
-  const color = period >= 0 ? '#1FA971' : '#FF5A6A';
-  const dot = vals[vals.length - 1] >= 0 ? '#1FA971' : '#FF5A6A';
-  const area = `${d} L${last[0].toFixed(1)},${zero.toFixed(1)} L${pts[0][0].toFixed(1)},${zero.toFixed(1)} Z`;
-  const net = vals.reduce((a, b) => a + b, 0);
-  return `<div class="spend mbar" role="img" aria-label="Net ${sgnEUR(net)}"><div class="mplot"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
-    <line x1="0" y1="${zero.toFixed(1)}" x2="${W}" y2="${zero.toFixed(1)}" stroke="currentColor" stroke-opacity=".18" stroke-dasharray="3 4"/>
-    <path d="${area}" fill="${color}" opacity=".18"/><path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
-  </svg><i class="sp-dot" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%;background:${dot};box-shadow:0 0 0 4px var(--bg)"></i></div>
-    <div class="sp-axis">${monthAxis(series, 'net')}</div></div>`;
+  const curve = series.map(s => ({ t: s.t, v: s.net }));
+  if (curve.length < 2) return '';
+  const net = curve.reduce((a, p) => a + p.v, 0);
+  return curveChart(curve, { color: net >= 0 ? '#1FA971' : '#FF5A6A', h: 108, fmt: 'month', signed: true, zero: true, total: net, label: 'Net' });
 }
 function posteRows(tx){
   const rows = spendOf(tx);
@@ -691,7 +689,7 @@ function posteRows(tx){
   const tops = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 6);
   const max = tops.length ? tops[0][1] : 1;
   if (!tops.length) return '<p class="insight">Aucune dépense sur 30 jours.</p>';
-  return tops.map(([k, v]) => `<div class="poste"><span>${esc((CATS[k] || CATS.autre).l)}</span><i class="bar"><i style="width:${Math.max(6, v / max * 100).toFixed(1)}%"></i></i><b>${kEUR(v)}</b></div>`).join('');
+  return tops.map(([k, v]) => `<div class="poste"><span>${esc((CATS[k] || CATS.autre).l)}</span><b>${kEUR(v)}</b></div>`).join('');
 }
 screens.graphiques = () => {
   const hid = state.hideBalance;
@@ -1717,6 +1715,7 @@ async function apiFinish(){
 
 // ---------- routeur ----------
 function render(){
+  CURVES = [];
   _timeline = null;
   document.querySelectorAll('body > .sub-bar').forEach(n => n.remove());
   const raw = location.hash.replace(/^#\/?/, '') || (API ? (API.loggedIn() && LIVE ? 'dashboard' : 'onboarding') : state.connected ? 'dashboard' : 'onboarding');
@@ -1992,16 +1991,19 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     if (dl) dl.innerHTML = o.d;
     const dot = el.querySelector('.sp-dot'); if (dot) { dot.hidden = false; dot.style.left = o.l; dot.style.top = o.t; }
     const vl = el.querySelector('.sp-vline'); if (vl) vl.hidden = true;
-    if (SPARK) {
+    const read = el.querySelector('.sp-read'); if (read && o.r != null) read.innerHTML = o.r;
+    const S = el._data;
+    if (S) {
       const line = el.querySelector('.sp-line'), dim = el.querySelector('.sp-dim'), area = el.querySelector('.sp-area');
-      if (line) line.setAttribute('d', SPARK.line);
-      if (area) area.setAttribute('d', SPARK.area);
+      if (line) line.setAttribute('d', S.line);
+      if (area) area.setAttribute('d', S.area);
       if (dim) dim.setAttribute('d', '');
     }
   };
   const paint = () => {
-    if (!st || !SPARK || st.axis === 'y' || st.f == null) return;
-    const P = SPARK.pts;
+    if (!st || !st.data || st.axis === 'y' || st.f == null) return;
+    const S = st.data;
+    const P = S.pts;
     const f = Math.min(P[P.length - 1].x, Math.max(P[0].x, st.f));
     let i = 1;
     while (i < P.length - 1 && P[i].x < f) i++;
@@ -2009,11 +2011,12 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     const span = b.x - a.x, u = span ? Math.min(1, Math.max(0, (f - a.x) / span)) : 0;
     const y = a.y + (b.y - a.y) * u, v = a.v + (b.v - a.v) * u;
     const t = new Date(a.t.getTime() + (b.t.getTime() - a.t.getTime()) * u);
-    const amt = document.querySelector('.total [data-count]'), dl = document.getElementById('sp-delta');
+    const amt = st.home ? document.querySelector('.total [data-count]') : null;
+    const dl = st.home ? document.getElementById('sp-delta') : null;
     st.el.classList.add('scrub');
     if (st.vl) { st.vl.hidden = false; st.vl.style.left = f + '%'; }
     if (st.dot) { st.dot.hidden = false; st.dot.style.left = f + '%'; st.dot.style.top = y + '%'; }
-    const poly = SPARK.poly, ai = Math.max(0, i - 1), bi = Math.min(poly.length - 1, i);
+    const poly = S.poly, ai = Math.max(0, i - 1), bi = Math.min(poly.length - 1, i);
     const pa = poly[ai], pb = poly[bi];
     const sx = pa[0] + (pb[0] - pa[0]) * u, sy = pa[1] + (pb[1] - pa[1]) * u;
     const seg = arr => arr.map((p, n) => (n ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
@@ -2022,11 +2025,20 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     const line = st.el.querySelector('.sp-line'), dim = st.el.querySelector('.sp-dim'), area = st.el.querySelector('.sp-area');
     if (line) line.setAttribute('d', seg(left));
     if (dim) dim.setAttribute('d', seg(right));
-    if (area) area.setAttribute('d', seg(left) + ` L${sx.toFixed(1)},${SPARK.H} L${poly[0][0].toFixed(1)},${SPARK.H} Z`);
-    if (amt && !state.hideBalance) { amt.dataset.scrub = '1'; amt.innerHTML = money(v); }
-    if (dl && !state.hideBalance) {
-      const hh = String(t.getHours()).padStart(2, '0'), mm = String(t.getMinutes()).padStart(2, '0');
-      dl.innerHTML = `<span class="scrub-when">${JC[t.getDay()]} ${t.getDate()} ${MOIS[t.getMonth()]} à ${hh}:${mm}</span>`;
+    if (area) area.setAttribute('d', seg(left) + ` L${sx.toFixed(1)},${S.H} L${poly[0][0].toFixed(1)},${S.H} Z`);
+    if (st.home) {
+      if (amt && !state.hideBalance) { amt.dataset.scrub = '1'; amt.innerHTML = money(v); }
+      if (dl && !state.hideBalance) {
+        const hh = String(t.getHours()).padStart(2, '0'), mm = String(t.getMinutes()).padStart(2, '0');
+        dl.innerHTML = `<span class="scrub-when">${JC[t.getDay()]} ${t.getDate()} ${MOIS[t.getMonth()]} à ${hh}:${mm}</span>`;
+      }
+    } else {
+      const read = st.el.querySelector('.sp-read');
+      if (read && !state.hideBalance) {
+        const when = S.fmt === 'month' ? MOIS[t.getMonth()] + ' ' + t.getFullYear() : t.getDate() + ' ' + MOIS[t.getMonth()];
+        const num = S.signed ? sgnEUR(v) : (S.fmt === 'month' ? kEUR(v) : v.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €');
+        read.innerHTML = `<span>${when}</span><b>${num}</b>`;
+      }
     }
   };
   const frame = () => { raf = 0; paint(); };
@@ -2037,24 +2049,31 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     return Math.min(100, Math.max(0, (clientX - r.left) / w * 100));
   };
   const syncDay = (clientX, haptic) => {
-    if (!st || !SPARK) return;
-    const f = xOf(clientX), P = SPARK.pts;
+    if (!st || !st.data) return;
+    const f = xOf(clientX), P = st.data.pts;
     let i = 0, best = 1e9;
     for (let k = 0; k < P.length; k++) { const dist = Math.abs(P[k].x - f); if (dist < best) { best = dist; i = k; } }
     if (haptic && st.i >= 0 && i !== st.i) buzz(8);
     st.i = i; st.f = f;
   };
+  const chartData = el => el.dataset.curve != null ? CURVES[+el.dataset.curve] : (el.classList.contains('home-spark') ? SPARK : null);
   const arm = (el, clientX, clientY) => {
-    const amt = document.querySelector('.total [data-count]'), dl = document.getElementById('sp-delta'), dot = el.querySelector('.sp-dot');
-    st = { el, i: -1, axis: null, x0: clientX, y0: clientY, lastY: clientY, pointerId: null, vl: el.querySelector('.sp-vline'), dot };
+    const data = chartData(el); if (!data) return false;
+    const amt = data.home ? document.querySelector('.total [data-count]') : null;
+    const dl = data.home ? document.getElementById('sp-delta') : null;
+    const dot = el.querySelector('.sp-dot'), read = el.querySelector('.sp-read');
+    st = { el, data, home: !!data.home, i: -1, axis: null, x0: clientX, y0: clientY, lastY: clientY, pointerId: null, vl: el.querySelector('.sp-vline'), dot };
+    el._data = data;
     el._orig = {
       a: (state.hideBalance || !amt || !amt.dataset.count) ? (amt ? amt.innerHTML : '') : money(+amt.dataset.count),
       d: dl ? dl.innerHTML : '',
+      r: read ? read.innerHTML : null,
       l: dot ? dot.style.left : '',
       t: dot ? dot.style.top : ''
     };
     syncDay(clientX, false);
     paint();
+    return true;
   };
   const end = () => {
     if (!st) return;
@@ -2065,11 +2084,11 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
   // Écouteurs posés tout de suite (pas pendant le touchstart) : sinon iOS
   // considère le touchmove comme passif et le doigt ne fait que faire défiler.
   document.addEventListener('touchstart', e => {
-    if (st || !SPARK || !e.touches || e.touches.length !== 1) return;
+    if (st || !e.touches || e.touches.length !== 1) return;
     const el = e.target.closest && e.target.closest('.sp-hit');
     if (!el) return;
     const spark = el.closest('.spark');
-    if (!spark) return;
+    if (!spark || !chartData(spark)) return;
     const t = e.touches[0];
     arm(spark, t.clientX, t.clientY);
   }, { passive: true, capture: true });
@@ -2100,11 +2119,11 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
   document.addEventListener('touchcancel', () => { if (st && st.pointerId == null) end(); }, { passive: true, capture: true });
 
   document.addEventListener('pointerdown', e => {
-    if (e.pointerType === 'touch' || e.button > 0 || !SPARK) return;
+    if (e.pointerType === 'touch' || e.button > 0) return;
     const hit = e.target.closest && e.target.closest('.sp-hit');
     if (!hit) return;
     const el = hit.closest('.spark');
-    if (!el) return;
+    if (!el || !chartData(el)) return;
     if (st) end();
     arm(el, e.clientX, e.clientY);
     st.axis = 'x'; st.pointerId = e.pointerId;
@@ -2120,7 +2139,8 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
   document.addEventListener('pointercancel', pend);
 
   window.__scrubTo = f => {
-    const el = document.querySelector('.spark'); if (!el || !SPARK) return;
+    const el = document.querySelector('.spark.home-spark') || document.querySelector('.spark');
+    if (!el || !chartData(el)) return;
     if (st) end();
     const r = el.getBoundingClientRect();
     arm(el, r.left + r.width * f, r.top + r.height / 2);
