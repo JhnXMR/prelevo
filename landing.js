@@ -23,18 +23,17 @@
     if (!v.referrer) { try { const r = document.referrer && new URL(document.referrer); if (r && r.host !== location.host) v.referrer = r.host; } catch (e) {} }
     try { sessionStorage.setItem(VKEY, JSON.stringify(v)); } catch (e) {}
     return v;
-  
-  // Partage : lien tracé utm_source=partage
+  })();
+  window.PRELEVO_VISIT = visit;
+
   document.querySelectorAll('.wl .share').forEach(b => b.addEventListener('click', async () => {
     const url = location.origin + location.pathname + '?utm_source=partage&utm_medium=ami';
     const data = { title: 'Prelevo', text: 'Prelevo repère vos abonnements, les hausses de prix et vous aide à résilier. Liste d’attente :', url };
     try {
       if (navigator.share) { await navigator.share(data); return; }
-      await navigator.clipboard.writeText(url); b.textContent = 'Lien copié ✓';
-    } catch (e) { if (e && e.name !== 'AbortError') { b.textContent = url; } }
+      await navigator.clipboard.writeText(url); b.textContent = 'Lien copié';
+    } catch (e) { if (e && e.name !== 'AbortError') b.textContent = 'Lien copié'; }
   }));
-})();
-  window.PRELEVO_VISIT = visit;
 
   const KEY = 'prelevo-waitlist';
   const valid = e => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e);

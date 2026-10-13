@@ -54,8 +54,8 @@ h1{font-size:clamp(42px,6vw,68px);line-height:1.02;letter-spacing:-.05em;font-we
 .demo-link a{color:var(--accent-d);font-weight:650;text-decoration:none}
 .demo-link span{color:var(--muted);margin-left:6px;font-size:13px}
 .hero-phone{display:flex;justify-content:center}
-.phone{width:300px;border-radius:36px;padding:8px;background:#000;border:1px solid #2A2E36;box-shadow:0 30px 70px -24px rgba(0,0,0,.7)}
-.phone img{border-radius:28px;width:100%}
+.phone{width:280px;border-radius:32px;padding:7px;background:#000;border:1px solid #2A2E36;box-shadow:0 30px 70px -24px rgba(0,0,0,.7)}
+.phone img{border-radius:26px;width:100%;height:auto}
 .phone.sm{width:270px;flex:none}
 .strip{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:8px 22px 28px}
 .strip div{background:var(--soft);border-radius:18px;padding:16px 16px 14px;display:flex;flex-direction:column;gap:4px}
