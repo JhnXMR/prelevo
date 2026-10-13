@@ -121,9 +121,22 @@ function applyServer(me){
   state.connected = true; save();
   demoTag = '<span class="demo live">Banque de test</span>';
 }
+function humanError(e, fallback){
+  const msg = String((e && e.message) || '');
+  const status = e && e.status;
+  if (status === 401) return 'Votre session a expiré. Reconnectez-vous.';
+  if (status === 403) return 'Cette action n’est pas autorisée.';
+  if (status === 404) return 'Nous n’avons pas trouvé cet élément.';
+  if (status === 429) return 'Trop de tentatives. Patientez un instant, puis réessayez.';
+  if (status >= 500) return 'Le service est momentanément indisponible. Réessayez dans un instant.';
+  if (/failed to fetch|networkerror|network request|load failed|injoignable/i.test(msg)) return 'Serveur injoignable. Vérifiez votre connexion, puis réessayez.';
+  if (/timeout|timed out/i.test(msg)) return 'Le service met trop de temps à répondre. Réessayez.';
+  if (msg && /[àâäéèêëïîôùûüç]/i.test(msg) && msg.length < 180 && !/https?:|token|stack|exception/i.test(msg)) return msg;
+  return fallback || 'Une erreur est survenue. Réessayez dans un instant.';
+}
 function apiFail(e){
-  if (e && e.status === 401){ ME = null; LIVE = null; toast('Session expirée : reconnectez-vous'); location.hash = '#/connexion'; return; }
-  toast(e && e.message ? e.message : 'Erreur');
+  if (e && e.status === 401){ ME = null; LIVE = null; toast('Votre session a expiré. Reconnectez-vous.'); location.hash = '#/connexion'; return; }
+  toast(humanError(e));
 }
 async function apiLoadMe(){ try { applyServer(await API.me()); } catch(e){ apiFail(e); } }
 const sandboxNote = () => window.PW && API ? `<div class="pw-note"><b>Banque de test (sandbox Powens)</b>
@@ -136,7 +149,7 @@ const pwNote = () => `<div class="pw-note"><b>Identifiants de test Powens</b>
 function pwConnect(){
   if (!PWX) return toast('Module Powens indisponible');
   toast('Ouverture de la banque de test Powens…');
-  PWX.start().catch(err => toast('Powens injoignable : ' + err.message));
+  PWX.start().catch(err => toast(humanError(err, 'La banque de test est injoignable. Réessayez.')));
 }
 
 
@@ -179,7 +192,7 @@ const ICONS = {
   eyeoff:'<path d="M3 3l18 18"/><path d="M10.6 6.2A10 10 0 0 1 12 6c6.5 0 10 6 10 6a18 18 0 0 1-3.2 3.8"/><path d="M6.1 6.7C3.6 8.4 2 12 2 12s3.5 6 10 6c1.5 0 2.8-.3 4-.8"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
 };
 const icons = html => html.replace(/⟦(\w+)⟧/g, (_, n) => ICONS[n] ? SVG(ICONS[n]) : '').replace(/<a class="back"(?![^>]*aria-label)/g, '<a class="back" aria-label="Retour"');
-const emptyState = (ic, title, text) => `<div class="empty" role="status"><span class="empty-ic">⟦${ic}⟧</span><b>${title}</b><p>${text}</p></div>`;
+const emptyState = (ic, title, text, cls = '') => `<div class="empty ${cls}" role="status"><span class="empty-ic">⟦${ic}⟧</span><b>${title}</b><p>${text}</p></div>`;
 const skel = () => `<div class="sk" aria-hidden="true"><i class="lg"></i><i></i><i></i><i class="short"></i></div>`;
 
 // ---------- utilitaires ----------
@@ -226,9 +239,25 @@ function nextDebit(s){
 }
 const subBank = s => { if (LIVE){ const b = liveLedger().banks[0]; return b; } return LINKED[0]; };
 // Tuile banque : logo officiel de l'agrégateur si fourni (mode réel), sinon monogramme à la couleur de la marque.
-const lum = hex => { const m = /^#?([0-9a-f]{6})$/i.exec(hex || ''); if (!m) return 0; const n = parseInt(m[1], 16), c = [n >> 16, n >> 8 & 255, n & 255].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
+function contrastHex(fg, bg){
+  const L = h => { const n = parseInt(String(h).replace('#',''), 16); const c = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }); return .2126 * c[0] + .7152 * c[1] + .0722 * c[2]; };
+  const a = L(fg), b = L(bg); return (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+}
+function shadeHex(hex, t){
+  const n = parseInt(hex.slice(1), 16);
+  const ch = [(n >> 16) & 255, (n >> 8) & 255, n & 255].map(v => Math.max(0, Math.min(255, Math.round(v + ((t < 0 ? 0 : 255) - v) * Math.abs(t)))));
+  return '#' + ch.map(v => v.toString(16).padStart(2, '0')).join('');
+}
+/** Garde la teinte, ajuste juste assez pour que le monogramme atteigne 4,5:1. */
+function tuneColor(hex){
+  let bg = /^#[0-9a-f]{6}$/i.test(hex || '') ? hex : '#0066FF';
+  let fg = contrastHex('#FFFFFF', bg) >= contrastHex('#0A0B0D', bg) ? '#FFFFFF' : '#0A0B0D';
+  for (let i = 0; i < 6 && contrastHex(fg, bg) < 4.5; i++) bg = shadeHex(bg, fg === '#FFFFFF' ? -.08 : .1);
+  return { bg, fg };
+}
 const bankTile = (b, cls = '', extra = '') => {
-  const bg = /^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '#0066FF', fg = b.fg || (lum(bg) > .45 ? '#0A0B0D' : '#FFFFFF');
+  const tuned = tuneColor(b.color);
+  const bg = tuned.bg, fg = (b.fg && contrastHex(b.fg, tuned.bg) >= 4.5) ? b.fg : tuned.fg;
   const ini = esc(b.ini || String(b.name || 'B').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase());
   const img = b.logo && /^https:\/\//.test(b.logo) ? `<img src="${esc(b.logo)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.remove('has-logo');this.remove()">` : '';
   return `<span class="bk-tile ${img ? 'has-logo' : ''} ${String(ini).length > 2 ? 'x3' : ''} ${cls}" style="--bk:${bg};--bkf:${fg}" title="${esc(b.name)}">${img}<b>${ini}</b>${extra}</span>`;
@@ -271,20 +300,21 @@ function alertOn(set){
   const p = state.alertSets || {};
   return p[set] !== false;
 }
+const keptQuiet = id => (state.kept || []).includes(id);
 function alerts(){
   const t = totals(); const out = [];
   const grp = w => /Aujourd|matin|Maintenant|2 h/.test(w) ? 'Aujourd’hui' : /Hier|5 j/.test(w) ? 'Cette semaine' : 'Plus tôt';
   const add = a => { a.group = grp(a.when); out.push(a); };
-  t.ups.forEach(s => add({ id:'up-'+s.id, kind:'up', set:'up', ic:'⟦trend⟧', amt:'+'+eur(increase(s)), title:s.name,
+  t.ups.filter(s => !keptQuiet(s.id)).forEach(s => add({ id:'up-'+s.id, kind:'up', set:'up', ic:'⟦trend⟧', amt:'+'+eur(increase(s)), title:s.name,
     text:`Prix passé de ${eur(s.prev)} à ${eur(s.price)}`, when: s.id==='flixo'?'Il y a 2 h':'Détecté lors du scan', link:'#/abo/'+s.id }));
-  t.list.filter(s=>s.trial).forEach(s => add({ id:'trial-'+s.id, kind:'trial', set:'trial', ic:'⟦clock⟧', amt:'−'+eur(s.price), title:s.name,
+  t.list.filter(s=>s.trial && !keptQuiet(s.id)).forEach(s => add({ id:'trial-'+s.id, kind:'trial', set:'trial', ic:'⟦clock⟧', amt:'−'+eur(s.price), title:s.name,
     text:'Essai gratuit devenu payant', when:'Il y a 5 j', link:'#/abo/'+s.id }));
-  t.dups.forEach(s => add({ id:'dup-'+s.id, kind:'dup', set:'dbl', ic:'⟦copy⟧', amt:'−'+eur(s.price), title:s.name,
+  t.dups.filter(s => !keptQuiet(s.id)).forEach(s => add({ id:'dup-'+s.id, kind:'dup', set:'dbl', ic:'⟦copy⟧', amt:'−'+eur(s.price), title:s.name,
     text:`Doublon avec ${byId(s.duplicate).name}`, when:'Hier', link:'#/abo/'+s.id }));
-  t.list.filter(s=>s.doubleCharge).forEach(s => add({ id:'dbl-'+s.id, kind:'dbl', set:'dbl', ic:'⟦alert⟧', amt:'−'+eur(s.price), title:s.name,
+  t.list.filter(s=>s.doubleCharge && !keptQuiet(s.id)).forEach(s => add({ id:'dbl-'+s.id, kind:'dbl', set:'dbl', ic:'⟦alert⟧', amt:'−'+eur(s.price), title:s.name,
     text:`Prélevé deux fois le ${s.doubleCharge}`, when:'Ce matin', link:'#/abo/'+s.id }));
   const next = t.list.filter(s=>s.day>=9 && s.day<=12).sort((a,b)=>a.day-b.day);
-  next.forEach(s => add({ id:'next-'+s.id, kind:'next', set:'next', ic:'⟦calendar⟧', amt:'−'+eur(s.price), title:s.name,
+  next.filter(s => !keptQuiet(s.id)).forEach(s => add({ id:'next-'+s.id, kind:'next', set:'next', ic:'⟦calendar⟧', amt:'−'+eur(s.price), title:s.name,
     text:`Prélèvement le ${s.day} oct.`, when:'Aujourd’hui', link:'#/abo/'+s.id }));
   if (t.reste < 700) add({ id:'low', kind:'low', set:'next', ic:'⟦alert⟧', title:'Reste à vivre',
     text:`${eur(t.reste)} pour ${PAYDAY_IN} jours`, when:'Aujourd’hui', link:'#/dashboard' });
@@ -342,7 +372,7 @@ screens.connect = () => `
   <h1 style="font-size:24px;letter-spacing:-.02em">Choisissez votre banque</h1>
   <p class="muted small" style="margin-top:6px">Connexion sécurisée, en lecture seule (simulation).</p>
   ${notBank()}
-  <div class="search" style="margin-top:16px">⟦search⟧ Rechercher une banque</div>
+  <label class="search" style="margin-top:16px">⟦search⟧<input id="bank-q" type="search" placeholder="Rechercher une banque" aria-label="Rechercher une banque" autocomplete="off" enterkeyhint="search"></label>
   <div class="banks">${BANKS.map(b=>`<button class="bank ${state.bank===b.id?'on':''}" data-bank="${b.id}">${bankTile(b)}<span>${b.name}</span></button>`).join('')}</div>
   <p class="fine" style="margin:-4px 2px 14px">Noms de banques cités à titre d’exemple dans cette démo : ${APP_NAME} n’est affilié à aucune d’elles. Monogrammes aux couleurs approximatives des marques.</p>
   <div class="banner blue"><span class="ic">⟦lock⟧</span><div><b>Vos identifiants restent chez votre banque</b>${APP_NAME} passe par un agrégateur agréé (DSP2). L’accès dure 180 jours : on vous prévient avant qu’il expire, et vous pouvez le retirer à tout moment.</div></div>
@@ -354,7 +384,7 @@ screens.connect = () => `
 </div>`;
 
 screens.scan = () => `
-<div class="screen"><div class="loader">
+<div class="screen"><div class="loader" role="status">
   <div class="spin"></div>
   <h2 style="font-size:20px">Analyse de vos 12 derniers mois…</h2>
   <p class="muted small" style="margin-top:6px">Simulation – aucune vraie banque n’est contactée</p>
@@ -618,7 +648,7 @@ function flowBars(rows, color, word){
     curve.push({ t: new Date(start + 12 * 3600000), v });
   }
   const total = curve.reduce((a, p) => a + p.v, 0);
-  if (!total) return `<p class="insight">${word === 'Revenus' ? 'Aucun revenu' : 'Aucune dépense'} sur 30 jours.</p>`;
+  if (!total) return emptyState('search', word === 'Revenus' ? 'Aucun revenu' : 'Aucune dépense', 'Rien sur les 30 derniers jours.');
   const by = {};
   rows.forEach(x => { const k = x.cat || 'autre'; by[k] = (by[k] || 0) + Math.abs(x.amt); });
   const cats = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `<span>${esc((CATS[k] || CATS.autre).l)} · ${v.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €</span>`).join('');
@@ -629,7 +659,7 @@ function incomeOf(tx){
   const from = day0(nowRef()).getTime() - 29 * DAY_MS;
   return tx.filter(x => x.amt > 0 && x.cat === 'revenu' && +x.t >= from);
 }
-function incomeBars(tx){ return flowBars(incomeOf(tx), '#1FA971', 'Revenus'); }
+function incomeBars(tx){ return flowBars(incomeOf(tx), 'var(--up)', 'Revenus'); }
 let deskRange = '12';
 const kEUR = n => Math.abs(Math.round(n)).toLocaleString('fr-FR') + ' €';
 const sgnEUR = n => (n > 0 ? '+' : n < 0 ? '−' : '') + kEUR(n);
@@ -680,7 +710,7 @@ function netLine(series){
   const curve = series.map(s => ({ t: s.t, v: s.net }));
   if (curve.length < 2) return '';
   const net = curve.reduce((a, p) => a + p.v, 0);
-  return curveChart(curve, { color: net >= 0 ? '#1FA971' : '#FF5A6A', h: 108, fmt: 'month', signed: true, zero: true, total: net, link: 'desk', slot: 'net', label: 'Net' });
+  return curveChart(curve, { color: net >= 0 ? 'var(--up)' : 'var(--down)', h: 108, fmt: 'month', signed: true, zero: true, total: net, link: 'desk', slot: 'net', label: 'Net' });
 }
 function posteRows(tx){
   const rows = spendOf(tx);
@@ -688,7 +718,7 @@ function posteRows(tx){
   rows.forEach(x => { const k = x.cat || 'autre'; by[k] = (by[k] || 0) + -x.amt; });
   const tops = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 6);
   const max = tops.length ? tops[0][1] : 1;
-  if (!tops.length) return '<p class="insight">Aucune dépense sur 30 jours.</p>';
+  if (!tops.length) return emptyState('search', 'Aucune dépense', 'Rien sur les 30 derniers jours.');
   return tops.map(([k, v]) => `<div class="poste"><span>${esc((CATS[k] || CATS.autre).l)}</span><b>${kEUR(v)}</b></div>`).join('');
 }
 screens.graphiques = () => {
@@ -709,9 +739,9 @@ screens.graphiques = () => {
   <div class="tf desk-tf" role="tablist" aria-label="Période">${ranges.map(([k, l]) => `<button type="button" role="tab" data-desk="${k}" aria-selected="${deskRange === k}" class="${deskRange === k ? 'on' : ''}">${l}</button>`).join('')}</div>
   ${hid ? '<p class="insight">Graphiques masqués avec le solde.</p>' : `
   <p class="acct-k">Dépenses mensuelles</p>
-  <div class="panel spend-card">${monthBars(series, 'spend', '#0066FF')}</div>
+  <div class="panel spend-card">${monthBars(series, 'spend', 'var(--accent)')}</div>
   <p class="acct-k">Rentrées d’argent</p>
-  <div class="panel spend-card">${monthBars(series, 'income', '#1FA971')}</div>
+  <div class="panel spend-card">${monthBars(series, 'income', 'var(--up)')}</div>
   <p class="acct-k">Net</p>
   <div class="panel spend-card">${netLine(series)}</div>
   <p class="acct-k">Postes · 30 jours</p>
@@ -776,7 +806,7 @@ screens.dashboard = () => {
     <div class="lbl">Solde total · ${L.nAcc} compte${L.nAcc > 1 ? 's' : ''}${banksN > 1 ? ' dans ' + banksN + ' banques' : ''}</div>
     <div class="amount-row">
       <div class="amount" data-count="${L.total.toFixed(2)}" ${state.hideBalance ? 'data-hidden="1"' : ''}>${state.hideBalance ? '<span class="masked">••••</span>' : money(L.total)}</div>
-      <button type="button" class="eye" id="toggle-balance" aria-pressed="${state.hideBalance ? 'true' : 'false'}" aria-label="${state.hideBalance ? 'Afficher le solde' : 'Masquer le solde'}">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</button>
+      <button type="button" class="eye" id="toggle-balance" role="switch" aria-checked="${state.hideBalance ? 'true' : 'false'}" aria-label="${state.hideBalance ? 'Afficher le solde' : 'Masquer le solde'}">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</button>
     </div>
     <div class="delta" id="sp-delta">${state.hideBalance ? 'Solde masqué' : `${delta >= 0 ? '⟦trend⟧' : ''}<b class="${delta >= 0 ? 'pos' : ''}">${signed(delta)}</b>${Math.abs(pp) >= 0.5 ? ` <i class="delta-pct ${delta >= 0 ? 'up' : 'down'}">${ppTxt}</i>` : ''} ${homeTf === 'TOUT' ? 'depuis le début' : 'sur ' + tf[2]}`}</div>
     <div class="tf" role="tablist" aria-label="Période du graphique">${HOME_TF.map(([k, lab]) => `<button type="button" role="tab" data-tf="${k}" aria-selected="${k === homeTf ? 'true' : 'false'}" class="${k === homeTf ? 'on' : ''}">${lab}</button>`).join('')}</div>
@@ -795,12 +825,12 @@ screens.dashboard = () => {
   </div>
 
   <div class="section-h rise" style="--d:2"><h2>Dépenses</h2><a href="#/graphiques">Mensuel</a></div>
-  <div class="panel spend-card rise" style="--d:2">${state.hideBalance ? '<p class="insight">Graphique masqué avec le solde.</p>' : spendBars(L.tx, '#0066FF')}</div>
+  <div class="panel spend-card rise" style="--d:2">${state.hideBalance ? '<p class="insight">Graphique masqué avec le solde.</p>' : spendBars(L.tx, 'var(--accent)')}</div>
   <div class="section-h rise" style="--d:2"><h2>Revenus</h2><a href="#/graphiques">Mensuel</a></div>
   <div class="panel spend-card rise" style="--d:2">${state.hideBalance ? '<p class="insight">Graphique masqué avec le solde.</p>' : incomeBars(L.tx)}</div>
 
   <div class="section-h rise" style="--d:3"><h2>Dernières opérations</h2><a href="#/operations">Tout voir</a></div>
-  <div class="panel rise" style="--d:3">${L.tx.length ? txGroups(L.tx, 3, 8) : '<p class="insight">Aucune opération ces derniers jours.</p>'}</div>
+  <div class="panel rise" style="--d:3">${L.tx.length ? txGroups(L.tx, 3, 8) : emptyState('search', 'Aucune opération', 'Rien ces derniers jours. Synchronisez vos comptes pour mettre la liste à jour.')}</div>
 
   <div class="section-h rise" style="--d:2"><h2>À venir cette semaine</h2>${L.up.length ? `<span class="sec-sum">${signed(upSum)}</span>` : ''}</div>
   <div class="panel rise" style="--d:2">
@@ -856,16 +886,16 @@ function txActivity(){
 <div class="screen act">
   <div class="topbar"><h1>Transactions</h1>${demoTag}</div>
   <a class="tx-subs" href="#/abonnements?vue=recurrents"><span><b>Abonnements détectés</b><i>${t.list.length} actifs</i></span><strong>${eur(t.monthly)}<small>/mois</small></strong></a>
-  <label class="tx-search">⟦search⟧<input id="tx-q" type="search" placeholder="Rechercher" value="${esc(opsQuery)}" autocomplete="off" enterkeyhint="search"></label>
-  <div class="seg ops-seg four" role="tablist">${[['all','Tout'],['out','Dépenses'],['in','Reçus'],['abo','Abos']].map(([k, l]) => `<button type="button" role="tab" class="${opsFilter === k ? 'on' : ''}" data-ops="${k}">${l}</button>`).join('')}</div>
-  <div class="act-list">${list.length ? txGroups(list, 8, 240, true) : emptyState('search', 'Aucune opération', q ? 'Aucun résultat pour cette recherche.' : 'Rien sur cette période.')}</div>
+  <label class="tx-search">⟦search⟧<input id="tx-q" type="search" placeholder="Rechercher" aria-label="Rechercher une opération" value="${esc(opsQuery)}" autocomplete="off" enterkeyhint="search"></label>
+  <div class="seg ops-seg four" role="tablist" aria-label="Filtrer les transactions">${[['all','Tout'],['out','Dépenses'],['in','Reçus'],['abo','Abos']].map(([k, l]) => `<button type="button" role="tab" aria-selected="${opsFilter === k}" class="${opsFilter === k ? 'on' : ''}" data-ops="${k}">${l}</button>`).join('')}</div>
+  <div class="act-list">${list.length ? txGroups(list, 8, 240, true) : emptyState('search', 'Aucune opération', q ? 'Aucun résultat pour cette recherche. Essayez un autre mot.' : 'Rien sur cette période.')}</div>
 </div>`;
 }
 screens.operations = () => txActivity();
 const PERIOD_DAYS = { week:7, month:30.4, quarter:91, year:365 };
 const nextLive = s => { if (s.nextDate) return new Date(s.nextDate+'T12:00'); const d = new Date(s.lastDate+'T12:00'); const step = PERIOD_DAYS[s.cadence||'month']; while (d < new Date()) d.setTime(d.getTime() + step*864e5); return d; };
 screens.abonnements = (q) => {
-  if ((q.get('vue') || '') !== 'recurrents') return txActivity();
+  if ((q.get('vue') || '') !== 'recurrents' && !q.get('f')) return txActivity();
   const t = totals(); const P = isP(); let f = q.get('f') || 'all';
   if (!P && f!=='all') f = 'all';
   let list = P ? t.list.filter(s=>!s.small) : t.list;
@@ -873,24 +903,24 @@ screens.abonnements = (q) => {
   if (f==='eco') list = t.list.filter(s=>increase(s)||s.small||t.dups.includes(s));
   const showSmall = P && (f==='all' || f==='small');
   if (f==='small') list = [];
-  const row = s => { const d = nextDebit(s); const fg = lum(s.color) > .45 ? '#0A0B0D' : '#fff'; return `<a class="tx pp" href="#/abo/${s.id}"><span class="cat mark" style="background:${s.color};color:${fg}">${esc(s.ini)}</span>
+  const row = s => { const d = nextDebit(s); const tone = tuneColor(s.color); return `<a class="tx pp" href="#/abo/${s.id}?vue=recurrents"><span class="cat mark" style="background:${tone.bg};color:${tone.fg}">${esc(s.ini)}</span>
       <div class="mid"><div class="name">${esc(s.name)}${P ? `${increase(s)?`<span class="badge b-red">+${pct(s)} %</span>`:''}${s.doubleCharge?'<span class="badge b-red">2×</span>':''}${t.dups.includes(s)?'<span class="badge b-blue">Doublon</span>':''}${s.trial?'<span class="badge b-amber">Essai</span>':''}` : ((increase(s)||s.small||s.doubleCharge||t.dups.includes(s)) ? lockBadge('Alerte') : '')}</div>
       <div class="meta">${d.getDate()} ${MOIS[d.getMonth()]} • ${cap(FREQ[s.cadence || 'month'] || 'mensuel')}</div></div>
       <div class="amt">−${eur(s.price)}</div></a>`; };
-  const chip = (k,l) => P ? `<a class="chip ${f===k?'on':''}" href="#/abonnements?vue=recurrents${k==='all'?'':'&f='+k}">${l}</a>` : `<a class="chip ${k==='all'?'on':''}" href="${k==='all'?'#/abonnements?vue=recurrents':'#/premium'}">${k==='all'?l:'⟦lock⟧ '+l.replace(/^\S+ /,'')}</a>`;
+  const chip = (k,l) => { const on = P ? f===k : k==='all'; const href = P ? `#/abonnements?vue=recurrents${k==='all'?'':'&f='+k}` : (k==='all'?'#/abonnements?vue=recurrents':'#/premium'); return `<a class="chip ${on?'on':''}" role="tab" aria-selected="${on}" href="${href}">${k==='all'||P?l:'⟦lock⟧ '+l.replace(/^\S+ /,'')}</a>`; };
   return `
 <div class="screen">
   <div class="topbar"><a class="back" href="#/abonnements">⟦back⟧</a><h1>Abonnements</h1>${demoTag}</div>
   <div class="card" style="display:flex;justify-content:space-between;align-items:center">
-    <div><div class="muted small">Total mensuel</div><div style="font-size:26px;font-weight:760;letter-spacing:-.02em">${eur(t.monthly)}</div></div>
+    <div><div class="muted small">Total mensuel</div><div style="font-size:26px;font-weight:650;letter-spacing:-.02em">${eur(t.monthly)}</div></div>
     <div style="text-align:right"><div class="muted small">Sur un an</div><div style="font-weight:700">${eur0(t.monthly*12)}</div></div>
   </div>
-  <div class="hchips">${chip('all','Tous ('+t.list.length+')')}${chip('up','⟦trend⟧ Hausses ('+t.ups.length+')')}${chip('small','⟦search⟧ Oubliés ('+t.smalls.length+')')}${chip('eco','⟦coin⟧ À économiser')}</div>
+  <div class="chips" role="tablist" aria-label="Filtrer les abonnements">${chip('all','Tous ('+t.list.length+')')}${chip('up','⟦trend⟧ Hausses ('+t.ups.length+')')}${chip('small','⟦search⟧ Oubliés ('+t.smalls.length+')')}${chip('eco','⟦coin⟧ À économiser')}</div>
   ${P?'':teaser(`${eur(t.found)}/mois d’économies repérées`, LIVE ? `${t.ups.length} hausse${t.ups.length>1?'s':''}, ${t.smalls.length} petit${t.smalls.length>1?'s':''} prélèvement${t.smalls.length>1?'s':''} sous 10 €` : `${t.ups.length} hausses, 1 doublon, 1 double prélèvement, ${t.smalls.length} oubliés`)}
   ${LIVE && LIVE.history && LIVE.history.limited ? `<div class="banner amber"><span class="ic">⟦info⟧</span><div><b>Historique court : détection partielle</b>La banque de test ne fournit que ${LIVE.history.days} jours d’opérations (${LIVE.history.debits} débits). Il faut au moins 2 prélèvements pour confirmer un abonnement : ceux vus une seule fois sont marqués « probable ».</div></div>` : ''}
   ${LIVE && !t.list.length ? emptyState('search', 'Aucun prélèvement récurrent', 'Rien de régulier pour le moment. Avec deux mois d’historique ou plus, la détection sera plus complète. Vos comptes restent en lecture seule.') : ''}
   ${P && t.ups.length && f==='all' ? `<div class="banner red"><span class="ic">⟦trend⟧</span><div><b>${t.ups.length} hausse${t.ups.length>1?'s':''} de prix détectée${t.ups.length>1?'s':''}</b>${t.ups.map(s=>`${esc(s.name)} : ${eur(s.prev)} → ${eur(s.price)}`).join(' · ')}. Soit ${eur(t.ups.reduce((a,s)=>a+increase(s),0)*12)} de plus par an.</div></div>` : ''}
-  ${list.length?`<div class="act-list">${list.map(row).join('')}</div>`:''}
+  ${list.length?`<div class="act-list">${list.map(row).join('')}</div>`:((LIVE && !t.list.length) || (showSmall && t.smalls.length) ? '' : emptyState('search', f==='all' ? 'Aucun abonnement' : 'Rien dans ce filtre', f==='all' ? 'Dès qu’un prélèvement se répète, il apparaîtra ici.' : 'Essayez un autre filtre, ou revenez à Tous.'))}
   ${adSlot('subs')}
   ${showSmall && t.smalls.length?`
   <div class="section-h"><h2>⟦search⟧ Petits prélèvements oubliés</h2><span class="muted small">${eur(t.smalls.reduce((a,s)=>a+s.price,0))}/mois</span></div>
@@ -902,11 +932,12 @@ screens.abonnements = (q) => {
 
 screens.abo = (q, id) => {
   const s = byId(id); if (!s) return screens.abonnements(q);
+  const backTo = q.get('vue') === 'recurrents' ? '#/abonnements?vue=recurrents' : '#/abonnements';
   const t = totals(); const P = isP(); const max = Math.max(...s.hist, 1); const done = state.resiliated.includes(s.id);
   const flagged = increase(s) || s.small || s.doubleCharge || t.dups.includes(s);
   return `
 <div class="screen">
-  <div class="topbar"><a class="back" href="#/abonnements">⟦back⟧</a>${demoTag}</div>
+  <div class="topbar"><a class="back" href="${backTo}">⟦back⟧</a>${demoTag}</div>
   <div class="detail-head">${logo(s)}
     <div class="muted small">${s.cat}</div>
     <div class="price">${eur(s.price)}<span class="muted" style="font-size:15px;font-weight:600"> /mois</span></div>
@@ -932,9 +963,9 @@ screens.abo = (q, id) => {
     <div class="kv"><span>Détection</span><span>${s.confirmed ? `Récurrent confirmé (${s.count}×)` : 'Probable (1×)'}</span></div>
     ${s.duplicate?`<div class="kv"><span>Doublon possible</span><span>même usage que ${s.dupOf}</span></div>`:''}` : ''}
   </div>
-  ${done?`<a class="btn ghost" href="#/abonnements">Retour aux transactions</a>` : P ? `
+  ${done?`<a class="btn ghost" href="${backTo}">Retour</a>` : P ? `
   <a class="btn danger" href="#/resilier/${s.id}/1">⟦scissors⟧ Résilier cet abonnement</a>
-  <button class="btn ghost" id="keep">Je le garde, ne plus m’alerter</button>` : `
+  ${(state.kept || []).includes(s.id) ? `<p class="muted small center" style="margin-top:12px">Vous ne recevez plus d’alerte pour celui-ci.</p>` : `<button type="button" class="btn ghost" id="keep" data-id="${s.id}">Je le garde, ne plus m’alerter</button>`}` : `
   <a class="btn danger locked-btn" href="#/premium">⟦lock⟧ Résiliation guidée · Premium</a>
   <p class="muted small center" style="margin-top:10px">Lettre prête, démarches pas à pas et suivi jusqu’à l’arrêt du prélèvement. Premium ${prix(CFG.priceMonth)}/mois · ${CFG.trial}.</p>`}
 </div>`;
@@ -1029,11 +1060,11 @@ ${USER.prenom} ${USER.nom}`;
   <div class="ok">⟦check⟧</div>
   <h1 style="font-size:24px">Bien joué ${USER.prenom} !</h1>
   <p class="muted" style="margin:8px 0 6px">${s.name} est en cours de résiliation.</p>
-  <p style="font-size:30px;font-weight:760;color:var(--mint);margin:14px 0 2px">+${eur(s.price*12)}</p>
+  <p style="font-size:30px;font-weight:650;color:var(--mint);margin:14px 0 2px">+${eur(s.price*12)}</p>
   <p class="muted small">économisés sur un an</p>
 </div>
 <a class="btn" href="#/dashboard">Voir mes économies</a>
-<a class="btn ghost" href="#/abonnements?f=eco">Continuer à faire le ménage</a>
+<a class="btn ghost" href="#/abonnements?vue=recurrents&f=eco">Continuer à faire le ménage</a>
 </div>`;
 };
 
@@ -1048,13 +1079,13 @@ screens.alertes = (q) => {
   const row = a => `<a class="tx pp al-row ${state.readAlerts.includes(a.id) ? '' : 'unread'}" href="${a.link}" data-alert="${a.id}"><span class="cat">${a.ic}</span><div class="mid"><div class="name">${a.title}</div><div class="meta">${a.text}</div></div>${a.amt ? `<div class="amt">${a.amt}</div>` : ''}</a>`;
   const order = ['Aujourd’hui', 'Cette semaine', 'Plus tôt'];
   const groups = order.filter(g => visible.some(a => a.group === g)).map(g => `<section class="mo"><h2>${g}</h2>${visible.filter(a => a.group === g).map(row).join('')}</section>`).join('');
-  const chip = (k, l) => `<button type="button" class="${f === k ? 'on' : ''}" data-af="${k}">${l}</button>`;
-  const tog = (k, lab, open) => `<button type="button" class="acct-row" data-alert-set="${k}"><span class="acct-lab">${lab}</span>${!open && !P ? '<span class="acct-aside">Premium</span><span class="acct-go">⟦lock⟧</span>' : `<span class="sw ${alertOn(k) ? 'on' : ''}"></span>`}</button>`;
+  const chip = (k, l) => `<button type="button" role="tab" aria-selected="${f === k}" class="${f === k ? 'on' : ''}" data-af="${k}">${l}</button>`;
+  const tog = (k, lab, open) => { const locked = !open && !P; const on = alertOn(k); return `<button type="button" class="acct-row" data-alert-set="${k}" ${locked ? `aria-label="${lab}, réservé à Premium"` : `role="switch" aria-checked="${on}"`}><span class="acct-lab">${lab}</span>${locked ? '<span class="acct-aside">Premium</span><span class="acct-go">⟦lock⟧</span>' : `<span class="sw ${on ? 'on' : ''}"></span>`}</button>`; };
   return `
 <div class="screen act">
   <div class="topbar"><h1>Alertes</h1>${demoTag}</div>
   <p class="al-lead">${unread ? unread + ' non lue' + (unread > 1 ? 's' : '') : 'Tout est lu'} · hausses, doublons, rappels</p>
-  <div class="seg ops-seg four">${chip('all','Toutes')}${chip('up','Hausses')}${chip('dup','Doublons')}${chip('next','Rappels')}</div>
+  <div class="seg ops-seg four" role="tablist" aria-label="Filtrer les alertes">${chip('all','Toutes')}${chip('up','Hausses')}${chip('dup','Doublons')}${chip('next','Rappels')}</div>
   ${unread ? '<div class="al-tools"><button type="button" id="read-all">Tout marquer comme lu</button></div>' : ''}
   <div class="act-list">${groups || (!prem.length ? emptyState('bell', 'Tout est calme', 'Rien dans ce filtre. On vous prévient ici dès qu’un prix bouge ou qu’une banque demande votre attention.') : '')}</div>
   ${P || !prem.length ? '' : `<a class="one-card" href="#/premium"><div><b>${prem.length} alertes d’économies</b><span>Hausses, doublons et rappels. ${CFG.trial}.</span></div>${logoMark()}</a>`}
@@ -1073,7 +1104,7 @@ screens.banques = () => {
   const L = linked(); const P = isP();
   if (LIVE){ const b = L[0]; return `
 <div class="screen">
-  <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a><h1 style="font-size:19px">Mes banques</h1>${demoTag}</div>
+  <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a><h1>Mes banques</h1>${demoTag}</div>
   <div class="card bankcard">
     <div style="display:flex;gap:12px;align-items:center">${bankTile(b, 'lg')}
       <div style="flex:1"><div style="font-weight:700">${b.name}</div><div class="muted small">${b.accounts}</div></div>
@@ -1091,7 +1122,7 @@ screens.banques = () => {
   const banks = ledger().banks;
   return `
 <div class="screen">
-  <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a><h1 style="font-size:19px">Mes banques</h1>${demoTag}</div>
+  <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a><h1>Mes banques</h1>${demoTag}</div>
   <div class="bk-list">
   ${banks.map(b => {
     const color = /^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '#0066FF';
@@ -1122,7 +1153,7 @@ screens.banque = (q, id) => {
   const color = /^#[0-9a-f]{6}$/i.test(b.color || '') ? b.color : '#0066FF';
   return `
 <div class="screen bank-page">
-  <div class="topbar"><a class="back" href="#/banques" aria-label="Retour">⟦back⟧</a><h1 style="font-size:19px">${esc(b.name)}</h1>${demoTag}</div>
+  <div class="topbar"><a class="back" href="#/banques" aria-label="Retour">⟦back⟧</a><h1>${esc(b.name)}</h1>${demoTag}</div>
   <section class="bank-hero" style="--bk:${color}">
     <div class="bh-top">${bankTile(b, 'lg', b.status === 'error' ? '<i class="st err"></i>' : b.status === 'expired' ? '<i class="st warn"></i>' : '')}
       <div><div class="bh-name">${esc(b.name)}</div><div class="bh-sub ${b.status === 'error' ? 't-red' : ''}">${esc(st)}</div></div></div>
@@ -1149,15 +1180,12 @@ const themeLabel = () => ({ light:'Clair', dark:'Sombre', auto:'Automatique' }[t
 function appIcon(){ try { const v = localStorage.getItem('prelevo-icon'); if (v === 'noir' || v === 'defaut' || v === 'bleu') return v; } catch (e) {} return 'bleu'; }
 function setAppIcon(v){ try { if (v === 'noir' || v === 'defaut') localStorage.setItem('prelevo-icon', v); else localStorage.removeItem('prelevo-icon'); } catch (e) {} document.documentElement.setAttribute('data-icon', appIcon()); }
 setAppIcon(appIcon());
-let _pickAt = 0;
 function pickTheme(v){
-  const now = Date.now(); if (now - _pickAt < 350) return; _pickAt = now;
   if (window.PrelevoTheme) PrelevoTheme.set(v);
   render();
   toast(v === 'auto' ? 'Thème automatique' : v === 'dark' ? 'Thème sombre' : 'Thème clair');
 }
 function pickIcon(v){
-  const now = Date.now(); if (now - _pickAt < 350) return; _pickAt = now;
   setAppIcon(v);
   render();
   toast(v === 'noir' ? 'Icône noire' : v === 'defaut' ? 'Icône blanche' : 'Icône par défaut');
@@ -1184,7 +1212,7 @@ screens.compte = () => {
   </div>
   <p class="acct-k">Paramètres</p>
   <div class="menu-card">
-    <button type="button" class="acct-row" id="toggle-balance" aria-pressed="${state.hideBalance ? 'true' : 'false'}"><span class="acct-ic">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</span><span class="acct-lab">Masquer le solde</span><span class="sw ${state.hideBalance ? 'on' : ''}"></span></button>
+    <button type="button" class="acct-row" id="toggle-balance" role="switch" aria-checked="${state.hideBalance ? 'true' : 'false'}"><span class="acct-ic">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</span><span class="acct-lab">Masquer le solde</span><span class="sw ${state.hideBalance ? 'on' : ''}"></span></button>
     ${row('#/apparence','auto','Apparence', themeLabel())}
     ${row('#/premium','star',APP_NAME+' Premium', P ? 'Actif' : 'Gratuit')}
     ${row('#/parrainage','gift','Parrainage','1 mois offert')}
@@ -1289,30 +1317,32 @@ screens.parrainage = (qs, sub) => {
 };
 screens.apparence = () => {
   const t = themePref(), icon = appIcon();
-  const radio = (v, lab) => `<button type="button" class="th-radio" data-theme-set="${v}" onclick="pickTheme('${v}')" role="radio" aria-checked="${t===v}"><span class="rdot"></span>${lab}</button>`;
+  const radio = (v, lab) => `<button type="button" class="th-radio" data-theme-set="${v}" role="radio" aria-checked="${t===v}"><span class="rdot"></span>${lab}</button>`;
   const tiles = [['bleu','Défaut'],['noir','Noir'],['defaut','Blanc']];
   return `
 <div class="screen look-page">
   <div class="topbar look-bar"><a class="back" href="#/compte" aria-label="Retour">⟦back⟧</a><h1>Apparence</h1><span></span></div>
   <p class="acct-k">Thème</p>
   <div class="menu-card th-card">
+    <div role="radiogroup" aria-label="Thème">
     ${radio('light','Clair')}
     ${radio('dark','Sombre')}
-    <button type="button" class="th-auto" data-theme-auto onclick="pickTheme(PrelevoTheme.get()==='auto'?(document.documentElement.getAttribute('data-theme')==='dark'?'dark':'light'):'auto')" aria-pressed="${t==='auto'}">
+    </div>
+    <button type="button" class="th-auto" role="switch" data-theme-auto aria-checked="${t==='auto'}">
       <span><b>Automatique</b><small>Le thème utilisera la valeur par défaut de votre appareil</small></span>
       <span class="sw ${t==='auto'?'on':''}"></span>
     </button>
   </div>
   <p class="acct-k">Icône de l’app</p>
   <div class="menu-card icon-card">
-    <div class="icon-grid">${tiles.map(([id,lab])=>`<button type="button" class="icon-opt ${icon===id?'on':''}" data-app-icon="${id}" onclick="pickIcon('${id}')" aria-pressed="${icon===id}"><span class="tile t-${id}">${id==='bleu'?'<img src="icons/logo-mark.svg" alt="">':'<i class="glyph"></i>'}</span>${icon===id?'<i class="ibadge">⟦check⟧</i>':''}<span class="ilab">${lab}</span></button>`).join('')}</div>
+    <div class="icon-grid">${tiles.map(([id,lab])=>`<button type="button" class="icon-opt ${icon===id?'on':''}" data-app-icon="${id}" aria-pressed="${icon===id}"><span class="tile t-${id}">${id==='bleu'?'<img src="icons/logo-mark.svg" alt="">':'<i class="glyph"></i>'}</span>${icon===id?'<i class="ibadge">⟦check⟧</i>':''}<span class="ilab">${lab}</span></button>`).join('')}</div>
     <p class="icon-note">Le logo bleu est le logo officiel de Prelevo, partout dans l’app. Noir et Blanc restent des variantes. L’icône déjà posée sur l’écran d’accueil de l’iPhone ne change pas toute seule.</p>
   </div>
 </div>`;
 };
 screens.aide = () => `
 <div class="screen">
-  <div class="topbar"><a class="back" href="#/compte">⟦back⟧</a><h1 style="font-size:19px">Aide et réglages</h1>${demoTag}</div>
+  <div class="topbar"><a class="back" href="#/compte">⟦back⟧</a><h1>Aide et réglages</h1>${demoTag}</div>
   <div class="card support">
     <div class="sup-head"><div class="avatars"><span class="avc a">S</span><span class="avc b">K</span><span class="avc c">M</span></div>
       <div><b>Support humain</b><div class="muted small">De vraies personnes vous répondent, pas un robot.</div></div></div>
@@ -1323,7 +1353,7 @@ screens.aide = () => `
     </div>
   </div>
   <div class="card" style="padding:4px 16px">
-    <button type="button" class="kv lnk" id="toggle-balance"><span>⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧ ${state.hideBalance ? 'Afficher le solde' : 'Masquer le solde'}</span><span>${state.hideBalance ? 'Masqué' : 'Visible'} ›</span></button>
+    <button type="button" class="kv lnk" id="toggle-balance" role="switch" aria-checked="${state.hideBalance ? 'true' : 'false'}"><span>⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧ ${state.hideBalance ? 'Afficher le solde' : 'Masquer le solde'}</span><span>${state.hideBalance ? 'Masqué' : 'Visible'} ›</span></button>
     <a class="kv lnk" href="#/alertes"><span>⟦bell⟧ Alertes</span><span>›</span></a>
     <a class="kv lnk" href="#/premium"><span>⟦star⟧ Mon abonnement</span><span>${isP()?'Premium':'Gratuit'} ›</span></a>
     <div class="kv"><span>⟦shield⟧ Mes données</span><span class="muted">Jamais revendues</span></div>
@@ -1353,15 +1383,15 @@ screens.aide = () => `
 </div>`;
 
 const CHAT = [
-  { me:false, t:'Bonjour Camille Je suis Sarah, de l’équipe support. Comment je peux vous aider ?', h:'14:02' },
+  { me:false, t:'Bonjour Camille, je suis Sarah, de l’équipe support. Comment puis-je vous aider ?', h:'14:02' },
   { me:true,  t:'FibreBox me dit que je dois envoyer un recommandé, c’est obligatoire ?', h:'14:03' },
   { me:false, t:'Pas forcément ! Si vous avez souscrit en ligne, ils doivent vous proposer la résiliation en ligne. Sinon, la lettre préparée dans l’app suffit : je peux la relire avec vous.', h:'14:05' },
 ];
 screens.chat = () => `
 <div class="screen chat-screen">
-  <div class="topbar"><a class="back" href="#/aide">⟦back⟧</a><div class="chat-who"><span class="av avc a">S</span><div><b>Sarah</b><div class="muted small">Équipe support · humaine · en ligne</div></div></div>${demoTag}</div>
+  <div class="topbar"><a class="back" href="#/aide">⟦back⟧</a><div class="chat-who"><span class="av avc a">S</span><div><h1>Sarah</h1><div class="muted small">Équipe support · humaine · en ligne</div></div></div>${demoTag}</div>
   <div class="chat">${CHAT.map(m=>`<div class="msg ${m.me?'me':''}"><div class="bubble">${m.t}</div><div class="h">${m.h}</div></div>`).join('')}</div>
-  <form class="chat-input" id="chat-form"><input id="chat-text" placeholder="Écrivez votre message…" autocomplete="off"><button class="send" aria-label="Envoyer">⟦send⟧</button></form>
+  <form class="chat-input" id="chat-form"><input id="chat-text" placeholder="Écrivez votre message…" aria-label="Votre message" autocomplete="off"><button class="send" aria-label="Envoyer">⟦send⟧</button></form>
   <p class="muted small center" style="margin-top:8px">Conversation simulée – aucun message n’est envoyé.</p>
 </div>`;
 
@@ -1609,7 +1639,7 @@ document.addEventListener('click', e => {
 });
 
 screens.pwscan = () => `
-<div class="screen"><div class="loader">
+<div class="screen"><div class="loader" role="status">
   <div class="spin"></div>
   <h2 style="font-size:20px">Lecture de vos comptes de test…</h2>
   <p class="muted small" style="margin-top:6px">Banque de test Powens. L’analyse se fait dans votre navigateur.</p>
@@ -1618,34 +1648,34 @@ screens.pwscan = () => `
   <div id="pw-err"></div>
 </div></div>`;
 async function runPwScan(){
-  const fail = (title, text) => { const e = $('#pw-err'); if (e) e.innerHTML = icons(`<div class="banner amber" style="margin-top:18px;text-align:left"><span class="ic">⟦alert⟧</span><div><b>${title}</b>${text}</div></div>
+  const fail = (title, text) => { const e = $('#pw-err'); if (e) e.innerHTML = icons(`<div class="banner err" style="margin-top:18px;text-align:left"><span class="ic">⟦alert⟧</span><div><b>${title}</b>${text}</div></div>
     <button class="btn" id="pw-connect">Réessayer</button><a class="btn ghost" href="#/onboarding" id="pw-quit">Revenir à la démo</a>`); };
   const err = PWX.returnError();
   history.replaceState(null, '', location.pathname + '#/pwscan');
-  if (err) return fail('Connexion annulée', `Powens a renvoyé : ${String(err).replace(/</g,'&lt;')}`);
+  if (err) return fail('Connexion annulée', 'La connexion a été annulée. Vous pouvez réessayer quand vous voulez.');
   const tk = PWX.tokenInfo();
-  if (!tk || tk.expired) return fail('Session de test expirée', 'Le jeton Powens ne dure que 30 minutes. Relancez la connexion.');
+  if (!tk || tk.expired) return fail('Session de test expirée', 'La session de test ne dure que 30 minutes. Relancez la connexion.');
   try {
     const r = await PWX.fetchAll();
     applyLive(r); state.connected = true; save();
     location.hash = '#/dashboard';
     toast(`${r.subs.length} prélèvement${r.subs.length>1?'s':''} récurrent${r.subs.length>1?'s':''} détecté${r.subs.length>1?'s':''} sur ${r.txCount} opérations${r.history && r.history.limited ? ' (historique court)' : ''}`);
   } catch(e){
-    if (e.status === 401 || e.status === 403) fail('Session de test expirée', 'Le jeton Powens n’est plus valable. Relancez la connexion.');
-    else fail('Lecture impossible', String(e.message).replace(/</g,'&lt;'));
+    if (e.status === 401 || e.status === 403) fail('Session de test expirée', 'La session de test n’est plus valable. Relancez la connexion.');
+    else fail('Lecture impossible', humanError(e, 'Nous n’avons pas pu lire les comptes de test. Vérifiez votre connexion, puis réessayez.'));
   }
 }
 async function pwRefresh(){
   const tk = PWX.tokenInfo(); if (!tk || tk.expired) { render(); return toast('Session de test expirée : reconnectez la banque de test'); }
   toast('Relecture des opérations…');
   try { applyLive(await PWX.fetchAll()); render(); toast('Opérations relues'); }
-  catch(e){ if (e.status===401||e.status===403){ const t = PWX.tokenInfo(); if (t) sessionStorage.setItem('prelevo-pw-token', JSON.stringify({...t, exp:0})); render(); toast('Session de test expirée'); } else toast('Erreur Powens : ' + e.message); }
+  catch(e){ if (e.status===401||e.status===403){ const t = PWX.tokenInfo(); if (t) sessionStorage.setItem('prelevo-pw-token', JSON.stringify({...t, exp:0})); render(); toast('La session de test a expiré. Reconnectez la banque de test.'); } else toast(humanError(e, 'La relecture a échoué. Réessayez.')); }
 }
 
 // ---------- compte Prelevo (API) ----------
 let loginSent = null;
 screens.connexion = (q) => {
-  if (q.get('token')) return `<div class="screen"><div class="loader"><div class="spin"></div><h2 style="font-size:20px">Connexion…</h2><p class="muted small" style="margin-top:6px">Vérification de votre lien. Cela ne prend qu’un instant.</p>${skel()}</div></div>`;
+  if (q.get('token')) return `<div class="screen"><div class="loader" role="status"><div class="spin"></div><h2 style="font-size:20px">Connexion…</h2><p class="muted small" style="margin-top:6px">Vérification de votre lien. Cela ne prend qu’un instant.</p>${skel()}</div></div>`;
   if (!API) return screens.onboarding();
   return `
 <div class="screen login">
@@ -1664,7 +1694,7 @@ screens.connexion = (q) => {
 </div>`;
 };
 screens.apiwait = () => `
-<div class="screen"><div class="loader">
+<div class="screen"><div class="loader" role="status">
   <div class="spin"></div>
   <h2 style="font-size:20px">Lecture de vos comptes…</h2>
   <p class="muted small" style="margin-top:6px">La banque transmet vos opérations. Cela peut prendre jusqu’à 30 secondes : vous pouvez laisser cette page ouverte.</p>
@@ -1673,7 +1703,7 @@ screens.apiwait = () => `
 </div></div>`;
 screens.supprimer = () => !API || !API.loggedIn() ? screens.onboarding() : `
 <div class="screen">
-  <div class="topbar"><a class="back" href="#/aide">⟦back⟧</a><h1 style="font-size:19px">Supprimer mon compte</h1></div>
+  <div class="topbar"><a class="back" href="#/aide">⟦back⟧</a><h1>Supprimer mon compte</h1></div>
   <div class="card">
     <div style="font-weight:700;margin-bottom:6px">Ce qui sera effacé, définitivement :</div>
     <ul class="del-list">
@@ -1695,7 +1725,7 @@ async function apiVerify(token){
 async function apiFinish(){
   const p = API.returnParams();
   history.replaceState(null, '', location.pathname + '#/apiwait');
-  const fail = (t, x) => { const e = $('#api-err'); if (e) e.innerHTML = icons(`<div class="banner amber" style="margin-top:18px;text-align:left"><span class="ic">⟦alert⟧</span><div><b>${t}</b>${esc(x)}</div></div><button class="btn" id="api-connect">Réessayer</button><a class="btn ghost" href="#/onboarding">Plus tard</a>`); };
+  const fail = (t, x) => { const e = $('#api-err'); if (e) e.innerHTML = icons(`<div class="banner err" style="margin-top:18px;text-align:left"><span class="ic">⟦alert⟧</span><div><b>${t}</b>${esc(x)}</div></div><button class="btn" id="api-connect">Réessayer</button><a class="btn ghost" href="#/onboarding">Plus tard</a>`); };
   if (!p) return fail('Retour de connexion incomplet', 'Relancez la connexion de votre banque.');
   try {
     const r = await API.finishConnect(p);
@@ -1704,14 +1734,14 @@ async function apiFinish(){
     toast(`${r.subscriptions} prélèvement${r.subscriptions>1?'s':''} récurrent${r.subscriptions>1?'s':''} détecté${r.subscriptions>1?'s':''}${r.history && r.history.limited ? ' (historique court)' : ''}`);
   } catch(e){
     if (e.status === 401) return apiFail(e);
-    if (p.error) return fail('Connexion annulée', e.message);
+    if (p.error) return fail('Connexion annulée', 'La connexion a été annulée. Vous pouvez réessayer quand vous voulez.');
     // la banque met parfois quelques secondes à transmettre les comptes : on retente via une synchro (le retour n'est valable qu'une fois)
     for (const wait of [4000, 8000, 15000]) {
       await new Promise(ok => setTimeout(ok, wait));
       try { const r = await API.sync(); await apiLoadMe(); if (ME && ME.accounts && ME.accounts.length) { location.hash = '#/dashboard'; toast(`${r.subscriptions} prélèvement${r.subscriptions>1?'s':''} récurrent${r.subscriptions>1?'s':''} détecté${r.subscriptions>1?'s':''}`); return; } }
       catch(e2){ if (e2.status === 401) return apiFail(e2); }
     }
-    fail('Lecture impossible', e.message);
+    fail('Lecture impossible', humanError(e, 'Nous n’avons pas pu lire vos comptes. Vérifiez votre connexion, puis réessayez.'));
   }
 }
 
@@ -1731,7 +1761,10 @@ function render(){
   if (API && ['onboarding','connexion','dashboard','connect','banques'].includes(name)){ const sc = $('#app').firstElementChild; if (sc && !sc.querySelector('.alpha-note')) sc.insertAdjacentHTML('afterbegin', '<div class="alpha-note" role="note"><b>Bêta privée</b> — banques de test uniquement pour l’instant</div>'); }
   const tabName = name==='abo' || name==='operations' ? 'abonnements' : !screens[name] ? 'dashboard' : name;
   document.querySelectorAll('#tabbar a').forEach(a => { const on = a.dataset.tab === tabName; a.classList.toggle('on', on); if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
-  $('#alert-dot').classList.toggle('show', alerts().some(a=>!state.readAlerts.includes(a.id)));
+  const unreadN = alerts().filter(a => !state.readAlerts.includes(a.id)).length;
+  const alertTab = document.querySelector('#tabbar a[data-tab="alertes"]');
+  if (alertTab) alertTab.setAttribute('aria-label', unreadN ? `Alertes, ${unreadN} non lue${unreadN > 1 ? 's' : ''}` : 'Alertes');
+  $('#alert-dot').classList.toggle('show', unreadN > 0);
   window.scrollTo(0,0);
   if (name==='dashboard') animateHome();
   if (name==='scan') runScan();
@@ -1747,19 +1780,45 @@ function runScan(){
   setTimeout(()=>{ state.connected = true; save(); location.hash = '#/dashboard'; toast(SUBS.length + ' abonnements détectés'); }, 400 + items.length*450 + 500);
 }
 
+function txEmptyNode(show, query){
+  const host = document.querySelector('.act-list');
+  if (!host) return;
+  let box = host.querySelector('.tx-empty');
+  if (!show){ if (box) box.remove(); return; }
+  if (box) return;
+  host.insertAdjacentHTML('beforeend', icons(emptyState('search', 'Aucune opération', query ? 'Aucun résultat pour cette recherche. Essayez un autre mot.' : 'Rien sur cette période.', 'tx-empty')));
+}
+function filterBanks(q){
+  const s = q.trim().toLowerCase();
+  const banks = document.querySelector('.banks');
+  if (!banks) return;
+  let n = 0;
+  banks.querySelectorAll('.bank').forEach(b => {
+    const show = !s || (b.textContent || '').toLowerCase().includes(s);
+    b.hidden = !show;
+    if (show) n++;
+  });
+  let box = document.querySelector('.banks-empty');
+  if (n){ if (box) box.remove(); return; }
+  if (!box) banks.insertAdjacentHTML('afterend', icons(emptyState('search', 'Aucune banque', 'Aucune banque ne correspond. Essayez un autre nom.', 'banks-empty')));
+}
 document.addEventListener('input', e => {
+  if (e.target.id === 'bank-q'){ filterBanks(e.target.value); return; }
   if (e.target.id !== 'tx-q') return;
   opsQuery = e.target.value;
   const s = opsQuery.trim().toLowerCase();
+  let n = 0;
   document.querySelectorAll('.act-list .mo').forEach(mo => {
-    let n = 0;
+    let shown = 0;
     mo.querySelectorAll('.tx').forEach(row => {
       const show = !s || (row.querySelector('.name').textContent || '').toLowerCase().includes(s);
       row.hidden = !show;
-      if (show) n++;
+      if (show) shown++;
     });
-    mo.hidden = !n;
+    mo.hidden = !shown;
+    n += shown;
   });
+  if (document.querySelector('.act-list .mo')) txEmptyNode(!n, s);
 });
 document.addEventListener('click', e => {
   const ops = e.target.closest('[data-ops]'); if (ops){ opsFilter = ops.dataset.ops; const q = document.getElementById('tx-q'); if (q) opsQuery = q.value; render(); return; }
@@ -1824,7 +1883,7 @@ document.addEventListener('click', e => {
   else if (el.id==='pw-refresh'){ pwRefresh(); }
   else if (el.id==='pw-quit'){ e.preventDefault(); PWX && PWX.clear(); location.replace(location.pathname + (state.connected ? '#/dashboard' : '#/onboarding')); location.reload(); }
   else if (el.id==='go-scan'){ if(state.bank) location.hash = '#/scan'; }
-  else if (el.id==='keep'){ toast('OK, on ne vous alertera plus pour celui-ci'); }
+  else if (el.id==='keep'){ const id = el.dataset.id; state.kept = state.kept || []; if (id && !state.kept.includes(id)) state.kept.push(id); save(); toast('C’est noté : nous ne vous alerterons plus pour cet abonnement.'); render(); }
   else if (el.id==='confirm-resil'){ const id = el.dataset.id; if(!state.resiliated.includes(id)) state.resiliated.push(id); save(); location.hash = '#/resilier/'+id+'/4'; }
   else if (el.id==='go-premium'){
     if (API && ME){ el.disabled = true; el.textContent = 'Ouverture du paiement…'; API.checkout(billing).then(r => location.assign(r.url)).catch(e => { el.disabled = false; render(); toast(e.message || 'Paiement indisponible'); }); }
@@ -1849,7 +1908,7 @@ document.addEventListener('click', e => {
 document.addEventListener('submit', e => {
   if (e.target.id === 'login-form'){ e.preventDefault();
     const email = $('#login-email').value.trim(); const btn = $('#login-submit');
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return toast('Adresse e-mail invalide');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return toast('Indiquez une adresse e-mail valide.');
     btn.disabled = true; btn.textContent = 'Envoi…';
     API.requestLink(email).then(()=>{ loginSent = email; render(); }).catch(err => { btn.disabled = false; btn.textContent = 'Recevoir mon lien'; apiFail(err); });
     return; }
@@ -1904,19 +1963,23 @@ function placeRadar(open){
 }
 async function homeSync(){
   if (_syncing) return; _syncing = true;
-  document.querySelector('#home-sync')?.classList.add('on');
+  const syncBtn = document.querySelector('#home-sync');
+  syncBtn?.classList.add('on');
+  syncBtn?.setAttribute('aria-busy', 'true');
   placeRadar(true);
   const shownAt = Date.now();
   try {
     if (API && ME){ toast('Synchronisation…'); await API.sync(); await apiLoadMe(); _ledger = null; render(); placeRadar(true); toast('Comptes à jour'); }
     else if (PWX && LIVE) await pwRefresh();
     else { await new Promise(r => setTimeout(r, 900)); toast('Comptes à jour (exemple)'); }
-  } catch(e){ API ? apiFail(e) : toast('Synchronisation impossible'); }
+  } catch(e){ API ? apiFail(e) : toast('La synchronisation a échoué. Réessayez.'); }
   finally {
     const wait = Math.max(0, 1800 - (Date.now() - shownAt));
     if (wait) await new Promise(r => setTimeout(r, wait));
     _syncing = false;
-    document.querySelector('#home-sync')?.classList.remove('on');
+    const syncDone = document.querySelector('#home-sync');
+    syncDone?.classList.remove('on');
+    syncDone?.removeAttribute('aria-busy');
     placeRadar(false);
   }
 }
