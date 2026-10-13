@@ -10,6 +10,10 @@
 
   if (C.contactEmail) document.querySelectorAll('[data-contact-link]').forEach(el => el.href = 'mailto:' + C.contactEmail);
 
+  document.querySelectorAll('[data-theme-set]').forEach(b => b.addEventListener('click', () => {
+    if (window.PrelevoTheme) PrelevoTheme.set(b.getAttribute('data-theme-set'));
+  }));
+
   // Provenance de la visite (UTM + site d'origine), gardée le temps de l'onglet, sans cookie.
   const UTM_KEYS = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'];
   const VKEY = 'prelevo-visit';
