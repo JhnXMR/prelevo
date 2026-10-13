@@ -1,4 +1,4 @@
-const CACHE = 'prelevo-app-v76-desk';
+const CACHE = 'prelevo-app-v77-desk';
 const ASSETS = ['./', './index.html', './styles.css', './config.js', './powens.js', './api.js', './app.js', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon.svg',
   './icons/favicon.svg', './icons/logo-mark.svg', './icons/logo-mark-white.svg', './icons/favicon-32.png', './icons/apple-touch-icon-180.png'];
@@ -18,6 +18,14 @@ self.addEventListener('fetch', e => {
   // Retour de la webview Powens (?connection_id=…) ou autre URL avec paramètres : réseau, sans mise en cache.
   if (url.search) {
     e.respondWith(fetch(e.request).catch(() => caches.match('./index.html')));
+    return;
+  }
+  const fresh = /\.(?:js|css|html)$/.test(url.pathname) || url.pathname.endsWith('/');
+  if (fresh) {
+    e.respondWith(fetch(new Request(e.request, { cache: 'reload' })).then(res => {
+      if (res.ok && res.type === 'basic') { const copy = res.clone(); caches.open(CACHE).then(c => c.put(e.request, copy)); }
+      return res;
+    }).catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || caches.match('./index.html'))));
     return;
   }
   e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).then(res => {
