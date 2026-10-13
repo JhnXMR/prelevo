@@ -229,6 +229,10 @@ button{font:inherit;border:0;background:none;color:inherit;cursor:pointer}
 .cmp-more[open]>summary{border-radius:14px 14px 0 0}
 .cmp-more[open]>summary:after{transform:rotate(-135deg);margin-top:4px}
 .cmp-more .card{border-radius:0 0 14px 14px;border-top:0;margin:0}
+.sub-bar{position:fixed;left:14px;right:14px;bottom:calc(88px + env(safe-area-inset-bottom));z-index:12;max-width:452px;margin:0 auto}
+.sub-bar .btn{flex-direction:column;gap:1px;min-height:54px;border-radius:16px;padding:8px 16px;box-shadow:0 10px 28px color-mix(in srgb, var(--accent) 42%, transparent)}
+.sub-bar .btn small{font-size:12px;font-weight:550;opacity:.88}
+body:has(.sub-bar) .app{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
 .cmp{width:100%;border-collapse:collapse;font-size:13.5px}
 .cmp th{font-size:11.5px;color:var(--muted);font-weight:500;text-align:center;padding:4px 4px 10px;text-transform:uppercase;letter-spacing:.05em}
 .cmp th:first-child{text-align:left}

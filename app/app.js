@@ -1190,9 +1190,9 @@ screens.premium = () => {
   </details>
   ${neutral}
   <a class="card sup-mini" href="#/chat"><span class="avatars"><span class="avc a">S</span><span class="avc b">K</span></span><div><b>Une question avant de vous abonner ?</b><span>Un humain vous répond, pas un robot.</span></div><span class="chev">⟦chev⟧</span></a>
-  ${P ? '' : `<button class="btn mint" id="go-premium">Commencer : ${CFG.trial}</button>`}
   ${P ? '' : `<p class="muted small center" style="margin:10px 0 0">${API && ME ? 'Paiement sécurisé par Stripe (mode test : aucune carte réelle débitée). Les 500 premiers inscrits ont 3 mois offerts.' : 'Les 500 premiers inscrits ont 3 mois offerts.'}</p>`}
   <p class="muted small center" style="margin-top:10px">Formule ${Y?'Annuelle':'Mensuelle'} : puis ${Y?prix(CFG.priceYear)+'/an (soit '+prix(CFG.priceYear/12)+'/mois)':prix(CFG.priceMonth)+'/mois'} après l’essai. Annulable en 1 clic, à tout moment. Paiement simulé dans cette maquette.</p>
+  ${P ? '' : `<div class="sub-bar"><button class="btn mint" id="go-premium"><span>S’abonner</span><small>${Y ? prix(CFG.priceYear)+' / an' : prix(CFG.priceMonth)+' / mois'} · 1 mois offert</small></button></div>`}
 </div>`;
 };
 
@@ -1481,11 +1481,13 @@ async function apiFinish(){
 // ---------- routeur ----------
 function render(){
   _timeline = null;
+  document.querySelectorAll('body > .sub-bar').forEach(n => n.remove());
   const raw = location.hash.replace(/^#\/?/, '') || (API ? (API.loggedIn() && LIVE ? 'dashboard' : 'onboarding') : state.connected ? 'dashboard' : 'onboarding');
   const [path, qs] = raw.split('?');
   const [name, ...args] = path.split('/');
   const fn = screens[name] || screens.dashboard;
   $('#app').innerHTML = icons(fn(new URLSearchParams(qs||''), ...args));
+  const bar = $('#app .sub-bar'); if (bar) document.body.appendChild(bar);
   const tabbed = ['dashboard','operations','abonnements','alertes','premium','abo','aide','banques','compte','apparence','parrainage'].includes(name) || (!screens[name]);
   $('#tabbar').hidden = !tabbed;
   if (API && ['onboarding','connexion','dashboard','connect','banques'].includes(name)){ const sc = $('#app').firstElementChild; if (sc && !sc.querySelector('.alpha-note')) sc.insertAdjacentHTML('afterbegin', '<div class="alpha-note" role="note"><b>Bêta privée</b> — banques de test uniquement pour l’instant</div>'); }
