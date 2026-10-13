@@ -15,14 +15,14 @@ img{display:block;max-width:100%;height:auto}
 .nav-links{display:flex;align-items:center;gap:22px;font-size:14.5px}
 .nav-links a{text-decoration:none;color:var(--ink2)}
 .nav-links a:hover{color:var(--ink)}
-.theme{display:flex;gap:2px;padding:3px;background:var(--soft);border:1px solid var(--line);border-radius:99px}
+.theme{display:flex;flex:none;gap:2px;padding:3px;background:var(--soft);border:1px solid var(--line);border-radius:99px}
 .theme button{width:32px;height:32px;border:0;border-radius:99px;background:transparent;color:var(--muted);display:grid;place-items:center;cursor:pointer;padding:0}
 .theme button svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 html[data-theme-pref="light"] .theme [data-theme-set="light"],
 html[data-theme-pref="dark"] .theme [data-theme-set="dark"],
 html[data-theme-pref="auto"] .theme [data-theme-set="auto"]{background:var(--bg);color:var(--accent);box-shadow:0 1px 2px rgba(10,11,13,.12),0 0 0 1px var(--line)}
 .theme button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.btn-sm{background:var(--accent);color:#fff!important;border-radius:99px;padding:9px 16px;font-weight:600}
+.btn-sm{background:var(--accent);color:#fff!important;border-radius:99px;padding:9px 16px;font-weight:600;flex:none;white-space:nowrap}
 .btn-sm:hover{background:#0052CC}
 .hero{display:grid;grid-template-columns:1.1fr .9fr;gap:48px;align-items:center;padding-top:36px;padding-bottom:72px}
 .kicker{display:inline-flex;align-items:center;gap:9px;font-size:13px;font-weight:550;color:var(--accent-d);background:var(--tint);border-radius:99px;padding:6px 13px 6px 11px}
@@ -138,7 +138,10 @@ h1{font-size:clamp(42px,6vw,68px);line-height:1.02;letter-spacing:-.05em;font-we
 @media (max-width:560px){
   .wrap{padding:0 18px}
   .nav-links a:not(.btn-sm){display:none}
-  h1{font-size:40px}
+  .nav{height:auto;min-height:56px;padding-top:10px;padding-bottom:10px;gap:10px;flex-wrap:wrap}
+  .nav-links{gap:8px;margin-left:auto}
+  .btn-sm{padding:8px 12px;font-size:14px}
+  h1{font-size:clamp(28px,8.2vw,36px)}
   .lead{font-size:16.5px}
   .wl-row{flex-direction:column}
   .wl input[type=email]{height:46px}
