@@ -1,9 +1,13 @@
-const CACHE = 'prelevo-app-v80-reset';
-const ASSETS = ['./', './index.html', './styles.css', './config.js', './powens.js', './api.js', './app.js', './manifest.json',
+const CACHE = 'prelevo-app-v81';
+const ASSETS = ['./', './index.html', './styles.css', './config.js', './powens.js', './api.js', './pwa.js', './app.js', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon.svg',
   './icons/favicon.svg', './icons/logo-mark.svg', './icons/logo-mark-white.svg', './icons/favicon-32.png', './icons/apple-touch-icon-180.png'];
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
+  // Précharge le cache ; l'activation attend le clic « Mettre à jour » (ou la 1ʳᵉ visite sans contrôleur).
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+});
+self.addEventListener('message', e => {
+  if (e.data && e.data.type === 'SKIP_WAITING') self.skipWaiting();
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));

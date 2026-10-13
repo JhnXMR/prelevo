@@ -21,11 +21,31 @@
   <link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png" sizes="180x180">
-  <link rel="stylesheet" href="styles.css?v=80">
+  <link rel="stylesheet" href="styles.css?v=81">
   <title>Prelevo – l'app qui traque vos abonnements</title>
 </head>
 <body>
+  <div id="pwa-update" class="pwa-bar pwa-update" hidden role="status" aria-live="polite">
+    <div class="pwa-bar-inner">
+      <div class="pwa-txt"><b>Nouvelle version disponible</b><span>Rechargez pour profiter des dernières améliorations.</span></div>
+      <button type="button" class="pwa-btn" id="pwa-update-btn">Mettre à jour</button>
+    </div>
+  </div>
   <div id="app" class="app"></div>
+  <div id="pwa-install" class="pwa-bar pwa-install" hidden role="dialog" aria-label="Installer Prelevo">
+    <div class="pwa-bar-inner">
+      <div class="pwa-mark" aria-hidden="true"><img src="icons/logo-mark.svg" alt="" width="28" height="28"></div>
+      <div class="pwa-txt">
+        <b>Installer Prelevo</b>
+        <span id="pwa-install-desc">Accès rapide depuis l’écran d’accueil, même hors ligne.</span>
+      </div>
+      <div class="pwa-actions" id="pwa-install-actions">
+        <button type="button" class="pwa-btn" data-pwa="install">Installer</button>
+        <button type="button" class="pwa-ghost" data-pwa="dismiss-install">Plus tard</button>
+      </div>
+      <button type="button" class="pwa-ghost" id="pwa-ios-ok" data-pwa="dismiss-install" hidden>OK</button>
+    </div>
+  </div>
   <nav id="tabbar" class="tabbar" hidden aria-label="Navigation principale">
     <a href="#/dashboard" data-tab="dashboard"><span class="ti"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9H4z"/></svg></span><span class="lab">Accueil</span></a>
     <a href="#/graphiques" data-tab="graphiques"><span class="ti"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5M4 19h16"/><path d="M8 15l3.2-3.6 2.6 2.2L19 7"/></svg></span><span class="lab">Graphiques</span></a>
@@ -37,11 +57,7 @@
   <script src="config.js"></script>
   <script src="powens.js"></script>
   <script src="api.js"></script>
-  <script src="app.js?v=80"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
-    }
-  </script>
+  <script src="pwa.js?v=81"></script>
+  <script src="app.js?v=81"></script>
 </body>
 </html>

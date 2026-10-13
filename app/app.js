@@ -1324,6 +1324,7 @@ screens.aide = () => `
   </div>
   <div class="card" style="padding:4px 16px">
     <button type="button" class="kv lnk" id="toggle-balance"><span>⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧ ${state.hideBalance ? 'Afficher le solde' : 'Masquer le solde'}</span><span>${state.hideBalance ? 'Masqué' : 'Visible'} ›</span></button>
+    <button type="button" class="kv lnk" id="pwa-install-row" data-pwa="open-install" hidden><span>⟦plus⟧ <span class="pwa-row-lab">Installer Prelevo</span></span><span>›</span></button>
     <a class="kv lnk" href="#/alertes"><span>⟦bell⟧ Alertes</span><span>›</span></a>
     <a class="kv lnk" href="#/premium"><span>⟦star⟧ Mon abonnement</span><span>${isP()?'Premium':'Gratuit'} ›</span></a>
     <div class="kv"><span>⟦shield⟧ Mes données</span><span class="muted">Jamais revendues</span></div>
@@ -1739,6 +1740,7 @@ function render(){
   if (name==='connexion' && API){ const tk = new URLSearchParams(qs||'').get('token'); if (tk) apiVerify(tk); }
   if (API && !API.loggedIn() && ['dashboard','abonnements','alertes','banques','abo','supprimer'].includes(name)){ location.replace('#/onboarding'); }
   if (name==='resilier' && !isP()) toast('La résiliation guidée fait partie de Premium');
+  if (window.PrelevoPwa) PrelevoPwa.syncInstallCta();
 }
 
 function runScan(){

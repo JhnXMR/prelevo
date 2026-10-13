@@ -826,3 +826,30 @@ input,select,textarea{font-size:16px}
 @media (prefers-reduced-motion: reduce){
   .screen,.sk i,.btn,.sync-btn,.tx,.row,.bk-card,.ptr.on img,.ptr.on::after{animation:none!important;transition:none!important}
 }
+
+/* Bandeaux PWA : mise à jour (haut) + install (bas, au-dessus de la tabbar) */
+.pwa-bar{position:fixed;left:14px;right:14px;max-width:452px;margin:0 auto;z-index:30;opacity:0;pointer-events:none;transform:translateY(8px);transition:opacity .22s ease,transform .22s ease}
+.pwa-bar.on{opacity:1;pointer-events:auto;transform:translateY(0)}
+.pwa-bar[hidden]{display:none!important}
+.pwa-update{top:calc(10px + env(safe-area-inset-top));transform:translateY(-8px)}
+.pwa-update.on{transform:translateY(0)}
+.pwa-install{bottom:calc(78px + env(safe-area-inset-bottom))}
+.pwa-bar-inner{display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:18px;background:color-mix(in srgb, var(--bg) 78%, transparent);border:1px solid color-mix(in srgb, var(--line) 80%, transparent);-webkit-backdrop-filter:blur(24px) saturate(1.6);backdrop-filter:blur(24px) saturate(1.6);box-shadow:0 10px 28px rgba(10,11,13,.14), inset 0 1px 0 color-mix(in srgb, #fff 40%, transparent)}
+.pwa-mark{width:40px;height:40px;border-radius:12px;background:var(--ink);display:grid;place-items:center;flex:none}
+.pwa-mark img{width:22px;height:22px;filter:brightness(0) invert(1)}
+:root[data-theme="dark"] .pwa-mark{background:var(--soft)}
+:root[data-theme="dark"] .pwa-mark img{filter:none}
+.pwa-txt{flex:1;min-width:0}
+.pwa-txt b{display:block;font-size:14px;font-weight:650;letter-spacing:-.02em;line-height:1.25}
+.pwa-txt span{display:block;font-size:12.5px;color:var(--ink2);line-height:1.35;margin-top:2px}
+.pwa-actions{display:flex;flex-direction:column;align-items:stretch;gap:4px;flex:none}
+.pwa-btn{appearance:none;border:0;background:var(--accent);color:var(--accent-ink);font:inherit;font-size:13.5px;font-weight:650;padding:10px 14px;border-radius:12px;cursor:pointer;white-space:nowrap}
+.pwa-btn:disabled{opacity:.6;cursor:wait}
+.pwa-ghost{appearance:none;border:0;background:transparent;color:var(--ink2);font:inherit;font-size:12.5px;font-weight:550;padding:6px 8px;cursor:pointer;border-radius:8px}
+.pwa-ghost:hover{color:var(--ink)}
+body.has-pwa-install .tabbar{bottom:calc(8px + env(safe-area-inset-bottom))}
+body.has-pwa-install .app{padding-bottom:calc(168px + env(safe-area-inset-bottom))}
+body.has-pwa-update .screen{padding-top:calc(78px + env(safe-area-inset-top))}
+@media (prefers-reduced-motion: reduce){
+  .pwa-bar{transition:none}
+}
