@@ -1220,6 +1220,12 @@ screens.compte = () => {
   </div>
   <p class="acct-foot">Sur cet appareil seulement. Le thème et l’icône restent.</p>
   <a class="help-card" href="#/aide"><div><b>Obtenir de l’aide</b><span>Questions fréquentes, ou un humain au chat.</span></div><span class="help-ic">⟦chat⟧</span></a>
+  <p class="acct-k">Informations légales</p>
+  <div class="menu-card">
+    <a class="acct-row" href="../mentions-legales.html"><span class="acct-lab">Mentions légales</span><span class="acct-go">⟦chev⟧</span></a>
+    <a class="acct-row" href="../cgu.html"><span class="acct-lab">Conditions générales</span><span class="acct-go">⟦chev⟧</span></a>
+    <a class="acct-row" href="../confidentialite.html"><span class="acct-lab">Confidentialité</span><span class="acct-go">⟦chev⟧</span></a>
+  </div>
   <p class="acct-legal"><i class="brand-mark" aria-hidden="true"></i>${APP_NAME} n’est pas une banque. Lecture seule, aucun virement.<br><a href="#/apropos">À propos</a> · ${demoTag}</p>
 </div>`;
 };
@@ -1373,6 +1379,12 @@ screens.aide = () => `
     <div style="font-weight:700">À propos de ${APP_NAME}</div>
     <p>${APP_NAME} n’est pas une banque : c’est une belle interface qui se branche sur vos banques actuelles, comme une télécommande. Vous gardez vos comptes, vos cartes et votre conseiller.</p>
     <p>L’accès est en lecture seule, via un agrégateur agréé par l’ACPR (norme européenne DSP2) : ${APP_NAME} voit vos opérations, mais ne peut jamais déplacer votre argent.</p>
+  </div>
+  <p class="acct-k">Informations légales</p>
+  <div class="menu-card">
+    <a class="acct-row" href="../mentions-legales.html"><span class="acct-lab">Mentions légales</span><span class="acct-go">⟦chev⟧</span></a>
+    <a class="acct-row" href="../cgu.html"><span class="acct-lab">Conditions générales</span><span class="acct-go">⟦chev⟧</span></a>
+    <a class="acct-row" href="../confidentialite.html"><span class="acct-lab">Confidentialité</span><span class="acct-go">⟦chev⟧</span></a>
   </div>
   ${neutral}
   <div class="card">
