@@ -948,15 +948,18 @@ screens.compte = () => {
   return `
 <div class="screen account">
   <div class="acct-top"><a class="back" href="#/dashboard" aria-label="Fermer">⟦back⟧</a></div>
-  <div class="acct-head">
-    <h1>${esc(USER.prenom)}</h1>
+  <div class="acct-id">
     ${logoMark()}
+    <div><h1>${esc(USER.prenom)}</h1><p>Compte et paramètres</p></div>
   </div>
+  <a class="one-card" href="#/premium">
+    <div><b>${APP_NAME} Premium</b><span>${P ? 'Actif. Zéro pub, alertes et banques illimitées.' : '1 mois offert. Zéro pub, alertes et banques illimitées.'}</span></div>
+    ${logoMark()}
+  </a>
   <p class="acct-k">Services</p>
   <div class="menu-card">
     ${row('#/banques','bank','Mes banques')}
     ${row('#/abonnements','scissors','Transactions')}
-    ${row('#/operations','calendar','Opérations')}
     ${row('#/alertes','bell','Alertes', unread ? String(unread) : '')}
   </div>
   <p class="acct-k">Paramètres</p>
@@ -964,16 +967,26 @@ screens.compte = () => {
     <button type="button" class="acct-row" id="toggle-balance" aria-pressed="${state.hideBalance ? 'true' : 'false'}"><span class="acct-ic">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</span><span class="acct-lab">Masquer le solde</span><span class="sw ${state.hideBalance ? 'on' : ''}"></span></button>
     ${row('#/apparence','auto','Apparence', themeLabel())}
     ${row('#/premium','star',APP_NAME+' Premium', P ? 'Actif' : 'Gratuit')}
-  </div>
-  <p class="acct-k">${APP_NAME}</p>
-  <div class="menu-card">
     ${row('#/parrainage','gift','Parrainage','1 mois offert')}
-    ${row('#/aide','chat','Aide')}
-    ${row('#/aide','info','À propos')}
   </div>
-  <p class="acct-foot">${APP_NAME} n’est pas une banque. Lecture seule, aucun virement. ${demoTag}</p>
+  <a class="help-card" href="#/aide"><div><b>Obtenir de l’aide</b><span>Questions fréquentes, ou un humain au chat.</span></div><span class="help-ic">⟦chat⟧</span></a>
+  <p class="acct-legal"><i class="brand-mark" aria-hidden="true"></i>${APP_NAME} n’est pas une banque. Lecture seule, aucun virement.<br><a href="#/apropos">À propos</a> · ${demoTag}</p>
 </div>`;
 };
+screens.apropos = () => `
+<div class="screen">
+  <div class="topbar look-bar"><a class="back" href="#/compte" aria-label="Retour">⟦back⟧</a><h1>À propos</h1><span></span></div>
+  <div style="display:flex;justify-content:center;margin:8px 0 18px">${logoMark('l')}</div>
+  <div class="card about">
+    <p>${APP_NAME} n’est pas une banque. C’est une lecture de vos comptes : prélèvements, hausses de prix, reste à vivre. Aucun virement, aucune carte, aucun conseil sponsorisé.</p>
+    <p>Les chiffres de Camille sont un exemple. Rien n’est envoyé tant qu’une banque n’est pas connectée.</p>
+  </div>
+  <div class="card" style="padding:4px 16px">
+    <div class="kv"><span>Version</span><span class="muted">Bêta privée</span></div>
+    <div class="kv"><span>Formule</span><span class="muted">${isP() ? 'Premium' : 'Gratuit'}</span></div>
+  </div>
+  <button class="btn ghost" id="reset" type="button">Recommencer la démo</button>
+</div>`;
 function refCode(){
   try {
     const saved = localStorage.getItem('prelevo-ref');
@@ -1488,7 +1501,7 @@ function render(){
   const fn = screens[name] || screens.dashboard;
   $('#app').innerHTML = icons(fn(new URLSearchParams(qs||''), ...args));
   const bar = $('#app .sub-bar'); if (bar) document.body.appendChild(bar);
-  const tabbed = ['dashboard','operations','abonnements','alertes','premium','abo','aide','banques','compte','apparence','parrainage'].includes(name) || (!screens[name]);
+  const tabbed = ['dashboard','operations','abonnements','alertes','premium','abo','aide','apropos','banques','compte','apparence','parrainage'].includes(name) || (!screens[name]);
   $('#tabbar').hidden = !tabbed;
   if (API && ['onboarding','connexion','dashboard','connect','banques'].includes(name)){ const sc = $('#app').firstElementChild; if (sc && !sc.querySelector('.alpha-note')) sc.insertAdjacentHTML('afterbegin', '<div class="alpha-note" role="note"><b>Bêta privée</b> — banques de test uniquement pour l’instant</div>'); }
   const tabName = name==='abo' || name==='operations' ? 'abonnements' : !screens[name] ? 'dashboard' : name;

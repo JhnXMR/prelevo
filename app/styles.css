@@ -423,7 +423,21 @@ body:has(.sub-bar) .app{padding-bottom:calc(150px + env(safe-area-inset-bottom))
 .amount-row .amount{flex:1;min-width:0}
 .eye{width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--ink2);display:grid;place-items:center;flex:none}
 .eye .i{width:18px;height:18px}
-.account{padding-bottom:12px}
+.account{padding-bottom:36px}
+.acct-id{display:flex;align-items:center;gap:14px;margin:8px 2px 4px}
+.acct-id h1{font-size:30px;font-weight:650;letter-spacing:-.04em;line-height:1}
+.acct-id p{margin:4px 0 0;color:var(--muted);font-size:15px}
+.one-card{display:flex;align-items:center;gap:12px;margin:16px 0 4px;padding:16px;border-radius:18px;background:var(--soft);color:inherit}
+.one-card b{display:block;font-size:17px;font-weight:650;letter-spacing:-.02em}
+.one-card span{display:block;margin-top:4px;color:var(--muted);font-size:14px;line-height:1.35}
+.one-card .logo-chip{width:64px;height:64px;border-radius:18px}
+.help-card{display:flex;align-items:center;gap:14px;margin-top:18px;padding:16px;border:1px solid var(--line);border-radius:18px;color:inherit}
+.help-card b{display:block;font-size:16.5px;font-weight:650}
+.help-card span{display:block;margin-top:3px;color:var(--muted);font-size:13.5px;line-height:1.35}
+.help-ic{width:42px;height:42px;border-radius:50%;background:color-mix(in srgb, var(--ink) 10%, transparent);color:var(--ink);display:grid;place-items:center;flex:none}
+.acct-legal{margin:26px 12px 0;text-align:center;color:var(--muted);font-size:12.5px;line-height:1.5}
+.acct-legal .brand-mark{margin:0 auto 12px}
+.acct-legal a{color:var(--ink2);text-decoration:underline}
 .acct-top{display:flex;align-items:center;margin-bottom:8px}
 .acct-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:4px 0 8px}
 .acct-head h1{font-size:34px;font-weight:650;letter-spacing:-.04em;line-height:1}
