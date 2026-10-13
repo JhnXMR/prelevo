@@ -577,6 +577,35 @@ function sparkLite(curve, color){
   </svg><i class="sp-dot" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%;background:${color};box-shadow:0 0 0 4px var(--bg)"></i></div>
   <div class="sp-axis"><span class="a0" style="left:0">30 jours</span><span class="a1" style="left:100%">${delta >= 0 ? '+' : '−'}${fmt}</span></div></div>`;
 }
+function spendOf(tx){
+  const from = day0(nowRef()).getTime() - 29 * DAY_MS;
+  return tx.filter(x => x.amt < 0 && x.cat !== 'virement' && x.cat !== 'revenu' && +x.t >= from);
+}
+function spendBars(tx, color){
+  const days = 30, t0 = day0(nowRef()), out = spendOf(tx);
+  const buckets = [];
+  for (let d = days - 1; d >= 0; d--){
+    const start = t0.getTime() - d * DAY_MS;
+    const v = out.filter(x => +x.t >= start && +x.t < start + DAY_MS).reduce((a, x) => a + -x.amt, 0);
+    buckets.push(v);
+  }
+  const total = buckets.reduce((a, b) => a + b, 0);
+  const max = Math.max(...buckets, 1);
+  const W = 340, H = 84, gap = 3, n = buckets.length, bw = (W - gap * (n - 1)) / n;
+  const bars = buckets.map((v, i) => {
+    const h = v <= 0 ? 2 : Math.max(3, v / max * (H - 6));
+    return `<rect x="${(i * (bw + gap)).toFixed(2)}" y="${(H - h).toFixed(2)}" width="${bw.toFixed(2)}" height="${h.toFixed(2)}" rx="1.6" fill="${color}" opacity="${v ? .95 : .2}"/>`;
+  }).join('');
+  const fmt = total.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+  const by = {};
+  out.forEach(x => { const k = x.cat || 'autre'; by[k] = (by[k] || 0) + -x.amt; });
+  const tops = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const cats = tops.map(([k, v]) => `<span>${esc((CATS[k] || CATS.autre).l)} · ${v.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €</span>`).join('');
+  if (!total) return '<p class="insight">Aucune dépense sur 30 jours.</p>';
+  return `<div class="spend" role="img" aria-label="Dépenses sur 30 jours, ${fmt}"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>
+    <div class="sp-axis"><span class="a0" style="left:0">30 jours</span><span class="a1" style="left:100%">${fmt}</span></div>
+    ${cats ? `<div class="spend-cats">${cats}</div>` : ''}</div>`;
+}
 const catChip = c => `<span class="cat cat-${c}" aria-hidden="true">⟦${(CATS[c] || CATS.autre).ic}⟧</span>`;
 const MOIS_LONG = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 function txKind(x){
@@ -652,6 +681,9 @@ screens.dashboard = () => {
       <div class="bc-meta ${b.status === 'error' ? 't-red' : ''}">${b.status === 'error' ? 'Synchro en échec' : b.status === 'expired' ? 'Session expirée' : 'À jour · ' + b.sync}</div></a>`).join('')}
     ${!LIVE && !P ? `<a class="bk-card add" href="#/premium">⟦plus⟧<span>Ajouter une banque</span><b>Premium</b></a>` : ''}
   </div>
+
+  <div class="section-h rise" style="--d:2"><h2>Dépenses</h2><span class="sec-sum">30 jours</span></div>
+  <div class="panel spend-card rise" style="--d:2">${state.hideBalance ? '<p class="insight">Graphique masqué avec le solde.</p>' : spendBars(L.tx, '#0066FF')}</div>
 
   <div class="section-h rise" style="--d:3"><h2>Dernières opérations</h2><a href="#/operations">Tout voir</a></div>
   <div class="panel rise" style="--d:3">${L.tx.length ? txGroups(L.tx, 3, 8) : '<p class="insight">Aucune opération ces derniers jours.</p>'}</div>
@@ -984,6 +1016,7 @@ screens.banque = (q, id) => {
     <div class="bh-meta">${b.accs.length} compte${b.accs.length > 1 ? 's' : ''}${b.accounts ? ' · ' + esc(b.accounts) : ''}</div>
     ${hid ? '<p class="bh-meta">Graphique masqué avec le solde.</p>' : sparkLite(bankCurve(b, L.tx), color)}
   </section>
+  ${hid ? '' : `<p class="acct-k">Dépenses</p><div class="panel spend-card">${spendBars(tx, color)}</div>`}
   <p class="acct-k">Comptes</p>
   <div class="panel bank-accs">
     ${b.accs.map(a => `<div class="acc-row ${a.counted === false ? 'off' : ''}"><span>${esc(a.name)}</span><b>${hid ? '<span class="masked">••••</span>' : (a.currency && a.currency !== 'EUR' ? (a.balance || 0).toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' ' + esc(a.currency) : eur(a.balance))}</b></div>`).join('')}

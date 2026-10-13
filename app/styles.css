@@ -689,6 +689,10 @@ button.kv{width:100%;border:0;background:transparent;font:inherit;color:inherit;
 .spark.lite{margin:14px 0 2px}
 .spark.lite .spark-plot,.spark.lite svg{height:78px}
 .spark.lite .sp-axis{font-variant-numeric:tabular-nums}
+.spend svg{width:100%;height:84px;display:block}
+.spend-card{padding:14px 14px 12px}
+.spend-cats{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.spend-cats span{font-size:12px;font-weight:550;color:var(--ink2);background:var(--chip);border-radius:99px;padding:4px 8px}
 .bk-list{display:flex;flex-direction:column;gap:10px;margin-bottom:14px}
 .bk-row{display:flex;align-items:center;gap:12px;padding:14px 14px 14px 16px;border:1px solid var(--line);border-radius:18px;background:var(--bg);color:var(--ink);position:relative;overflow:hidden;box-shadow:var(--shadow)}
 .bk-row::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--bk,#0066FF)}
