@@ -581,12 +581,12 @@ function spendOf(tx){
   const from = day0(nowRef()).getTime() - 29 * DAY_MS;
   return tx.filter(x => x.amt < 0 && x.cat !== 'virement' && x.cat !== 'revenu' && +x.t >= from);
 }
-function spendBars(tx, color){
-  const days = 30, t0 = day0(nowRef()), out = spendOf(tx);
+function flowBars(rows, color, word){
+  const days = 30, t0 = day0(nowRef());
   const buckets = [];
   for (let d = days - 1; d >= 0; d--){
     const start = t0.getTime() - d * DAY_MS;
-    const v = out.filter(x => +x.t >= start && +x.t < start + DAY_MS).reduce((a, x) => a + -x.amt, 0);
+    const v = rows.filter(x => +x.t >= start && +x.t < start + DAY_MS).reduce((a, x) => a + Math.abs(x.amt), 0);
     buckets.push(v);
   }
   const total = buckets.reduce((a, b) => a + b, 0);
@@ -598,14 +598,20 @@ function spendBars(tx, color){
   }).join('');
   const fmt = total.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
   const by = {};
-  out.forEach(x => { const k = x.cat || 'autre'; by[k] = (by[k] || 0) + -x.amt; });
+  rows.forEach(x => { const k = x.cat || 'autre'; by[k] = (by[k] || 0) + Math.abs(x.amt); });
   const tops = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 3);
   const cats = tops.map(([k, v]) => `<span>${esc((CATS[k] || CATS.autre).l)} · ${v.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} €</span>`).join('');
-  if (!total) return '<p class="insight">Aucune dépense sur 30 jours.</p>';
-  return `<div class="spend" role="img" aria-label="Dépenses sur 30 jours, ${fmt}"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>
+  if (!total) return `<p class="insight">${word === 'Revenus' ? 'Aucun revenu' : 'Aucune dépense'} sur 30 jours.</p>`;
+  return `<div class="spend" role="img" aria-label="${word} sur 30 jours, ${fmt}"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">${bars}</svg>
     <div class="sp-axis"><span class="a0" style="left:0">30 jours</span><span class="a1" style="left:100%">${fmt}</span></div>
     ${cats ? `<div class="spend-cats">${cats}</div>` : ''}</div>`;
 }
+function spendBars(tx, color){ return flowBars(spendOf(tx), color, 'Dépenses'); }
+function incomeOf(tx){
+  const from = day0(nowRef()).getTime() - 29 * DAY_MS;
+  return tx.filter(x => x.amt > 0 && x.cat === 'revenu' && +x.t >= from);
+}
+function incomeBars(tx){ return flowBars(incomeOf(tx), '#1FA971', 'Revenus'); }
 const catChip = c => `<span class="cat cat-${c}" aria-hidden="true">⟦${(CATS[c] || CATS.autre).ic}⟧</span>`;
 const MOIS_LONG = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 function txKind(x){
@@ -684,6 +690,8 @@ screens.dashboard = () => {
 
   <div class="section-h rise" style="--d:2"><h2>Dépenses</h2><span class="sec-sum">30 jours</span></div>
   <div class="panel spend-card rise" style="--d:2">${state.hideBalance ? '<p class="insight">Graphique masqué avec le solde.</p>' : spendBars(L.tx, '#0066FF')}</div>
+  <div class="section-h rise" style="--d:2"><h2>Revenus</h2><span class="sec-sum">30 jours</span></div>
+  <div class="panel spend-card rise" style="--d:2">${state.hideBalance ? '<p class="insight">Graphique masqué avec le solde.</p>' : incomeBars(L.tx)}</div>
 
   <div class="section-h rise" style="--d:3"><h2>Dernières opérations</h2><a href="#/operations">Tout voir</a></div>
   <div class="panel rise" style="--d:3">${L.tx.length ? txGroups(L.tx, 3, 8) : '<p class="insight">Aucune opération ces derniers jours.</p>'}</div>
@@ -1017,6 +1025,7 @@ screens.banque = (q, id) => {
     ${hid ? '<p class="bh-meta">Graphique masqué avec le solde.</p>' : sparkLite(bankCurve(b, L.tx), color)}
   </section>
   ${hid ? '' : `<p class="acct-k">Dépenses</p><div class="panel spend-card">${spendBars(tx, color)}</div>`}
+  ${hid ? '' : `<p class="acct-k">Revenus</p><div class="panel spend-card">${incomeBars(tx)}</div>`}
   <p class="acct-k">Comptes</p>
   <div class="panel bank-accs">
     ${b.accs.map(a => `<div class="acc-row ${a.counted === false ? 'off' : ''}"><span>${esc(a.name)}</span><b>${hid ? '<span class="masked">••••</span>' : (a.currency && a.currency !== 'EUR' ? (a.balance || 0).toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' ' + esc(a.currency) : eur(a.balance))}</b></div>`).join('')}
