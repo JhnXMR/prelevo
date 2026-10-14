@@ -621,10 +621,24 @@ function homeCurve(){
   }
   return samples(homeTf).map((p, i, all) => ({ t:p.t, v: i === all.length - 1 ? L.total : p.bal + (L.total - timeline().end) }));
 }
+function chartTicks(lo, hi){
+  if (!(hi > lo)) return [lo];
+  return [hi, (hi + lo) / 2, lo];
+}
+function chartTick(v){
+  const n = Math.abs(v) >= 100 ? Math.round(v) : Math.round(v * 10) / 10;
+  return n.toLocaleString('fr-FR');
+}
+function chartY(W, H, yOf, lo, hi){
+  const ticks = chartTicks(lo, hi);
+  const lines = `<g class="sp-grid">${ticks.map(v => `<line x1="0" y1="${yOf(v).toFixed(1)}" x2="${W}" y2="${yOf(v).toFixed(1)}" stroke="currentColor" stroke-opacity=".07" vector-effect="non-scaling-stroke"/>`).join('')}</g>`;
+  const labels = `<div class="sp-y" aria-hidden="true">${ticks.map(v => `<span style="top:${(yOf(v) / H * 100).toFixed(2)}%">${chartTick(v)}</span>`).join('')}</div>`;
+  return { lines, labels };
+}
 function spark(curve){
   if (!curve || curve.length < 2) return '';
   const tf = homeTfMeta();
-  const W = 340, H = 118, PADL = 6, PADR = 16, PADT = 14, PADB = 12;
+  const W = 340, H = 118, PADL = 2, PADR = 46, PADT = 16, PADB = 10;
   const vs = curve.map(p => p.v), lo = Math.min(...vs), hi = Math.max(...vs), r = hi - lo || 1;
   const x = i => PADL + (i / (curve.length - 1)) * (W - PADL - PADR);
   const y = v => PADT + (hi - v) / r * (H - PADT - PADB);
@@ -633,18 +647,22 @@ function spark(curve){
   const last = pts[pts.length - 1], first = pts[0];
   const track = curve.map((p, i) => ({ x: pts[i][0] / W * 100, y: pts[i][1] / H * 100, v: p.v, t: p.t }));
   const line = d, area = `${d} L${last[0].toFixed(1)},${H} L${first[0].toFixed(1)},${H} Z`;
-  SPARK = { pts: track, poly: pts, H, line, area, first: curve[0].v, tf: homeTf, home: true };
+  const grid = chartY(W, H, y, lo, hi);
+  const fmt = homeTf === '24H' ? 'hour' : (homeTf === '3M' || homeTf === '1A' || homeTf === 'TOUT') ? 'month' : 'day';
+  SPARK = { pts: track, poly: pts, H, line, area, first: curve[0].v, tf: homeTf, fmt, home: true };
   const nLab = homeTf === '24H' || homeTf === '7J' ? 4 : 5;
   const seen = new Set(), idxs = [];
   for (let k = 0; k < nLab; k++){ const i = Math.round(k * (curve.length - 1) / (nLab - 1)); if (!seen.has(i)) { seen.add(i); idxs.push(i); } }
   const lab = d => homeTf === '24H' ? String(d.getHours()).padStart(2, '0') + ' h' : (homeTf === '3M' || homeTf === '1A' || homeTf === 'TOUT') ? MOIS[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2) : d.getDate() + ' ' + MOIS[d.getMonth()];
   const axis = idxs.map((i, k) => `<span class="${k === 0 ? 'a0' : k === idxs.length - 1 ? 'a1' : ''}" style="left:${track[i].x.toFixed(2)}%">${lab(curve[i].t)}</span>`).join('');
   return `<div class="spark home-spark" role="img" aria-label="Évolution du solde sur ${tf[2]}. Glissez pour voir le détail."><div class="spark-plot"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
-    <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".5"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+    <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".16"/><stop offset=".62" stop-color="var(--accent)" stop-opacity=".03"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+    ${grid.lines}
     <path class="sp-area" d="${area}" fill="url(#spk)"/>
-    <path class="sp-dim" d="" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
-    <path class="sp-line" d="${line}" fill="none" stroke="var(--accent)" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
-  </svg><i class="sp-vline" hidden></i><i class="sp-dot" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%"></i>
+    <path class="sp-dim" d="" fill="none" stroke="var(--accent)" stroke-width="1.35" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+    <path class="sp-line" d="${line}" fill="none" stroke="var(--accent)" stroke-width="1.35" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg>${grid.labels}<i class="sp-vline" hidden></i><i class="sp-dot" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%"></i>
+  <div class="sp-tip" hidden><b></b><span></span></div>
   <div class="sp-hit" aria-hidden="true"></div></div>
   <div class="sp-axis">${axis}</div></div>`;
 }
@@ -663,7 +681,7 @@ function curveChart(curve, opt = {}){
   if (!curve || curve.length < 2) return '';
   const color = opt.color || '#0066FF';
   const H = opt.h || 92;
-  const W = 340, PADL = 4, PADR = 12, PADT = 10, PADB = 8;
+  const W = 340, PADL = 2, PADR = 46, PADT = 12, PADB = 8;
   let lo = Math.min(...curve.map(p => p.v)), hi = Math.max(...curve.map(p => p.v));
   if (opt.zero){ lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
   if (hi === lo) {
@@ -705,15 +723,17 @@ function curveChart(curve, opt = {}){
   }).join('');
   const total = opt.total != null ? opt.total : curve[curve.length - 1].v;
   const head = opt.header != null ? opt.header : (opt.signed ? sgnEUR(total) : (fmt === 'month' ? kEUR(total) : total.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'));
-  const zero = opt.zero && lo < 0 && hi > 0 ? `<line x1="0" y1="${y(0).toFixed(1)}" x2="${W}" y2="${y(0).toFixed(1)}" stroke="currentColor" stroke-opacity=".2" stroke-dasharray="3 4"/>` : '';
+  const grid = chartY(W, H, y, lo, hi);
+  const zero = opt.zero && lo < 0 && hi > 0 ? `<line class="sp-zero" x1="0" y1="${y(0).toFixed(1)}" x2="${W}" y2="${y(0).toFixed(1)}" stroke="currentColor" stroke-opacity=".16" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>` : '';
   const dotCls = partial ? 'sp-dot is-partial' : 'sp-dot';
   return `<div class="spark lite" data-curve="${idx}" ${opt.link ? `data-link="${opt.link}"` : ''} style="--spk:${color}" role="img" aria-label="${opt.label || 'Courbe. Glissez pour le détail.'}"><div class="sp-read"><span>${opt.caption || ''}</span><b>${head}</b></div><div class="spark-plot" style="height:${H}px"><svg viewBox="0 0 ${W} ${H}" style="height:${H}px" preserveAspectRatio="none" aria-hidden="true">
-    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".42"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
-    ${zero}<path class="sp-area" d="${area}" fill="url(#${gid})"/>
-    <path class="sp-dim" d="" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
-    <path class="sp-line" d="${solid}" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
-    ${dash ? `<path class="sp-dash" d="${dash}" fill="none" stroke="${color}" stroke-width="2.2" stroke-dasharray="4 3" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
-  </svg><i class="${dotCls}" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%"></i>
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".16"/><stop offset=".62" stop-color="${color}" stop-opacity=".03"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+    ${grid.lines}${zero}<path class="sp-area" d="${area}" fill="url(#${gid})"/>
+    <path class="sp-dim" d="" fill="none" stroke="${color}" stroke-width="1.35" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+    <path class="sp-line" d="${solid}" fill="none" stroke="${color}" stroke-width="1.35" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dash ? `<path class="sp-dash" d="${dash}" fill="none" stroke="${color}" stroke-width="1.35" stroke-dasharray="2.5 2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
+  </svg>${grid.labels}<i class="${dotCls}" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%"></i>
+  <div class="sp-tip" hidden><b></b><span></span></div>
   <div class="sp-hit" aria-hidden="true"></div></div><div class="sp-axis">${axis}</div></div>`;
 }
 function sparkLite(curve, color){
@@ -2752,6 +2772,7 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     if (dl) dl.innerHTML = o.d;
     const dot = el.querySelector('.sp-dot'); if (dot) { dot.hidden = false; dot.style.left = o.l; dot.style.top = o.t; dot.classList.toggle('is-partial', !!o.partial); }
     const vl = el.querySelector('.sp-vline'); if (vl) vl.hidden = true;
+    const tip = el.querySelector('.sp-tip'); if (tip) tip.hidden = true;
     const read = el.querySelector('.sp-read'); if (read && o.r != null) read.innerHTML = o.r;
     const S = el._data;
     if (S) {
@@ -2777,7 +2798,23 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     }
   };
   const segPath = arr => arr.map((p, n) => (n ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
-  const snap = (el, S, i) => {
+  const tipWhen = (t, fmt, partial) => {
+    const s = fmt === 'hour' ? t.getDate() + ' ' + MOIS[t.getMonth()] + ' · ' + String(t.getHours()).padStart(2, '0') + ' h' : fmt === 'month' ? MOIS[t.getMonth()] + ' ' + t.getFullYear() : t.getDate() + ' ' + MOIS[t.getMonth()] + ' ' + t.getFullYear();
+    return partial ? s + ' · estimation' : s;
+  };
+  const tipEUR = n => { const v = Math.round(n * 100) / 100; const s = Math.abs(v).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); return (v < 0 ? '−' : '') + s + ' €'; };
+  const showTip = (el, xPct, value, when) => {
+    const tip = el.querySelector('.sp-tip');
+    if (!tip) return;
+    if (state.hideBalance) { tip.hidden = true; return; }
+    tip.hidden = false;
+    tip.querySelector('b').textContent = value;
+    tip.querySelector('span').textContent = when;
+    const x = Math.max(0, Math.min(100, xPct));
+    tip.style.left = x + '%';
+    tip.classList.toggle('flip', x > 62);
+  };
+  const snap = (el, S, i, withTip) => {
     const p = S.pts[i], poly = S.poly;
     el.classList.add('scrub');
     const vl = el.querySelector('.sp-vline'), dot = el.querySelector('.sp-dot');
@@ -2790,11 +2827,11 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     const sx = poly[i][0], sy = poly[i][1];
     if (area) area.setAttribute('d', segPath(left) + ` L${sx.toFixed(1)},${S.H} L${poly[0][0].toFixed(1)},${S.H} Z`);
     const read = el.querySelector('.sp-read');
-    if (read && !state.hideBalance) {
-      const when = deskWhen(S.fmt, p.t, p.partial);
-      const num = S.signed ? sgnEUR(p.v) : (S.fmt === 'month' ? kEUR(p.v) : p.v.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €');
-      read.innerHTML = `<span>${when}</span><b>${num}</b>`;
-    }
+    const when = deskWhen(S.fmt, p.t, p.partial);
+    const num = S.signed ? sgnEUR(p.v) : (S.fmt === 'month' ? kEUR(p.v) : p.v.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €');
+    if (read && !state.hideBalance) read.innerHTML = `<span>${when}</span><b>${num}</b>`;
+    if (withTip) showTip(el, p.x, num, tipWhen(p.t, S.fmt, p.partial));
+    else { const tip = el.querySelector('.sp-tip'); if (tip) tip.hidden = true; }
   };
   const paintDesk = () => {
     const i = Math.max(0, st.i);
@@ -2810,7 +2847,7 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
         el._data = S;
         el._orig = { r: read ? read.innerHTML : null, l: dot ? dot.style.left : '', t: dot ? dot.style.top : '', partial: dot ? dot.classList.contains('is-partial') : false };
       }
-      snap(el, S, at);
+      snap(el, S, at, el === st.el);
       bag[S.slot] = S.pts[at].v;
       if (!when) when = deskWhen(S.fmt, S.pts[at].t, S.pts[at].partial);
     });
@@ -2858,13 +2895,13 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
         const hh = String(t.getHours()).padStart(2, '0'), mm = String(t.getMinutes()).padStart(2, '0');
         dl.innerHTML = `<span class="scrub-when">${JC[t.getDay()]} ${t.getDate()} ${MOIS[t.getMonth()]} à ${hh}:${mm}</span>`;
       }
+      showTip(st.el, f, tipEUR(v), tipWhen(t, S.fmt || 'day', false));
     } else {
       const read = st.el.querySelector('.sp-read');
-      if (read && !state.hideBalance) {
-        const when = S.fmt === 'hour' ? String(t.getHours()).padStart(2, '0') + ' h' : S.fmt === 'month' ? MOIS[t.getMonth()] + ' ' + t.getFullYear() : t.getDate() + ' ' + MOIS[t.getMonth()];
-        const num = S.signed ? sgnEUR(v) : (S.fmt === 'month' ? kEUR(v) : v.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €');
-        read.innerHTML = `<span>${when}</span><b>${num}</b>`;
-      }
+      const when = S.fmt === 'hour' ? String(t.getHours()).padStart(2, '0') + ' h' : S.fmt === 'month' ? MOIS[t.getMonth()] + ' ' + t.getFullYear() : t.getDate() + ' ' + MOIS[t.getMonth()];
+      const num = S.signed ? sgnEUR(v) : (S.fmt === 'month' ? kEUR(v) : v.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €');
+      if (read && !state.hideBalance) read.innerHTML = `<span>${when}</span><b>${num}</b>`;
+      showTip(st.el, f, num, tipWhen(t, S.fmt || 'day', false));
     }
   };
   const frame = () => { raf = 0; paint(); };
