@@ -496,33 +496,109 @@ Object.assign(ICONS, {
   plane:'<path d="M10.5 13.5L4 11.5l1.2-1.8 7 .3 4.3-4.6a1.5 1.5 0 0 1 2.1 2.1L14 11.8l.3 7-1.8 1.2-2-6.5z"/>',
   dot:'<circle cx="12" cy="12" r="2.5"/>',
 });
-const CATS = {
-  courses:{ ic:'cart', l:'Courses' }, resto:{ ic:'cup', l:'Restos & cafés' }, transport:{ ic:'train', l:'Transports' },
-  shopping:{ ic:'bag', l:'Shopping' }, sante:{ ic:'heart', l:'Santé' }, logement:{ ic:'home', l:'Logement' },
-  energie:{ ic:'bolt', l:'Énergie' }, telecom:{ ic:'wifi', l:'Téléphone & internet' }, abo:{ ic:'repeat', l:'Abonnement' },
-  revenu:{ ic:'income', l:'Revenu' }, virement:{ ic:'swap', l:'Virement' }, retrait:{ ic:'cash', l:'Retrait' },
-  loisirs:{ ic:'ticket', l:'Loisirs' }, voyage:{ ic:'plane', l:'Voyage' }, pret:{ ic:'bank', l:'Prêt' }, autre:{ ic:'dot', l:'Autre' },
-};
-const CAT_RULES = [
-  [/LOYER|AGENCE|SYNDIC/, 'logement'],
-  [/SUPERMARCH|SUP[EÉ]RETTE|MARCH[EÉ]\b|PRIMEUR|BOULANG|[EÉ]PICERIE|CARREFOUR|MONOPRIX|LIDL|FRANPRIX|AUCHAN|LECLERC|INTERMARCH|PICARD/, 'courses'],
-  [/RESTAURANT|CAF[EÉ]\b|BRASSERIE|CANTINE|\bBAR\b|PIZZ|SUSHI|BURGER|DELIVEROO|UBER ?EATS|BOULANGERIE/, 'resto'],
-  [/PHARMACIE|M[EÉ]DECIN|DOCTEUR|DENTISTE|MUTUELLE|SANT[EÉ]|OPTIC/, 'sante'],
-  [/BILLET|AVION|AIR ?FRANCE|H[OÔ]TEL|AIRBNB|VOYAGE/, 'voyage'],
-  [/SNCF|RATP|NAVIGO|M[EÉ]TRO|TRANSPORT|TAXI|UBER|ESSENCE|CARBURANT|P[EÉ]AGE|PARKING|V[EÉ]LO/, 'transport'],
-  [/MUS[EÉ]E|MUSEUM|CIN[EÉ]|CONCERT|TH[EÉ][AÂ]TRE|SPECTACLE/, 'loisirs'],
-  [/[EÉ]LECTRICIT|EDF|ENGIE|\bGAZ\b|\bEAU\b|[EÉ]NERGIE/, 'energie'],
-  [/MOBILE|FORFAIT|\bBOX\b|INTERNET|FIBRE|T[EÉ]L[EÉ]COM/, 'telecom'],
-  [/AMAZON|LIBRAIRIE|FNAC|BOUTIQUE|BRICOLAGE|\bSHOP/, 'shopping'],
-];
-function catOf(w, type, amt){
-  const s = String(w || '').toUpperCase();
-  if (type === 'withdrawal' || /RETRAIT|\bDAB\b/.test(s)) return 'retrait';
-  if (type === 'loan_repayment' || /PR[EÊ]T\b/.test(s) && amt < 0) return 'pret';
-  for (const [re, c] of CAT_RULES) if (re.test(s)) return c;
-  if (amt > 0) return 'revenu';
-  if (type === 'transfer' || /VIR(EMENT)?\b/.test(s)) return 'virement';
-  return 'autre';
+const Cats = window.PrelevoCategories;
+const CATS = {};
+Cats.LIST.forEach(c => { CATS[c.id] = { ic: c.ic, l: c.l }; });
+CATS.virement = { ic: 'swap', l: 'Virement' };
+CATS.shopping = CATS.autre;
+CATS.retrait = CATS.autre;
+CATS.voyage = CATS.autre;
+CATS.pret = CATS.autre;
+const CAT_KEY = 'prelevo-cat-rules';
+function catOverrides() {
+  const raw = Store.readJSON(CAT_KEY, {});
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+  const out = {};
+  Object.keys(raw).forEach(k => {
+    const v = raw[k];
+    if (v === 'virement' || Cats.BY[v]) out[k] = v;
+  });
+  return out;
+}
+function catOf(w, type, amt) {
+  return Cats.classify({ wording: w, name: cleanName(w), type: type, amount: amt }, catOverrides());
+}
+function stampCat(row) {
+  row.cat = Cats.classify({
+    name: row.name,
+    wording: row.wording || row.name,
+    type: row.type,
+    amount: row.amt,
+    hint: row.cat,
+  }, catOverrides());
+  return row;
+}
+let catSheetName = '';
+function closeCatSheet() {
+  const n = document.querySelector('.cat-sheet');
+  if (n) n.remove();
+}
+function openCatSheet(name, current) {
+  closeCatSheet();
+  catSheetName = name || '';
+  const root = document.createElement('div');
+  root.className = 'cat-sheet';
+  const bg = document.createElement('button');
+  bg.type = 'button';
+  bg.className = 'cat-sheet-bg';
+  bg.dataset.catClose = '1';
+  bg.setAttribute('aria-label', 'Fermer');
+  const panel = document.createElement('div');
+  panel.className = 'cat-sheet-panel';
+  panel.setAttribute('role', 'dialog');
+  panel.setAttribute('aria-modal', 'true');
+  panel.setAttribute('aria-labelledby', 'cat-sheet-title');
+  const head = document.createElement('div');
+  head.className = 'cat-sheet-h';
+  const h2 = document.createElement('h2');
+  h2.id = 'cat-sheet-title';
+  h2.textContent = name || 'Catégorie';
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'cat-sheet-x';
+  close.dataset.catClose = '1';
+  close.setAttribute('aria-label', 'Fermer');
+  close.textContent = 'Fermer';
+  head.append(h2, close);
+  const note = document.createElement('p');
+  note.className = 'cat-sheet-note';
+  note.textContent = 'Cette catégorie sera réappliquée à ce marchand.';
+  const list = document.createElement('div');
+  list.className = 'cat-sheet-list';
+  list.setAttribute('role', 'listbox');
+  list.setAttribute('aria-label', 'Catégories');
+  Cats.LIST.forEach(c => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'cat-pick' + (c.id === current ? ' on' : '');
+    b.dataset.catPick = c.id;
+    b.setAttribute('role', 'option');
+    b.setAttribute('aria-selected', c.id === current ? 'true' : 'false');
+    b.style.setProperty('--cat-ink', c.color);
+    const chip = document.createElement('span');
+    chip.className = 'cat';
+    chip.setAttribute('aria-hidden', 'true');
+    if (ICONS[c.ic]) chip.innerHTML = SVG(ICONS[c.ic]);
+    const lab = document.createElement('span');
+    lab.textContent = c.l;
+    b.append(chip, lab);
+    list.appendChild(b);
+  });
+  panel.append(head, note, list);
+  root.append(bg, panel);
+  document.body.appendChild(root);
+  const focus = list.querySelector('.on') || list.querySelector('button');
+  if (focus) focus.focus();
+}
+function rememberCategory(name, cat) {
+  if (!Cats.BY[cat]) return;
+  const all = catOverrides();
+  all[Cats.merchantKey(name)] = cat;
+  Store.writeJSON(CAT_KEY, all);
+  _ledger = null;
+  closeCatSheet();
+  toast('Catégorie mémorisée. Elle sera réappliquée à ce marchand.');
+  render();
 }
 /** « CB DEBIT IMMEDIAT RESTAURANT PARIS 09/10 » → « Restaurant Paris » */
 function cleanName(w){
@@ -555,10 +631,16 @@ const MERCH = { s:[['Boulangerie Martin','courses'],['Café Lumière','resto'],[
   m:[['Pharmacie des Lilas','sante'],['Cantine Sato','resto'],['Librairie du Parc','shopping'],['Ciné Rex','loisirs'],['Primeur Bio','courses']],
   l:[['Supérette du Canal','courses'],['Marché Saint-Louis','courses'],['Bricolage Dupont','shopping'],['Bistrot Les Amis','resto']] };
 let _ledger = null;
+function ledgerKey() {
+  const ov = catOverrides();
+  const sig = Object.keys(ov).sort().map(k => k + '=' + ov[k]).join('|');
+  return (LIVE ? 'live' + LIVE.at : 'demo' + isP() + state.resiliated.join()) + '#' + sig;
+}
 function ledger(){
-  if (_ledger && _ledger.key === (LIVE ? 'live' + LIVE.at : 'demo' + isP() + state.resiliated.join())) return _ledger;
+  const key = ledgerKey();
+  if (_ledger && _ledger.key === key) return _ledger;
   const L = LIVE ? liveLedger() : demoLedger();
-  L.key = LIVE ? 'live' + LIVE.at : 'demo' + isP() + state.resiliated.join();
+  L.key = key;
   return (_ledger = L);
 }
 function demoLedger(){
@@ -570,14 +652,14 @@ function demoLedger(){
   const tx = T.ev.filter(e => e.k !== 'xfer' && e.t.getTime() >= from).map(e => {
     if (e.k === 'spend'){
       const bk = banks[(Math.floor(e.t.getTime() / 864e5) % 3) % banks.length] || banks[0];
-      return { t:e.t, name:e.name || 'Carte', cat:e.cat || 'autre', amt:e.amt, where:bk.name, bank:bk }; }
-    if (e.k === 'in') return { t:e.t, name: e.prime ? 'Salaire et prime · Exemple SAS' : 'Salaire · Exemple SAS', cat:'revenu', amt:e.amt, where:LINKED[0].name, bank:banks[0] };
-    if (e.k === 'rent') return { t:e.t, name:'Loyer · Agence Fictive', cat:'logement', amt:e.amt, where:LINKED[0].name, bank:banks[0] };
-    const s = SUBS.find(x => x.name === e.name); return { t:e.t, name:e.name, cat:e.cat || 'abo', amt:e.amt, sub:s && s.id, where:'Prélèvement · ' + banks[0].name, bank:banks[0] };
+      return stampCat({ t:e.t, name:e.name || 'Carte', cat:e.cat || 'autre', amt:e.amt, where:bk.name, bank:bk }); }
+    if (e.k === 'in') return stampCat({ t:e.t, name: e.prime ? 'Salaire et prime · Exemple SAS' : 'Salaire · Exemple SAS', cat:'revenu', amt:e.amt, where:LINKED[0].name, bank:banks[0] });
+    if (e.k === 'rent') return stampCat({ t:e.t, name:'Loyer · Agence Fictive', cat:'logement', amt:e.amt, where:LINKED[0].name, bank:banks[0] });
+    const s = SUBS.find(x => x.name === e.name); return stampCat({ t:e.t, name:e.name, cat:e.cat || 'abo', amt:e.amt, sub:s && s.id, where:'Prélèvement · ' + banks[0].name, bank:banks[0] });
   }).reverse();
   const curve = samples('1M').map(p => ({ t:p.t, v:p.bal + others }));
   const t0 = day0(NOW), up = [];
-  active().forEach(s => { for (const mo of [0, 1]){ const d = new Date(NOW.getFullYear(), NOW.getMonth() + mo, s.day, 7); if (d > NOW && d - t0 < 8 * DAY_MS) up.push({ t:d, name:s.name, cat:'abo', amt:-s.price, sub:s.id, where:'Abonnement détecté' }); } });
+  active().forEach(s => { for (const mo of [0, 1]){ const d = new Date(NOW.getFullYear(), NOW.getMonth() + mo, s.day, 7); if (d > NOW && d - t0 < 8 * DAY_MS) up.push(stampCat({ t:d, name:s.name, cat:s.txCat || 'abo', amt:-s.price, sub:s.id, where:'Abonnement détecté' })); } });
   up.sort((a, b) => a.t - b.t);
   return { banks, total, tx, curve, up, nAcc: banks.reduce((a, b) => a + b.accs.length, 0) };
 }
@@ -592,10 +674,10 @@ function liveLedger(){
   const accName = id => { const a = accs.find(x => x.id === id); return a ? a.name.replace(/\s*-\s*Mr.*$/i, '') : LIVE.bank; };
   const t0 = day0(new Date()), dt = t => new Date(t.date + 'T12:00');
   const raw = (LIVE.recent || []).filter(t => t.type !== 'summary_card');
-  const map = t => ({ t:dt(t), name:cleanName(t.wording), cat:catOf(t.wording, t.type, t.value), amt:t.value, acc:t.account, where:accName(t.account), bank });
+  const map = t => stampCat({ t:dt(t), name:cleanName(t.wording), wording:t.wording, type:t.type, amt:t.value, acc:t.account, where:accName(t.account), bank });
   const tx = raw.filter(t => !t.coming && dt(t) < new Date(t0.getTime() + DAY_MS)).map(map).sort((a, b) => b.t - a.t);
   const up = raw.filter(t => t.coming && t.value < 0 && dt(t) >= t0 && dt(t) - t0 < 8 * DAY_MS).map(map);
-  (LIVE.subs || []).forEach(s => { const d = nextLive(s); if (d >= t0 && d - t0 < 8 * DAY_MS) up.push({ t:d, name:s.name, cat:'abo', amt:-(s.amount || s.price), sub:s.id, where:'Abonnement détecté' }); });
+  (LIVE.subs || []).forEach(s => { const d = nextLive(s); if (d >= t0 && d - t0 < 8 * DAY_MS) up.push(stampCat({ t:d, name:s.name, cat:'abo', amt:-(s.amount || s.price), sub:s.id, where:'Abonnement détecté' })); });
   up.sort((a, b) => a.t - b.t);
   // courbe 30 j : solde des comptes courants/épargne aujourd'hui, en remontant leurs opérations
   const ids = new Set(bank.accs.filter(a => a.counted && a.id != null).map(a => a.id));
@@ -782,10 +864,11 @@ function deskWhen(fmt, t, partial){
   return partial ? s + ' · estimation' : s;
 }
 function spendCat(e){
-  if (e.cat) return e.cat;
-  if (e.k === 'rent') return 'logement';
-  if (e.k === 'sub') return 'abo';
-  return 'autre';
+  return Cats.classify({
+    name: e.name,
+    amount: e.amt,
+    hint: e.cat || (e.k === 'rent' ? 'logement' : e.k === 'sub' ? 'abo' : e.k === 'in' ? 'revenu' : ''),
+  }, catOverrides());
 }
 function deskEvents(){
   if (LIVE) return ledger().tx.filter(x => x.cat !== 'virement').map(x => ({
@@ -900,10 +983,18 @@ function posteRows(){
   const b = deskBounds(now, ev);
   const rows = ev.filter(e => !e.inc && e.amt < 0 && e.t >= b.from && e.t < b.to && e.t <= now);
   const by = {};
-  rows.forEach(e => { const k = e.cat || 'autre'; by[k] = (by[k] || 0) + -e.amt; });
-  const tops = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  rows.forEach(e => {
+    if (e.cat === 'virement') return;
+    const k = Cats.fold(e.cat || 'autre');
+    if (k === 'revenu' || k === 'virement') return;
+    by[k] = (by[k] || 0) + -e.amt;
+  });
+  const tops = Object.entries(by).sort((a, b) => b[1] - a[1]);
   if (!tops.length) return emptyState('search', 'Aucune dépense', 'Rien sur cette période.');
-  return tops.map(([k, v]) => `<div class="poste"><span>${esc((CATS[k] || CATS.autre).l)}</span><b>${kEUR(v)}</b></div>`).join('');
+  return tops.map(([k, v]) => {
+    const c = Cats.BY[k] || Cats.BY.autre;
+    return `<div class="poste"><span><i class="poste-dot" style="background:${c.color}" aria-hidden="true"></i>${esc(c.l)}</span><b>${kEUR(v)}</b></div>`;
+  }).join('');
 }
 screens.graphiques = () => {
   const hid = state.hideBalance;
@@ -932,7 +1023,7 @@ screens.graphiques = () => {
   <div class="panel spend-card">${monthBars(series, 'income', 'var(--up)')}</div>
   <p class="acct-k">${titles.net}</p>
   <div class="panel spend-card">${netLine(series)}</div>
-  <p class="acct-k">Postes · ${deskSpec().label}</p>
+  <p class="acct-k">Répartition · ${deskSpec().label}</p>
   <div class="panel postes">${posteRows()}</div>`}
 </div>`;
 };
@@ -941,7 +1032,7 @@ const MOIS_LONG = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','A
 function txKind(x){
   if (x.cat === 'revenu' || x.amt > 0 && x.cat !== 'virement') return 'Reçu';
   if (x.cat === 'virement') return x.amt > 0 ? 'Virement reçu' : 'Virement';
-  if (x.cat === 'abo') return 'Prélèvement';
+  if (x.cat === 'abo' || x.sub) return 'Prélèvement';
   if (x.cat === 'retrait') return 'Retrait';
   return 'Paiement';
 }
@@ -954,10 +1045,7 @@ function catChipEl(c) {
   return span;
 }
 function txRowEl(x, pp) {
-  const a = document.createElement('a');
-  a.className = 'tx' + (pp ? ' pp' : '');
-  a.href = x.sub ? '#/abo/' + x.sub : '#/operations';
-  a.appendChild(catChipEl(x.cat));
+  const displayCat = x.cat === 'virement' ? 'virement' : Cats.fold(x.cat || 'autre');
   const mid = document.createElement('div');
   mid.className = 'mid';
   const name = document.createElement('div');
@@ -965,7 +1053,7 @@ function txRowEl(x, pp) {
   name.textContent = x.name || '';
   const meta = document.createElement('div');
   meta.className = 'meta';
-  meta.textContent = pp ? (x.t.getDate() + ' ' + MOIS[x.t.getMonth()] + ' • ' + txKind(x)) : ((CATS[x.cat] || CATS.autre).l + (x.where ? ' · ' + x.where : ''));
+  meta.textContent = pp ? (x.t.getDate() + ' ' + MOIS[x.t.getMonth()] + ' • ' + txKind(x)) : ((CATS[displayCat] || CATS.autre).l + (x.where ? ' · ' + x.where : ''));
   mid.append(name, meta);
   const amt = document.createElement('div');
   amt.className = 'amt' + (x.amt > 0 ? ' pos' : '');
@@ -974,8 +1062,32 @@ function txRowEl(x, pp) {
     amt.textContent = signed(x.amt);
     if (x.bank) amt.insertAdjacentHTML('beforeend', bankTile(x.bank, 'tx-bk'));
   }
+  if (!pp) {
+    const a = document.createElement('a');
+    a.className = 'tx';
+    a.href = x.sub ? '#/abo/' + x.sub : '#/operations';
+    a.append(catChipEl(displayCat), mid, amt);
+    return a;
+  }
+  const row = document.createElement('div');
+  row.className = 'tx pp';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'cat cat-' + displayCat + ' cat-edit';
+  btn.dataset.catEdit = '1';
+  btn.dataset.catName = x.name || '';
+  const current = Cats.BY[x.cat] ? x.cat : 'autre';
+  btn.dataset.catCurrent = current;
+  btn.style.setProperty('--cat-ink', Cats.color(displayCat === 'virement' ? 'autre' : displayCat));
+  btn.setAttribute('aria-label', 'Catégorie : ' + (CATS[displayCat] || CATS.autre).l + '. Modifier');
+  btn.setAttribute('aria-haspopup', 'dialog');
+  if (ICONS[(CATS[displayCat] || CATS.autre).ic]) btn.innerHTML = SVG(ICONS[(CATS[displayCat] || CATS.autre).ic]);
+  const a = document.createElement('a');
+  a.className = 'tx-main';
+  a.href = x.sub ? '#/abo/' + x.sub : '#/operations';
   a.append(mid, amt);
-  return a;
+  row.append(btn, a);
+  return row;
 }
 function groupTx(list, maxDays, maxRows, byMonth) {
   const groups = []; let rows = 0;
@@ -1378,7 +1490,7 @@ ${USER.prenom} ${USER.nom}`;
 
 // ---------- Export CSV et budget mensuel (centimes entiers, bus Store) ----------
 const BUDGET_KEY = 'prelevo-budget';
-const BUDGET_CATS = ['logement','courses','resto','transport','shopping','sante','energie','telecom','abo','loisirs','voyage','retrait','pret','autre'];
+const BUDGET_CATS = Cats.SPEND;
 let exportPeriod = 'month';
 
 function centsOf(v) {
@@ -1406,7 +1518,12 @@ function readBudget() {
   const cats = {};
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { global: 0, cats };
   if (raw.cats && typeof raw.cats === 'object') {
-    BUDGET_CATS.forEach(k => { const c = centsOf(raw.cats[k]); if (c) cats[k] = c; });
+    Object.keys(raw.cats).forEach(k => {
+      const id = Cats.fold(k);
+      if (!BUDGET_CATS.includes(id)) return;
+      const c = centsOf(raw.cats[k]);
+      if (c) cats[id] = (cats[id] || 0) + c;
+    });
   }
   return { global: centsOf(raw.global), cats };
 }
@@ -1429,7 +1546,11 @@ function budgetStatus() {
   const ref = nowRef();
   const moves = monthMoves(ref);
   const byCat = {};
-  moves.forEach(x => { const k = BUDGET_CATS.includes(x.cat) ? x.cat : 'autre'; byCat[k] = (byCat[k] || 0) + Math.abs(toCents(x.amt)); });
+  moves.forEach(x => {
+    const k = Cats.fold(x.cat);
+    if (k === 'revenu' || k === 'virement' || !BUDGET_CATS.includes(k)) return;
+    byCat[k] = (byCat[k] || 0) + Math.abs(toCents(x.amt));
+  });
   const ym = ref.getFullYear() + '-' + String(ref.getMonth() + 1).padStart(2, '0');
   return { global: budget.global, cats: budget.cats, spent: spendCents(moves), byCat, ref, ym, monthLabel: MOIS_LONG[ref.getMonth()] + ' ' + ref.getFullYear() };
 }
@@ -2414,6 +2535,7 @@ function syncNav(name) {
   paintAlertBadge();
 }
 function render(){
+  closeCatSheet();
   leaveView();
   const raw = location.hash.replace(/^#\/?/, '') || (API ? (API.loggedIn() && LIVE ? 'dashboard' : 'onboarding') : state.connected ? 'dashboard' : 'onboarding');
   const [path, qs] = raw.split('?');
@@ -2491,7 +2613,15 @@ document.addEventListener('input', e => {
   });
   if (document.querySelector('.act-list .mo')) txEmptyNode(!n, s);
 });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && document.querySelector('.cat-sheet')) { closeCatSheet(); e.preventDefault(); }
+});
 document.addEventListener('click', e => {
+  const catBtn = e.target.closest('[data-cat-edit]');
+  if (catBtn) { e.preventDefault(); openCatSheet(catBtn.dataset.catName || '', catBtn.dataset.catCurrent || 'autre'); return; }
+  if (e.target.closest('[data-cat-close]')) { closeCatSheet(); return; }
+  const catPick = e.target.closest('[data-cat-pick]');
+  if (catPick) { rememberCategory(catSheetName, catPick.dataset.catPick); return; }
   const ops = e.target.closest('[data-ops]'); if (ops){ opsFilter = ops.dataset.ops; const q = document.getElementById('tx-q'); if (q) opsQuery = q.value; render(); return; }
   const expP = e.target.closest('[data-export-period]'); if (expP){ exportPeriod = expP.dataset.exportPeriod; render(); return; }
   if (e.target.closest('#open-export')){ location.hash = '#/export'; return; }
@@ -2587,6 +2717,7 @@ document.addEventListener('click', e => {
     Store.remove(KEY);
     Store.remove('prelevo-refs');
     Store.remove(BUDGET_KEY);
+    Store.remove(CAT_KEY);
     const demo = QS.has('demo') || (!API && !LIVE);
     const q = location.search || (demo ? '?demo=1' : '');
     location.replace(location.pathname + q + (demo ? '#/dashboard' : '#/onboarding'));
