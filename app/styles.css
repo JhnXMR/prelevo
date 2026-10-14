@@ -555,16 +555,17 @@ button.kv{width:100%;border:0;background:transparent;font:inherit;color:inherit;
 .spark-plot{position:relative;height:118px}
 .spark svg{width:100%;height:118px;display:block;overflow:visible}
 .sp-line,.sp-dim{fill:none}
-.sp-dim{opacity:.2}
-.sp-area{opacity:.4}
-.spark.scrub .sp-area{opacity:1!important}
-.sp-dot{position:absolute;width:10px;height:10px;margin:0;transform:translate(-50%,-50%);border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px var(--bg);z-index:1}
-.spark.lite .sp-dot{background:var(--spk, var(--accent));box-shadow:0 0 0 4px var(--bg)}
-.spark.lite .sp-dot.is-partial{background:var(--bg);box-shadow:0 0 0 2px var(--spk, var(--accent))}
+.sp-dim{opacity:.28}
+.sp-area{opacity:1}
+.sp-dot{position:absolute;width:7px;height:7px;margin:0;transform:translate(-50%,-50%);border-radius:50%;background:var(--accent);box-shadow:0 0 0 2px var(--bg);z-index:2}
+.spark.lite .sp-dot{background:var(--spk, var(--accent));box-shadow:0 0 0 2px var(--bg)}
+.spark.lite .sp-dot.is-partial{background:var(--bg);box-shadow:0 0 0 1.5px var(--spk, var(--accent))}
 .spark.scrub .sp-dash{opacity:0}
+.sp-y{position:absolute;inset:0;pointer-events:none;z-index:1}
+.sp-y span{position:absolute;right:0;transform:translateY(-50%);font-size:10px;line-height:1;color:var(--muted);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
 .sp-legend{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px;padding:0 4px}
-.sp-axis{position:relative;height:16px;margin-top:6px}
-.sp-axis span{position:absolute;top:0;transform:translateX(-50%);font-size:11px;color:var(--muted);white-space:nowrap}
+.sp-axis{position:relative;height:16px;margin-top:4px}
+.sp-axis span{position:absolute;top:0;transform:translateX(-50%);font-size:10.5px;color:var(--muted);white-space:nowrap;letter-spacing:.01em}
 .sp-axis span.a0{transform:none}
 .sp-axis span.a1{transform:translateX(-100%)}
 .delta-pct{font-style:normal;font-size:12px;font-weight:650;padding:2px 7px;border-radius:99px;margin:0 2px}
@@ -651,7 +652,7 @@ button.kv{width:100%;border:0;background:transparent;font:inherit;color:inherit;
 @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes draw{from{stroke-dashoffset:1}to{stroke-dashoffset:0}}
 @keyframes pop{0%{transform:translate(-50%,-50%) scale(0)}70%{transform:translate(-50%,-50%) scale(1.25)}100%{transform:translate(-50%,-50%) scale(1)}}
-@keyframes shade{from{opacity:0}to{opacity:.4}}
+@keyframes shade{from{opacity:0}to{opacity:1}}
 .home:not(.static) .rise{animation:rise .5s cubic-bezier(.2,.7,.2,1) both;animation-delay:calc(var(--d,0) * 60ms)}
 .home:not(.static) .sp-area{animation:shade .8s .5s both}
 @media (prefers-reduced-motion: reduce){ .home .rise,.home .sp-line,.home .sp-area,.home .sp-dot{animation:none!important} }
@@ -716,8 +717,8 @@ button.kv{width:100%;border:0;background:transparent;font:inherit;color:inherit;
 .bank-hero .amount{font-size:34px;margin-top:16px;letter-spacing:-.03em}
 .bank-hero .bh-meta{margin-top:6px}
 .spark.lite{margin:14px 0 2px}
-.sp-read{display:flex;justify-content:space-between;align-items:baseline;gap:8px;min-height:18px;margin:0 0 4px;font-size:12px;color:var(--muted)}
-.sp-read b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.sp-read{display:flex;justify-content:space-between;align-items:baseline;gap:8px;min-height:22px;margin:0 0 2px;font-size:12px;color:var(--muted)}
+.sp-read b{color:var(--ink);font-size:16px;font-weight:650;font-variant-numeric:tabular-nums;letter-spacing:-.03em}
 .spark.scrub .sp-read b{color:var(--spk,var(--ink))}
 .spark.lite .spark-plot,.spark.lite svg{height:92px}
 .poste{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 0;font-size:15px}
@@ -725,18 +726,20 @@ button.kv{width:100%;border:0;background:transparent;font:inherit;color:inherit;
 .spend-card{padding:14px 14px 12px}
 .spend-cats{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
 .spend-cats span{font-size:12px;font-weight:550;color:var(--ink2);background:var(--chip);border-radius:99px;padding:4px 8px}
-.desk .tape{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:2px 0 12px}
+.desk .tape{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin:0 0 12px;padding:0 0 12px;border-bottom:1px solid var(--line)}
 .desk .tape.on{position:relative}
-.desk .tape.on::before{content:attr(data-mo);grid-column:1 / -1;font-size:12px;font-weight:650;letter-spacing:.02em;color:var(--muted)}
-.desk .tape div{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:10px 10px 11px;min-width:0}
-.desk .tape span{display:block;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}
-.desk .tape b{display:block;margin-top:5px;font-size:15px;font-weight:700;letter-spacing:-.03em;font-variant-numeric:tabular-nums;white-space:nowrap}
+.desk .tape.on::before{content:attr(data-mo);grid-column:1 / -1;font-size:11px;font-weight:600;letter-spacing:.02em;color:var(--muted);margin-bottom:4px}
+.desk .tape div{background:transparent;border:0;border-radius:0;padding:0 8px 0 0;min-width:0}
+.desk .tape span{display:block;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.desk .tape b{display:block;margin-top:4px;font-size:17px;font-weight:650;letter-spacing:-.03em;font-variant-numeric:tabular-nums;white-space:nowrap}
 .desk .tape b.up{color:var(--up)}
 .desk .tape b.down{color:var(--down)}
 .desk-tf{display:flex;gap:3px;margin-bottom:6px;overflow-x:auto;overscroll-behavior-x:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .desk-tf::-webkit-scrollbar{display:none}
 .desk-tf button{flex:1 0 auto;min-width:44px;padding:0 8px}
 .desk-note{margin:2px 2px 8px;font-size:13px;line-height:1.4;color:var(--muted)}
+.desk .acct-k{margin:14px 0 2px;font-size:13px;font-weight:600;color:var(--ink2)}
+.desk .panel.spend-card{background:transparent;border:0;border-radius:0;padding:0 0 6px;box-shadow:none}
 .mbar svg{width:100%;height:108px;display:block}
 .mplot{position:relative;height:108px}
 .mplot .sp-dot{position:absolute}
@@ -788,8 +791,12 @@ button.kv{width:100%;border:0;background:transparent;font:inherit;color:inherit;
 .spark{position:relative;margin:10px 0 2px;height:auto;cursor:default;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;touch-action:none}
 .spark svg,.spark .sp-dot,.spark .sp-vline,.spark .sp-legend{pointer-events:none}
 .sp-hit{position:absolute;left:-8px;right:-8px;top:-8px;height:134px;z-index:2;touch-action:none;cursor:crosshair;background:transparent}
-.sp-vline{position:absolute;top:0;bottom:0;width:1px;margin-left:-.5px;background:repeating-linear-gradient(to bottom, color-mix(in srgb, var(--ink) 55%, transparent) 0 3px, transparent 3px 7px);pointer-events:none;z-index:1}
-.spark.scrub .sp-dot{box-shadow:0 0 0 4px var(--bg);animation:none!important}
+.sp-vline{position:absolute;top:0;bottom:0;width:1px;margin-left:-.5px;background:color-mix(in srgb, var(--ink) 28%, transparent);pointer-events:none;z-index:1}
+.sp-tip{position:absolute;z-index:4;top:8px;left:0;transform:translate(8px,0);background:#16181D;color:#F3F4F6;border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:6px 9px 5px;pointer-events:none;white-space:nowrap;box-shadow:0 8px 22px rgba(10,11,13,.28)}
+.sp-tip.flip{transform:translate(calc(-100% - 8px),0)}
+.sp-tip b{display:block;font-size:13px;font-weight:650;letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:#F3F4F6}
+.sp-tip span{display:block;margin-top:1px;font-size:11px;font-weight:500;color:#9AA0AB}
+.spark.scrub .sp-dot{box-shadow:0 0 0 2px var(--bg);animation:none!important}
 .spark.scrub .sp-area,.spark.scrub .sp-line{animation:none!important}
 
 /* ---------- Finitions v27 : rythme, contraste, toucher, thèmes ---------- */
