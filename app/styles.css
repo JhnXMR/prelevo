@@ -260,7 +260,7 @@ body:has(.sub-bar) .app{padding-bottom:calc(150px + env(safe-area-inset-bottom))
   backdrop-filter:blur(32px) saturate(1.8);
   box-shadow:inset 0 1px 0 color-mix(in srgb, #fff 28%, transparent), inset 0 -1px 0 color-mix(in srgb, #fff 6%, transparent), 0 12px 32px rgba(0,0,0,.18)}
 .tabbar::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(180deg, color-mix(in srgb, #fff 10%, transparent), transparent 42%);z-index:0}
-.tabbar[hidden]{display:none}
+.tabbar[hidden],.tx[hidden],.bank[hidden],.mo[hidden],.day[hidden]{display:none}
 .tabbar a{flex:1;display:flex;flex-direction:row;align-items:center;justify-content:center;gap:7px;min-width:0;height:52px;font-size:14px;font-weight:600;letter-spacing:-.02em;color:var(--ink);position:relative;border-radius:26px}
 .tabbar a .ti{position:relative;line-height:0;display:grid;place-items:center}
 .tabbar a .i{width:24px;height:24px}
@@ -741,7 +741,7 @@ button.kv{width:100%;border:0;background:transparent;font:inherit;color:inherit;
 .bk-tile.tx-bk{width:18px;height:18px;border-radius:6px}
 .bk-tile.tx-bk b{font-size:7.5px}
 .bk-tile.tx-bk img{max-width:100%}
-.ptr{position:fixed;left:50%;top:0;width:30px;height:38px;z-index:40;opacity:0;transform:translate(-50%,0) scale(.72);pointer-events:none}
+.ptr{position:fixed;left:50%;top:env(safe-area-inset-top, 0px);width:30px;height:38px;z-index:40;opacity:0;transform:translate(-50%,0) scale(.72);pointer-events:none}
 .ptr-logo{display:block;width:30px;height:38px;background:#0066FF;-webkit-mask:url("icons/logo-mark-white.svg") center / contain no-repeat;mask:url("icons/logo-mark-white.svg") center / contain no-repeat}
 .ptr.on .ptr-logo{animation:radar 1.05s ease-in-out infinite}
 .ptr::after{content:"";position:absolute;left:50%;top:36%;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;border:1.5px solid #0066FF;opacity:0;pointer-events:none}
@@ -782,7 +782,7 @@ button.kv{width:100%;border:0;background:transparent;font:inherit;color:inherit;
   --line2:#3A404A;
   --shadow:none;
 }
-html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;-webkit-tap-highlight-color:transparent}
 body{overflow-x:hidden}
 .app{padding-bottom:calc(96px + env(safe-area-inset-bottom))}
 .screen{animation:screen-in .38s cubic-bezier(.2,.7,.2,1) both}

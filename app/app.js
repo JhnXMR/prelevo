@@ -67,10 +67,13 @@ const LINKED = [
   { id:'b3', name:'Revolut', color:'#191C1F', ini:'R', accounts:'Carte en ligne', status:'error', sync:'échec depuis hier 18:40', expiresIn:63, expires:'11 déc.' },
 ];
 
-// ---------- état (localStorage) ----------
+// ---------- état (Store unique) ----------
 const KEY = 'prelevo-demo';
-const state = Object.assign({ connected:false, bank:null, resiliated:[], premium:false, readAlerts:[], hideBalance:false }, JSON.parse(localStorage.getItem(KEY) || '{}'));
-const save = () => localStorage.setItem(KEY, JSON.stringify(state));
+const Store = window.PrelevoStore;
+const _saved = Store.readJSON(KEY, {});
+const state = Object.assign({ connected:false, bank:null, resiliated:[], premium:false, readAlerts:[], hideBalance:false }, (_saved && typeof _saved === 'object' && !Array.isArray(_saved)) ? _saved : {});
+function persist() { Store.writeJSON(KEY, state); }
+function save() { persist(); if (save.pub) publishSubs(); }
 // URL ?demo=1 => démarre directement connecté (pratique pour les captures)
 const QS = new URLSearchParams(location.search);
 if (QS.has('demo')) { state.connected = true; state.bank = state.bank || 'b1'; save(); }
@@ -94,6 +97,9 @@ function applyLive(r){
   Object.assign(USER, { prenom:'', nom:'[Prénom Nom]', adresse:'[Votre adresse]' });
   state.resiliated = state.resiliated.filter(id => SUBS.some(s => s.id === id));
   demoTag = '<span class="demo live">Banque de test Powens</span>';
+  _ledger = null;
+  _subsSig = '';
+  if (save.pub) publishSubs();
 }
 function liveBank(){
   if (API){ const n = LIVE.accounts.length;
@@ -108,7 +114,7 @@ function liveBank(){
     expiresIn: 999, expires: expired ? 'expirée' : `encore ${mins} min`, mins };
 }
 const ago = t => { const m = Math.max(0, Math.round((Date.now()-t)/60000)); return m < 60 ? m + ' min' : m < 1440 ? Math.round(m/60) + ' h' : Math.round(m/1440) + ' j'; };
-const esc = v => String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc = v => String(v == null ? '' : v).replace(/[&<>"'⟦⟧]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','⟦':'&#10214;','⟧':'&#10215;'}[c]));
 function applyServer(me){
   ME = me;
   if (me.billing){ state.premium = me.billing.plan === 'premium'; save(); }
@@ -196,7 +202,18 @@ const emptyState = (ic, title, text, cls = '') => `<div class="empty ${cls}" rol
 const skel = () => `<div class="sk" aria-hidden="true"><i class="lg"></i><i></i><i></i><i class="short"></i></div>`;
 
 // ---------- utilitaires ----------
-const eur = n => n.toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' €';
+function toCents(n) {
+  const x = Number(n);
+  return Number.isFinite(x) ? Math.round(x * 100) : 0;
+}
+function fromCents(c) { return c / 100; }
+function sumEuros(list, pick) {
+  let c = 0;
+  for (const item of list) c += toCents(pick(item));
+  return fromCents(c);
+}
+function annual(n) { return fromCents(toCents(n) * 12); }
+const eur = n => fromCents(toCents(n)).toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' €';
 const prix = n => n.toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' €';
 const eur0 = n => Math.round(n).toLocaleString('fr-FR') + ' €';
 const $ = s => document.querySelector(s);
@@ -262,8 +279,15 @@ const bankTile = (b, cls = '', extra = '') => {
   const img = b.logo && /^https:\/\//.test(b.logo) ? `<img src="${esc(b.logo)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.parentNode.classList.remove('has-logo');this.remove()">` : '';
   return `<span class="bk-tile ${img ? 'has-logo' : ''} ${String(ini).length > 2 ? 'x3' : ''} ${cls}" style="--bk:${bg};--bkf:${fg}" title="${esc(b.name)}">${img}<b>${ini}</b>${extra}</span>`;
 };
-const logo = (s, cls='logo') => `<div class="${cls}" style="background:${s.color}">${s.ini}</div>`;
-const increase = s => s.prev && s.price > s.prev ? s.price - s.prev : 0;
+const logo = (s, cls='logo') => {
+  const color = /^#[0-9a-f]{6}$/i.test(s.color || '') ? s.color : '#0066FF';
+  return `<div class="${cls}" style="background:${color}">${esc(s.ini)}</div>`;
+};
+const increase = s => {
+  if (s.prev == null) return 0;
+  const d = toCents(s.price) - toCents(s.prev);
+  return d > 0 ? fromCents(d) : 0;
+};
 const pct = s => Math.round(increase(s) / s.prev * 100);
 let demoTag = '<span class="demo">Données d’exemple</span>';
 const lockBadge = (t='Premium') => `<span class="badge b-lock">⟦lock⟧ ${t}</span>`;
@@ -273,26 +297,39 @@ const ADS = {
   dash: { ini:'VC', color:'#0A0B0D', brand:'Vélo Clair', tag:'Marque fictive', title:'Le vélo électrique en location, sans engagement', text:'Premier mois à 19 € au lieu de 39 €. Livraison en 48 h.', cta:'Découvrir' },
   subs: { ini:'PM', color:'#0066FF', brand:'Papeterie Mirabelle', tag:'Marque fictive', title:'Carnets et agendas 2027', text:'−15 % sur la collection d’automne, livraison offerte dès 25 €.', cta:'Voir l’offre' }
 };
-const adSlot = k => { if (isP()) return ''; const a = ADS[k]; return `<div class="ad" role="complementary" aria-label="Publicité">
+const adSlot = k => { if (isP()) return ''; const a = ADS[k]; const color = /^#[0-9a-f]{6}$/i.test(a.color || '') ? a.color : '#0066FF'; return `<div class="ad" role="complementary" aria-label="Publicité">
   <div class="ad-h"><span class="ad-tag">Sponsorisé</span><a href="#/premium">Retirer les pubs · Premium ${prix(CFG.priceMonth)}/mois</a></div>
-  <a class="ad-body" href="#/${k==='dash'?'dashboard':'abonnements'}" data-toast="Publicité d’exemple : ${a.brand} est une marque fictive">
-    <span class="ad-logo" style="background:${a.color}">${a.ini}</span>
-    <div class="ad-txt"><span class="ad-brand">${a.brand} <i>${a.tag}</i></span><b>${a.title}</b><span>${a.text}</span></div>
-    <span class="ad-cta">${a.cta}</span></a></div>`; };
+  <a class="ad-body" href="#/${k==='dash'?'dashboard':'abonnements'}" data-toast="Publicité d’exemple : ${esc(a.brand)} est une marque fictive">
+    <span class="ad-logo" style="background:${color}">${esc(a.ini)}</span>
+    <div class="ad-txt"><span class="ad-brand">${esc(a.brand)} <i>${esc(a.tag)}</i></span><b>${esc(a.title)}</b><span>${esc(a.text)}</span></div>
+    <span class="ad-cta">${esc(a.cta)}</span></a></div>`; };
 const teaser = (title, text) => `<a class="teaser" href="#/premium"><div class="tl">⟦lock⟧</div><div><b>${title}</b><span>${text}</span></div><div class="tc">Débloquer</div></a>`;
-function toast(msg){ const t=$('#toast'); t.textContent=msg.replace(/⟦\w+⟧\s?/g,''); t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2200); }
+const Toasts = (() => {
+  let timer = 0;
+  return {
+    show(msg) {
+      const t = document.getElementById('toast');
+      if (!t) return;
+      clearTimeout(timer);
+      t.textContent = String(msg == null ? '' : msg).replace(/⟦\w+⟧\s?/g, '');
+      t.classList.add('show');
+      timer = setTimeout(() => { t.classList.remove('show'); timer = 0; }, 2200);
+    }
+  };
+})();
+function toast(msg) { Toasts.show(msg); }
 
 function totals(){
   const list = active();
-  const monthly = list.reduce((a,s)=>a+s.price,0);
+  const monthly = sumEuros(list, s => s.price);
   const ups = list.filter(increase);
-  const upsAmt = ups.reduce((a,s)=>a+increase(s),0);
+  const upsAmt = sumEuros(ups, increase);
   const smalls = list.filter(s=>s.small);
   const dups = list.filter(s=>s.duplicate && !state.resiliated.includes(s.duplicate));
-  const found = upsAmt + smalls.reduce((a,s)=>a+s.price,0) + dups.reduce((a,s)=>a+s.price,0);
-  const achieved = PAST_SAVED + SUBS.filter(s=>state.resiliated.includes(s.id)).reduce((a,s)=>a+s.price,0);
-  const fixed = RENT + monthly;
-  const reste = INCOME - fixed - SPENT;
+  const found = fromCents(toCents(upsAmt) + toCents(sumEuros(smalls, s => s.price)) + toCents(sumEuros(dups, s => s.price)));
+  const achieved = fromCents(toCents(PAST_SAVED) + toCents(sumEuros(SUBS.filter(s=>state.resiliated.includes(s.id)), s => s.price)));
+  const fixed = fromCents(toCents(RENT) + toCents(monthly));
+  const reste = fromCents(toCents(INCOME) - toCents(fixed) - toCents(SPENT));
   return { list, monthly, ups, upsAmt, smalls, dups, found, achieved, fixed, reste };
 }
 
@@ -332,6 +369,32 @@ function alerts(){
   const rest = kept.filter(a=>!first.includes(a));
   return [...first, ...rest.filter(a=>a.kind!=='up'), ...rest.filter(a=>a.kind==='up')];
 }
+
+let homeKpi = null;
+let _subsSig = '';
+function subsSig() {
+  const rows = SUBS.map(s => [s.id, s.price, s.prev, s.small ? 1 : 0, s.trial ? 1 : 0, s.doubleCharge || '', s.duplicate || ''].join(':'));
+  return (state.resiliated || []).join(',') + '|' + (state.kept || []).join(',') + '|' + rows.join(';');
+}
+function paintAlertBadge() {
+  const unreadN = alerts().filter(a => !state.readAlerts.includes(a.id)).length;
+  const alertTab = document.querySelector('#tabbar a[data-tab="alertes"]');
+  if (alertTab) alertTab.setAttribute('aria-label', unreadN ? `Alertes, ${unreadN} non lue${unreadN > 1 ? 's' : ''}` : 'Alertes');
+  const dot = document.getElementById('alert-dot');
+  if (dot) dot.classList.toggle('show', unreadN > 0);
+}
+function publishSubs() {
+  const sig = subsSig();
+  if (sig === _subsSig) return;
+  _subsSig = sig;
+  _ledger = null;
+  Store.emit('subs');
+}
+function onSubsChange() {
+  homeKpi = totals();
+  paintAlertBadge();
+}
+Store.on('subs', onSubsChange);
 
 // ---------- écrans ----------
 const screens = {};
@@ -373,7 +436,7 @@ screens.connect = () => `
   <p class="muted small" style="margin-top:6px">Connexion sécurisée, en lecture seule (simulation).</p>
   ${notBank()}
   <label class="search" style="margin-top:16px">⟦search⟧<input id="bank-q" type="search" placeholder="Rechercher une banque" aria-label="Rechercher une banque" autocomplete="off" enterkeyhint="search"></label>
-  <div class="banks">${BANKS.map(b=>`<button class="bank ${state.bank===b.id?'on':''}" data-bank="${b.id}">${bankTile(b)}<span>${b.name}</span></button>`).join('')}</div>
+  <div class="banks">${BANKS.map(b=>`<button class="bank ${state.bank===b.id?'on':''}" data-bank="${esc(b.id)}">${bankTile(b)}<span>${esc(b.name)}</span></button>`).join('')}</div>
   <p class="fine" style="margin:-4px 2px 14px">Noms de banques cités à titre d’exemple dans cette démo : ${APP_NAME} n’est affilié à aucune d’elles. Monogrammes aux couleurs approximatives des marques.</p>
   <div class="banner blue"><span class="ic">⟦lock⟧</span><div><b>Vos identifiants restent chez votre banque</b>${APP_NAME} passe par un agrégateur agréé (DSP2). L’accès dure 180 jours : on vous prévient avant qu’il expire, et vous pouvez le retirer à tout moment.</div></div>
   <button class="btn mint" id="go-scan" ${state.bank?'':'disabled style="opacity:.5"'}>Continuer</button>
@@ -389,7 +452,7 @@ screens.scan = () => `
   <h2 style="font-size:20px">Analyse de vos 12 derniers mois…</h2>
   <p class="muted small" style="margin-top:6px">Simulation – aucune vraie banque n’est contactée</p>
   <div class="scanlist" id="scanlist">
-    <div>⟦check⟧ Connexion à ${(BANKS.find(b=>b.id===state.bank)||BANKS[0]).name}</div>
+    <div>⟦check⟧ Connexion à ${esc((BANKS.find(b=>b.id===state.bank)||BANKS[0]).name)}</div>
     <div>⟦check⟧ 1 248 opérations lues</div>
     <div>⟦check⟧ ${SUBS.length} prélèvements récurrents trouvés</div>
     <div>⟦check⟧ ${SUBS.filter(increase).length} hausses de prix repérées</div>
@@ -401,12 +464,12 @@ function bankStrip(){
   const L = linked();
   if (LIVE){ const b = L[0]; return `<a class="bankstrip" href="#/banques">
     <div class="bs-logos">${bankTile(b, 'bs-l', `<i class="st ${b.status==='expired'?'warn':'ok'}"></i>`)}</div>
-    <div class="bs-txt">${b.status==='expired' ? '<b class="t-amber">Session de test expirée · reconnecter</b>' : `<b>${b.name} · ${API ? 'synchro il y a ' + (LIVE.at ? ago(LIVE.at) : '—') : 'banque de test'}</b>`}<span>${b.accounts}</span></div>
+    <div class="bs-txt">${b.status==='expired' ? '<b class="t-amber">Session de test expirée · reconnecter</b>' : `<b>${esc(b.name)} · ${API ? 'synchro il y a ' + (LIVE.at ? ago(LIVE.at) : '—') : 'banque de test'}</b>`}<span>${esc(b.accounts)}</span></div>
     <span class="chev">⟦chev⟧</span></a>`; }
   const warn = L.find(b=>b.status==='error') || L.find(b=>b.expiresIn<=7);
   return `<a class="bankstrip" href="#/banques">
     <div class="bs-logos">${L.map(b=>bankTile(b, 'bs-l', `<i class="st ${b.status==='error'?'err':b.expiresIn<=7?'warn':'ok'}"></i>`)).join('')}</div>
-    <div class="bs-txt">${warn ? (warn.status==='error' ? `<b class="t-red">${warn.name} : synchro en échec</b>` : `<b class="t-amber">Accès ${warn.name} : expire dans ${warn.expiresIn} j</b>`) : '<b>Comptes à jour</b>'}<span>${L.length} banque${L.length>1?'s':''} · synchro ${L[0].sync}</span></div>
+    <div class="bs-txt">${warn ? (warn.status==='error' ? `<b class="t-red">${esc(warn.name)} : synchro en échec</b>` : `<b class="t-amber">Accès ${esc(warn.name)} : expire dans ${warn.expiresIn} j</b>`) : '<b>Comptes à jour</b>'}<span>${L.length} banque${L.length>1?'s':''} · synchro ${esc(L[0].sync)}</span></div>
     <span class="chev">⟦chev⟧</span></a>`;
 }
 
@@ -478,8 +541,8 @@ function dayLabel(d){
   if (n === 0) return 'Aujourd’hui'; if (n === -1) return 'Hier'; if (n === 1) return 'Demain';
   return cap(JOURS[d.getDay()]) + ' ' + d.getDate() + ' ' + MOIS[d.getMonth()];
 }
-const money = n => { const s = Math.abs(n).toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }); const k = s.lastIndexOf(',');
-  return `${n < 0 ? '−' : ''}<span class="m-int">${s.slice(0, k)}</span><span class="m-dec">${s.slice(k)} €</span>`; };
+const money = n => { const v = fromCents(toCents(n)); const s = Math.abs(v).toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }); const k = s.lastIndexOf(',');
+  return `${v < 0 ? '−' : ''}<span class="m-int">${s.slice(0, k)}</span><span class="m-dec">${s.slice(k)} €</span>`; };
 const signed = n => (n > 0 ? '+' : n < 0 ? '−' : '') + eur(Math.abs(n));
 
 // Comptes de démo par banque (montants fictifs) ; le compte courant suit la courbe de solde de la démo
@@ -497,8 +560,8 @@ function ledger(){
 function demoLedger(){
   const T = timeline();
   const banks = linked().map(b => ({ ...b, accs: (DEMO_ACC[b.id] || []).map(([n, v]) => ({ name:n, balance: v == null ? T.end : v })) }));
-  banks.forEach(b => b.total = b.accs.reduce((a, x) => a + x.balance, 0));
-  const total = banks.reduce((a, b) => a + b.total, 0), others = total - T.end;
+  banks.forEach(b => b.total = sumEuros(b.accs, x => x.balance));
+  const total = sumEuros(banks, b => b.total), others = fromCents(toCents(total) - toCents(T.end));
   const from = NOW.getTime() - 100 * DAY_MS;
   const tx = T.ev.filter(e => e.k !== 'xfer' && e.t.getTime() >= from).map(e => {
     if (e.k === 'spend'){ const a = -e.amt, pool = a < 9 ? MERCH.s : a < 40 ? MERCH.m : MERCH.l, m = pool[Math.floor(e.t.getTime() / 6e4) % pool.length];
@@ -521,7 +584,7 @@ function liveLedger(){
   const b = liveBank();
   const ini = String(LIVE.bank || 'B').split(/\s+/).filter(w => /^[\wÀ-ÿ]/.test(w)).map(w => w[0]).join('').slice(0, 3).toUpperCase();
   const bank = { ...b, ini, accs: accs.map(a => ({ id:a.id, name:a.name, balance:Number(a.balance) || 0, currency:a.currency, counted:counted(a), type:a.type })) };
-  bank.total = bank.accs.filter(a => a.counted).reduce((x, a) => x + a.balance, 0);
+  bank.total = sumEuros(bank.accs.filter(a => a.counted), a => a.balance);
   const accName = id => { const a = accs.find(x => x.id === id); return a ? a.name.replace(/\s*-\s*Mr.*$/i, '') : LIVE.bank; };
   const t0 = day0(new Date()), dt = t => new Date(t.date + 'T12:00');
   const raw = (LIVE.recent || []).filter(t => t.type !== 'summary_card');
@@ -536,7 +599,7 @@ function liveLedger(){
   const oldest = flows.length ? flows.reduce((m, f) => Math.min(m, +f.t), +t0) : +t0;
   const span = Math.min(400, Math.max(30, Math.ceil((+t0 - oldest) / DAY_MS)));
   const curve = [];
-  for (let d = span; d >= 0; d--){ const end = new Date(t0.getTime() - (d - 1) * DAY_MS); curve.push({ t:new Date(end - DAY_MS / 2), v: bank.total - flows.filter(f => f.t >= end).reduce((a, f) => a + f.amt, 0) }); }
+  for (let d = span; d >= 0; d--){ const end = new Date(t0.getTime() - (d - 1) * DAY_MS); curve.push({ t:new Date(end - DAY_MS / 2), v: fromCents(toCents(bank.total) - toCents(sumEuros(flows.filter(f => f.t >= end), f => f.amt))) }); }
   return { banks:[bank], total:bank.total, tx, curve, up, nAcc:bank.accs.filter(a => a.counted).length, live:true };
 }
 
@@ -585,7 +648,7 @@ function bankCurve(b, tx){
   const pts = [];
   for (let d = days; d >= 0; d--){
     const end = new Date(t0.getTime() - (d - 1) * DAY_MS);
-    const v = b.total - mine.filter(f => +f.t >= +end).reduce((a, f) => a + f.amt, 0);
+    const v = fromCents(toCents(b.total) - toCents(sumEuros(mine.filter(f => +f.t >= +end), f => f.amt)));
     pts.push({ t: new Date(+end - DAY_MS / 2), v });
   }
   return pts;
@@ -644,10 +707,10 @@ function flowBars(rows, color, word){
   const curve = [];
   for (let d = days - 1; d >= 0; d--){
     const start = t0.getTime() - d * DAY_MS;
-    const v = rows.filter(x => +x.t >= start && +x.t < start + DAY_MS).reduce((a, x) => a + Math.abs(x.amt), 0);
+    const v = sumEuros(rows.filter(x => +x.t >= start && +x.t < start + DAY_MS), x => Math.abs(x.amt));
     curve.push({ t: new Date(start + 12 * 3600000), v });
   }
-  const total = curve.reduce((a, p) => a + p.v, 0);
+  const total = sumEuros(curve, p => p.v);
   if (!total) return emptyState('search', word === 'Revenus' ? 'Aucun revenu' : 'Aucune dépense', 'Rien sur les 30 derniers jours.');
   const by = {};
   rows.forEach(x => { const k = x.cat || 'autre'; by[k] = (by[k] || 0) + Math.abs(x.amt); });
@@ -682,8 +745,8 @@ function deskSeries(){
     const start = new Date(end.getFullYear(), end.getMonth() - i, 1);
     const stop = new Date(start.getFullYear(), start.getMonth() + 1, 1);
     const slice = ev.filter(e => e.t >= start && e.t < stop && e.t <= now);
-    const income = slice.filter(e => e.inc).reduce((a, e) => a + Math.abs(e.amt), 0);
-    const spend = slice.filter(e => !e.inc && e.amt < 0).reduce((a, e) => a + -e.amt, 0);
+    const income = sumEuros(slice.filter(e => e.inc), e => Math.abs(e.amt));
+    const spend = sumEuros(slice.filter(e => !e.inc && e.amt < 0), e => -e.amt);
     rows.push({ t: start, income, spend, net: income - spend });
   }
   return rows;
@@ -703,13 +766,13 @@ function monthAxis(series, key){
 function monthBars(series, key, color){
   const curve = series.map(s => ({ t: s.t, v: s[key] }));
   if (curve.length < 2) return '';
-  const total = curve.reduce((a, p) => a + p.v, 0);
+  const total = sumEuros(curve, p => p.v);
   return curveChart(curve, { color, h: 108, fmt: 'month', total, link: 'desk', slot: key === 'income' ? 'income' : 'spend', label: key === 'income' ? 'Rentrées' : 'Dépenses mensuelles' });
 }
 function netLine(series){
   const curve = series.map(s => ({ t: s.t, v: s.net }));
   if (curve.length < 2) return '';
-  const net = curve.reduce((a, p) => a + p.v, 0);
+  const net = sumEuros(curve, p => p.v);
   return curveChart(curve, { color: net >= 0 ? 'var(--up)' : 'var(--down)', h: 108, fmt: 'month', signed: true, zero: true, total: net, link: 'desk', slot: 'net', label: 'Net' });
 }
 function posteRows(tx){
@@ -724,8 +787,8 @@ function posteRows(tx){
 screens.graphiques = () => {
   const hid = state.hideBalance;
   const series = deskSeries();
-  const inc = series.reduce((a, s) => a + s.income, 0);
-  const out = series.reduce((a, s) => a + s.spend, 0);
+  const inc = sumEuros(series, s => s.income);
+  const out = sumEuros(series, s => s.spend);
   const net = inc - out;
   const ranges = [['6', '6 mois'], ['12', '12 mois'], ['all', 'Tout']];
   return `
@@ -757,40 +820,126 @@ function txKind(x){
   if (x.cat === 'retrait') return 'Retrait';
   return 'Paiement';
 }
-const txRow = (x, pp) => `<a class="tx${pp ? ' pp' : ''}" href="${x.sub ? '#/abo/' + x.sub : '#/operations'}">${catChip(x.cat)}
-  <div class="mid"><div class="name">${esc(x.name)}</div><div class="meta">${pp ? `${x.t.getDate()} ${MOIS[x.t.getMonth()]} • ${txKind(x)}` : (CATS[x.cat] || CATS.autre).l + (x.where ? ' · ' + esc(x.where) : '')}</div></div>
-  <div class="amt ${x.amt > 0 ? 'pos' : ''}">${pp ? (x.amt > 0 ? '+' : '−') + eur(Math.abs(x.amt)) : signed(x.amt)}${!pp && x.bank ? bankTile(x.bank, 'tx-bk') : ''}</div></a>`;
-function txGroups(list, maxDays = 99, maxRows = 999, byMonth = false){
+function catChipEl(c) {
+  const span = document.createElement('span');
+  const known = CATS[c] || CATS.autre;
+  span.className = 'cat cat-' + (c || 'autre');
+  span.setAttribute('aria-hidden', 'true');
+  if (ICONS[known.ic]) span.innerHTML = SVG(ICONS[known.ic]);
+  return span;
+}
+function txRowEl(x, pp) {
+  const a = document.createElement('a');
+  a.className = 'tx' + (pp ? ' pp' : '');
+  a.href = x.sub ? '#/abo/' + x.sub : '#/operations';
+  a.appendChild(catChipEl(x.cat));
+  const mid = document.createElement('div');
+  mid.className = 'mid';
+  const name = document.createElement('div');
+  name.className = 'name';
+  name.textContent = x.name || '';
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  meta.textContent = pp ? (x.t.getDate() + ' ' + MOIS[x.t.getMonth()] + ' • ' + txKind(x)) : ((CATS[x.cat] || CATS.autre).l + (x.where ? ' · ' + x.where : ''));
+  mid.append(name, meta);
+  const amt = document.createElement('div');
+  amt.className = 'amt' + (x.amt > 0 ? ' pos' : '');
+  if (pp) amt.textContent = (x.amt > 0 ? '+' : '−') + eur(Math.abs(x.amt));
+  else {
+    amt.textContent = signed(x.amt);
+    if (x.bank) amt.insertAdjacentHTML('beforeend', bankTile(x.bank, 'tx-bk'));
+  }
+  a.append(mid, amt);
+  return a;
+}
+function groupTx(list, maxDays, maxRows, byMonth) {
   const groups = []; let rows = 0;
-  for (const x of list){
+  for (const x of list) {
     const k = byMonth ? x.t.getFullYear() * 12 + x.t.getMonth() : day0(x.t).getTime();
     let g = groups[groups.length - 1];
-    if (!g || g.k !== k){ if (groups.length >= maxDays || rows >= maxRows) break; g = { k, d:x.t, items:[] }; groups.push(g); }
-    if (rows >= maxRows) break; g.items.push(x); rows++;
+    if (!g || g.k !== k) { if (groups.length >= maxDays || rows >= maxRows) break; g = { k, d: x.t, items: [] }; groups.push(g); }
+    if (rows >= maxRows) break;
+    g.items.push(x); rows++;
   }
-  if (byMonth) return groups.map(g => `<section class="mo"><h2>${MOIS_LONG[g.d.getMonth()]}</h2>${g.items.map(x => txRow(x, true)).join('')}</section>`).join('');
-  return groups.map(g => { const net = g.items.reduce((a, x) => a + x.amt, 0);
-    return `<div class="day"><div class="day-h"><span>${dayLabel(g.d)}</span><span>${signed(net)}</span></div>${g.items.map(x => txRow(x)).join('')}</div>`; }).join('');
+  return groups;
+}
+function appendTxGroups(frag, list, maxDays, maxRows, byMonth) {
+  for (const g of groupTx(list, maxDays, maxRows, byMonth)) {
+    if (byMonth) {
+      const sec = document.createElement('section');
+      sec.className = 'mo';
+      const h2 = document.createElement('h2');
+      h2.textContent = MOIS_LONG[g.d.getMonth()];
+      sec.appendChild(h2);
+      g.items.forEach(x => sec.appendChild(txRowEl(x, true)));
+      frag.appendChild(sec);
+    } else {
+      const day = document.createElement('div');
+      day.className = 'day';
+      const head = document.createElement('div');
+      head.className = 'day-h';
+      const left = document.createElement('span');
+      left.textContent = dayLabel(g.d);
+      const right = document.createElement('span');
+      right.textContent = signed(sumEuros(g.items, x => x.amt));
+      head.append(left, right);
+      day.appendChild(head);
+      g.items.forEach(x => day.appendChild(txRowEl(x, false)));
+      frag.appendChild(day);
+    }
+  }
+}
+const _mounts = [];
+let _mountN = 0;
+function listSlot(className, builder, style) {
+  const id = 'L' + (++_mountN);
+  _mounts.push({ id, builder });
+  return `<div class="${className}" data-list data-mount="${id}"${style ? ` style="${style}"` : ''}></div>`;
+}
+function onListClick(e) {
+  const row = e.target.closest('[data-alert]');
+  if (!row || !e.currentTarget.contains(row)) return;
+  const id = row.getAttribute('data-alert');
+  if (id && !state.readAlerts.includes(id)) { state.readAlerts.push(id); save(); }
+}
+function flushMounts() {
+  const jobs = _mounts.splice(0);
+  for (const job of jobs) {
+    const host = document.querySelector('[data-mount="' + job.id + '"]');
+    if (!host) continue;
+    const frag = document.createDocumentFragment();
+    job.builder(frag);
+    host.appendChild(frag);
+    host.addEventListener('click', onListClick);
+  }
 }
 let _homeAnimated = QS.has('static');  // ?static=1 : sans animation (captures)
+let _homeRaf = 0;
 function animateHome(){
   const el = document.querySelector('[data-count]'); if (!el || state.hideBalance) return;
   if (_homeAnimated || matchMedia('(prefers-reduced-motion: reduce)').matches){ document.querySelector('.home')?.classList.add('static'); return; }
   _homeAnimated = true;
   const target = +el.dataset.count, t0 = performance.now(), dur = 750;
-  const step = now => { if (!el.isConnected || el.dataset.scrub === '1') return; const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3); el.innerHTML = money(target * (0.92 + 0.08 * e)); if (p < 1) requestAnimationFrame(step); else el.innerHTML = money(target); };
-  requestAnimationFrame(step);
+  const step = now => {
+    if (!el.isConnected || el.dataset.scrub === '1') { _homeRaf = 0; return; }
+    const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+    el.innerHTML = money(target * (0.92 + 0.08 * e));
+    if (p < 1) _homeRaf = requestAnimationFrame(step);
+    else { _homeRaf = 0; el.innerHTML = money(target); }
+  };
+  _homeRaf = requestAnimationFrame(step);
+  onLeave(() => { if (_homeRaf) cancelAnimationFrame(_homeRaf); _homeRaf = 0; });
 }
 
 screens.dashboard = () => {
-  const t = totals(), P = isP(), L = ledger(), al = alerts();
+  const t = (homeKpi = totals()), P = isP(), L = ledger(), al = alerts();
   const unread = al.filter(a => !state.readAlerts.includes(a.id)).length;
   const curve = homeCurve();
   const first = curve.length ? curve[0].v : L.total, delta = L.total - first;
   const pp = (delta / (Math.abs(first) || 1)) * 100;
   const ppTxt = (pp > 0 ? '+' : pp < 0 ? '−' : '') + Math.abs(pp).toLocaleString('fr-FR', { minimumFractionDigits:1, maximumFractionDigits:1 }) + ' %';
   const tf = homeTfMeta();
-  const upSum = L.up.reduce((a, x) => a + x.amt, 0);
+  const upSum = sumEuros(L.up, x => x.amt);
   const nextSub = L.up.find(x => x.sub);
   const banksN = L.banks.length;
   const prenom = USER.prenom ? ' ' + USER.prenom : '';
@@ -799,7 +948,7 @@ screens.dashboard = () => {
   ${brandBar(`<a class="gear" href="#/compte" aria-label="Mon compte">⟦user⟧</a>`)}
   <div class="home-body">
   <div class="greet rise" style="--d:0"><div class="g-row"><p class="g-day">${cap(JOURS[nowRef().getDay()])} ${nowRef().getDate()} ${MOIS[nowRef().getMonth()]}</p>
-    <div class="g-tags"><span class="plan-pill ${P ? 'p' : ''}">${P ? 'Premium' : 'Gratuit'}</span>${demoTag}</div></div><h1>Bonjour${prenom}</h1></div>
+    <div class="g-tags"><span class="plan-pill ${P ? 'p' : ''}">${P ? 'Premium' : 'Gratuit'}</span>${demoTag}</div></div><h1>Bonjour${esc(prenom)}</h1></div>
 
   <section class="total rise" style="--d:1">
     <button type="button" class="sync-btn" id="home-sync" aria-label="Synchroniser vos comptes">⟦refresh⟧<span>Synchroniser</span></button>
@@ -830,7 +979,7 @@ screens.dashboard = () => {
   <div class="panel spend-card rise" style="--d:2">${state.hideBalance ? '<p class="insight">Graphique masqué avec le solde.</p>' : incomeBars(L.tx)}</div>
 
   <div class="section-h rise" style="--d:3"><h2>Dernières opérations</h2><a href="#/operations">Tout voir</a></div>
-  <div class="panel rise" style="--d:3">${L.tx.length ? txGroups(L.tx, 3, 8) : emptyState('search', 'Aucune opération', 'Rien ces derniers jours. Synchronisez vos comptes pour mettre la liste à jour.')}</div>
+  ${L.tx.length ? listSlot('panel rise', frag => appendTxGroups(frag, L.tx, 3, 8, false), '--d:3') : `<div class="panel rise" style="--d:3">${emptyState('search', 'Aucune opération', 'Rien ces derniers jours. Synchronisez vos comptes pour mettre la liste à jour.')}</div>`}
 
   <div class="section-h rise" style="--d:2"><h2>À venir cette semaine</h2>${L.up.length ? `<span class="sec-sum">${signed(upSum)}</span>` : ''}</div>
   <div class="panel rise" style="--d:2">
@@ -888,7 +1037,7 @@ function txActivity(){
   <a class="tx-subs" href="#/abonnements?vue=recurrents"><span><b>Abonnements détectés</b><i>${t.list.length} actifs</i></span><strong>${eur(t.monthly)}<small>/mois</small></strong></a>
   <label class="tx-search">⟦search⟧<input id="tx-q" type="search" placeholder="Rechercher" aria-label="Rechercher une opération" value="${esc(opsQuery)}" autocomplete="off" enterkeyhint="search"></label>
   <div class="seg ops-seg four" role="tablist" aria-label="Filtrer les transactions">${[['all','Tout'],['out','Dépenses'],['in','Reçus'],['abo','Abos']].map(([k, l]) => `<button type="button" role="tab" aria-selected="${opsFilter === k}" class="${opsFilter === k ? 'on' : ''}" data-ops="${k}">${l}</button>`).join('')}</div>
-  <div class="act-list">${list.length ? txGroups(list, 8, 240, true) : emptyState('search', 'Aucune opération', q ? 'Aucun résultat pour cette recherche. Essayez un autre mot.' : 'Rien sur cette période.')}</div>
+  ${list.length ? listSlot('act-list', frag => appendTxGroups(frag, list, 8, 240, true)) : `<div class="act-list">${emptyState('search', 'Aucune opération', q ? 'Aucun résultat pour cette recherche. Essayez un autre mot.' : 'Rien sur cette période.')}</div>`}
 </div>`;
 }
 screens.operations = () => txActivity();
@@ -903,30 +1052,64 @@ screens.abonnements = (q) => {
   if (f==='eco') list = t.list.filter(s=>increase(s)||s.small||t.dups.includes(s));
   const showSmall = P && (f==='all' || f==='small');
   if (f==='small') list = [];
-  const row = s => { const d = nextDebit(s); const tone = tuneColor(s.color); return `<a class="tx pp" href="#/abo/${s.id}?vue=recurrents"><span class="cat mark" style="background:${tone.bg};color:${tone.fg}">${esc(s.ini)}</span>
-      <div class="mid"><div class="name">${esc(s.name)}${P ? `${increase(s)?`<span class="badge b-red">+${pct(s)} %</span>`:''}${s.doubleCharge?'<span class="badge b-red">2×</span>':''}${t.dups.includes(s)?'<span class="badge b-blue">Doublon</span>':''}${s.trial?'<span class="badge b-amber">Essai</span>':''}` : ((increase(s)||s.small||s.doubleCharge||t.dups.includes(s)) ? lockBadge('Alerte') : '')}</div>
-      <div class="meta">${d.getDate()} ${MOIS[d.getMonth()]} • ${cap(FREQ[s.cadence || 'month'] || 'mensuel')}</div></div>
-      <div class="amt">−${eur(s.price)}</div></a>`; };
+  const subRowEl = s => {
+    const d = nextDebit(s); const tone = tuneColor(s.color);
+    const a = document.createElement('a');
+    a.className = 'tx pp';
+    a.href = '#/abo/' + s.id + '?vue=recurrents';
+    const mark = document.createElement('span');
+    mark.className = 'cat mark';
+    mark.style.background = tone.bg;
+    mark.style.color = tone.fg;
+    mark.textContent = s.ini || '';
+    const mid = document.createElement('div');
+    mid.className = 'mid';
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.appendChild(document.createTextNode(s.name || ''));
+    const badge = (cls, text, icon) => {
+      const b = document.createElement('span');
+      b.className = 'badge ' + cls;
+      if (icon) b.appendChild(document.createRange().createContextualFragment(SVG(ICONS[icon])));
+      b.appendChild(document.createTextNode(text));
+      return b;
+    };
+    if (P) {
+      if (increase(s)) name.appendChild(badge('b-red', '+' + pct(s) + ' %'));
+      if (s.doubleCharge) name.appendChild(badge('b-red', '2×'));
+      if (t.dups.includes(s)) name.appendChild(badge('b-blue', 'Doublon'));
+      if (s.trial) name.appendChild(badge('b-amber', 'Essai'));
+    } else if (increase(s) || s.small || s.doubleCharge || t.dups.includes(s)) name.appendChild(badge('b-lock', ' Alerte', 'lock'));
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = d.getDate() + ' ' + MOIS[d.getMonth()] + ' • ' + cap(FREQ[s.cadence || 'month'] || 'mensuel');
+    mid.append(name, meta);
+    const amt = document.createElement('div');
+    amt.className = 'amt';
+    amt.textContent = '−' + eur(s.price);
+    a.append(mark, mid, amt);
+    return a;
+  };
   const chip = (k,l) => { const on = P ? f===k : k==='all'; const href = P ? `#/abonnements?vue=recurrents${k==='all'?'':'&f='+k}` : (k==='all'?'#/abonnements?vue=recurrents':'#/premium'); return `<a class="chip ${on?'on':''}" role="tab" aria-selected="${on}" href="${href}">${k==='all'||P?l:'⟦lock⟧ '+l.replace(/^\S+ /,'')}</a>`; };
   return `
 <div class="screen">
   <div class="topbar"><a class="back" href="#/abonnements">⟦back⟧</a><h1>Abonnements</h1>${demoTag}</div>
   <div class="card" style="display:flex;justify-content:space-between;align-items:center">
     <div><div class="muted small">Total mensuel</div><div style="font-size:26px;font-weight:650;letter-spacing:-.02em">${eur(t.monthly)}</div></div>
-    <div style="text-align:right"><div class="muted small">Sur un an</div><div style="font-weight:700">${eur0(t.monthly*12)}</div></div>
+    <div style="text-align:right"><div class="muted small">Sur un an</div><div style="font-weight:700">${eur0(annual(t.monthly))}</div></div>
   </div>
   <div class="chips" role="tablist" aria-label="Filtrer les abonnements">${chip('all','Tous ('+t.list.length+')')}${chip('up','⟦trend⟧ Hausses ('+t.ups.length+')')}${chip('small','⟦search⟧ Oubliés ('+t.smalls.length+')')}${chip('eco','⟦coin⟧ À économiser')}</div>
   ${P?'':teaser(`${eur(t.found)}/mois d’économies repérées`, LIVE ? `${t.ups.length} hausse${t.ups.length>1?'s':''}, ${t.smalls.length} petit${t.smalls.length>1?'s':''} prélèvement${t.smalls.length>1?'s':''} sous 10 €` : `${t.ups.length} hausses, 1 doublon, 1 double prélèvement, ${t.smalls.length} oubliés`)}
   ${LIVE && LIVE.history && LIVE.history.limited ? `<div class="banner amber"><span class="ic">⟦info⟧</span><div><b>Historique court : détection partielle</b>La banque de test ne fournit que ${LIVE.history.days} jours d’opérations (${LIVE.history.debits} débits). Il faut au moins 2 prélèvements pour confirmer un abonnement : ceux vus une seule fois sont marqués « probable ».</div></div>` : ''}
   ${LIVE && !t.list.length ? emptyState('search', 'Aucun prélèvement récurrent', 'Rien de régulier pour le moment. Avec deux mois d’historique ou plus, la détection sera plus complète. Vos comptes restent en lecture seule.') : ''}
-  ${P && t.ups.length && f==='all' ? `<div class="banner red"><span class="ic">⟦trend⟧</span><div><b>${t.ups.length} hausse${t.ups.length>1?'s':''} de prix détectée${t.ups.length>1?'s':''}</b>${t.ups.map(s=>`${esc(s.name)} : ${eur(s.prev)} → ${eur(s.price)}`).join(' · ')}. Soit ${eur(t.ups.reduce((a,s)=>a+increase(s),0)*12)} de plus par an.</div></div>` : ''}
-  ${list.length?`<div class="act-list">${list.map(row).join('')}</div>`:((LIVE && !t.list.length) || (showSmall && t.smalls.length) ? '' : emptyState('search', f==='all' ? 'Aucun abonnement' : 'Rien dans ce filtre', f==='all' ? 'Dès qu’un prélèvement se répète, il apparaîtra ici.' : 'Essayez un autre filtre, ou revenez à Tous.'))}
+  ${P && t.ups.length && f==='all' ? `<div class="banner red"><span class="ic">⟦trend⟧</span><div><b>${t.ups.length} hausse${t.ups.length>1?'s':''} de prix détectée${t.ups.length>1?'s':''}</b>${t.ups.map(s=>`${esc(s.name)} : ${eur(s.prev)} → ${eur(s.price)}`).join(' · ')}. Soit ${eur(fromCents(toCents(sumEuros(t.ups, increase)) * 12))} de plus par an.</div></div>` : ''}
+  ${list.length ? listSlot('act-list', frag => { list.forEach(s => frag.appendChild(subRowEl(s))); }) : ((LIVE && !t.list.length) || (showSmall && t.smalls.length) ? '' : `<div class="act-list">${emptyState('search', f==='all' ? 'Aucun abonnement' : 'Rien dans ce filtre', f==='all' ? 'Dès qu’un prélèvement se répète, il apparaîtra ici.' : 'Essayez un autre filtre, ou revenez à Tous.')}</div>`)}
   ${adSlot('subs')}
   ${showSmall && t.smalls.length?`
-  <div class="section-h"><h2>⟦search⟧ Petits prélèvements oubliés</h2><span class="muted small">${eur(t.smalls.reduce((a,s)=>a+s.price,0))}/mois</span></div>
-  <p class="muted small" style="margin:-4px 2px 10px">Moins de ${LIVE?10:5} € chacun, mais ${eur0(t.smalls.reduce((a,s)=>a+s.price,0)*12)} par an au total.</p>
-  <div class="act-list">${t.smalls.map(row).join('')}</div>`:''}
-  ${state.resiliated.length?`<div class="section-h"><h2>⟦check⟧ Résiliés</h2></div><div class="card" style="padding:4px 16px">${SUBS.filter(s=>state.resiliated.includes(s.id)).map(s=>`<div class="row">${logo(s)}<div class="mid"><div class="name">${s.name}</div><div class="meta">Résiliation envoyée</div></div><div class="amt" style="color:var(--mint)">−${eur(s.price)}</div></div>`).join('')}</div>`:''}
+  <div class="section-h"><h2>⟦search⟧ Petits prélèvements oubliés</h2><span class="muted small">${eur(sumEuros(t.smalls, s => s.price))}/mois</span></div>
+  <p class="muted small" style="margin:-4px 2px 10px">Moins de ${LIVE?10:5} € chacun, mais ${eur0(fromCents(toCents(sumEuros(t.smalls, s => s.price)) * 12))} par an au total.</p>
+  ${listSlot('act-list', frag => { t.smalls.forEach(s => frag.appendChild(subRowEl(s))); })}`:''}
+  ${state.resiliated.length?`<div class="section-h"><h2>⟦check⟧ Résiliés</h2></div><div class="card" style="padding:4px 16px">${SUBS.filter(s=>state.resiliated.includes(s.id)).map(s=>`<div class="row">${logo(s)}<div class="mid"><div class="name">${esc(s.name)}</div><div class="meta">Résiliation envoyée</div></div><div class="amt" style="color:var(--mint)">−${eur(s.price)}</div></div>`).join('')}</div>`:''}
 </div>`;
 };
 
@@ -939,15 +1122,15 @@ screens.abo = (q, id) => {
 <div class="screen">
   <div class="topbar"><a class="back" href="${backTo}">⟦back⟧</a>${demoTag}</div>
   <div class="detail-head">${logo(s)}
-    <div class="muted small">${s.cat}</div>
+    <div class="muted small">${esc(s.cat)}</div>
     <div class="price">${eur(s.price)}<span class="muted" style="font-size:15px;font-weight:600"> /mois</span></div>
-    <div style="margin-top:6px">${P ? `${increase(s)?`<span class="badge b-red">+${eur(increase(s))} (+${pct(s)} %)</span>`:''}${t.dups.includes(s)?'<span class="badge b-blue">Doublon avec '+byId(s.duplicate).name+'</span>':''}${s.small?'<span class="badge b-amber">Petit prélèvement oublié</span>':''}` : (flagged?lockBadge('1 alerte sur cet abonnement'):'')}${done?'<span class="badge b-green">Résiliation envoyée</span>':''}</div>
+    <div style="margin-top:6px">${P ? `${increase(s)?`<span class="badge b-red">+${eur(increase(s))} (+${pct(s)} %)</span>`:''}${t.dups.includes(s)?'<span class="badge b-blue">Doublon avec '+esc(byId(s.duplicate).name)+'</span>':''}${s.small?'<span class="badge b-amber">Petit prélèvement oublié</span>':''}` : (flagged?lockBadge('1 alerte sur cet abonnement'):'')}${done?'<span class="badge b-green">Résiliation envoyée</span>':''}</div>
   </div>
   ${P ? `
-  ${s.doubleCharge?`<div class="banner red"><span class="ic">⟦alert⟧</span><div><b>Prélevé deux fois le ${s.doubleCharge}</b>${eur(s.price)} en trop. On vous prépare la demande de remboursement.<br><a href="#" data-toast="Demande de remboursement prête (simulation)" style="font-weight:700;text-decoration:underline">Demander le remboursement</a></div></div>`:''}
-  ${increase(s)?`<div class="banner red"><span class="ic">⟦trend⟧</span><div><b>Hausse de prix détectée</b>Vous payiez ${eur(s.prev)}. Cette hausse vous coûte ${eur(increase(s)*12)} de plus par an.</div></div>`:''}
-  ${s.note?`<div class="banner amber"><span class="ic">⟦info⟧</span><div><b>${s.note}</b>${eur(s.price*12)} par an pour un service que vous avez peut-être oublié.</div></div>`:''}
-  ${s.tip?`<div class="banner blue"><span class="ic">⟦info⟧</span><div>${s.tip} <i>(Conseil neutre : aucun sponsor derrière ce conseil.)</i></div></div>`:''}` : (flagged ? teaser('Une alerte attend sur cet abonnement', 'Hausse, doublon ou oubli : découvrez-la en Premium') : '')}
+  ${s.doubleCharge?`<div class="banner red"><span class="ic">⟦alert⟧</span><div><b>Prélevé deux fois le ${esc(s.doubleCharge)}</b>${eur(s.price)} en trop. On vous prépare la demande de remboursement.<br><a href="#" data-toast="Demande de remboursement prête (simulation)" style="font-weight:700;text-decoration:underline">Demander le remboursement</a></div></div>`:''}
+  ${increase(s)?`<div class="banner red"><span class="ic">⟦trend⟧</span><div><b>Hausse de prix détectée</b>Vous payiez ${eur(s.prev)}. Cette hausse vous coûte ${eur(annual(increase(s)))} de plus par an.</div></div>`:''}
+  ${s.note?`<div class="banner amber"><span class="ic">⟦info⟧</span><div><b>${esc(s.note)}</b>${eur(annual(s.price))} par an pour un service que vous avez peut-être oublié.</div></div>`:''}
+  ${s.tip?`<div class="banner blue"><span class="ic">⟦info⟧</span><div>${esc(s.tip)} <i>(Conseil neutre : aucun sponsor derrière ce conseil.)</i></div></div>`:''}` : (flagged ? teaser('Une alerte attend sur cet abonnement', 'Hausse, doublon ou oubli : découvrez-la en Premium') : '')}
   <div class="card">
     <div style="font-weight:700;margin-bottom:4px">Historique des prélèvements</div>
     <div class="chart">${s.hist.map((v,i)=>`<div class="col ${P&&i>0&&v>s.hist[i-1]?'up':''}"><span>${v?v.toFixed(2).replace('.',','):'–'}</span><i style="height:${Math.max(4,v/max*70)}px"></i>${MONTHS[i]}</div>`).join('')}</div>
@@ -955,13 +1138,13 @@ screens.abo = (q, id) => {
   <div class="card" style="padding:4px 16px">
     <div class="kv"><span>Prochain prélèvement</span><span>${s.live ? (s.confirmed||s.nextDate ? '' : '≈ ') + (d => d.toLocaleDateString('fr-FR', d.getFullYear() === new Date().getFullYear() ? {day:'numeric',month:'short'} : {day:'numeric',month:'short',year:'numeric'}))(nextLive(s)) : `${s.day} ${s.day>=9?'oct.':'nov.'}`}</span></div>
     <div class="kv"><span>Rappel avant prélèvement</span><span>${P?'la veille ⟦bell⟧':'⟦lock⟧ Premium'}</span></div>
-    <div class="kv"><span>Coût sur un an</span><span>${eur(s.price*12)}</span></div>
-    <div class="kv"><span>Client depuis</span><span>${s.since || '—'}</span></div>
-    ${s.live ? `<div class="kv"><span>Libellé bancaire</span><span class="small">${s.label}</span></div>
+    <div class="kv"><span>Coût sur un an</span><span>${eur(annual(s.price))}</span></div>
+    <div class="kv"><span>Client depuis</span><span>${esc(s.since || '—')}</span></div>
+    ${s.live ? `<div class="kv"><span>Libellé bancaire</span><span class="small">${esc(s.label)}</span></div>
     <div class="kv"><span>Dernier prélèvement</span><span>${new Date(s.lastDate+'T12:00').toLocaleDateString('fr-FR',{day:'numeric',month:'short'})}</span></div>
-    <div class="kv"><span>Fréquence</span><span>${eur(s.amount)} ${s.cadenceLabel}${s.variable?' (variable)':''}</span></div>
+    <div class="kv"><span>Fréquence</span><span>${eur(s.amount)} ${esc(s.cadenceLabel)}${s.variable?' (variable)':''}</span></div>
     <div class="kv"><span>Détection</span><span>${s.confirmed ? `Récurrent confirmé (${s.count}×)` : 'Probable (1×)'}</span></div>
-    ${s.duplicate?`<div class="kv"><span>Doublon possible</span><span>même usage que ${s.dupOf}</span></div>`:''}` : ''}
+    ${s.duplicate?`<div class="kv"><span>Doublon possible</span><span>même usage que ${esc(s.dupOf)}</span></div>`:''}` : ''}
   </div>
   ${done?`<a class="btn ghost" href="${backTo}">Retour</a>` : P ? `
   <a class="btn danger" href="#/resilier/${s.id}/1">⟦scissors⟧ Résilier cet abonnement</a>
@@ -980,15 +1163,15 @@ screens.resilier = (q, id, step) => {
   const head = `<div class="topbar"><a class="back" href="${step===1?'#/abo/'+s.id:'#/resilier/'+s.id+'/'+(step-1)}">⟦back⟧</a><span class="muted small">Étape ${Math.min(step,3)} sur 3</span>${demoTag}</div>`;
   if (step===1) return `
 <div class="screen">${head}${steps}
-  <h1 style="font-size:23px;letter-spacing:-.02em">Résilier ${s.name}</h1>
+  <h1 style="font-size:23px;letter-spacing:-.02em">Résilier ${esc(s.name)}</h1>
   <p class="muted small" style="margin:6px 0 16px">Choisissez comment vous voulez résilier. On prépare tout pour vous.</p>
   ${[
     ['lettre','⟦mail⟧','Lettre de résiliation','Lettre prête à imprimer ou à envoyer en recommandé'],
     ['email','⟦mail⟧','E-mail au service client','Texte prêt à copier-coller'],
     ['enligne','⟦globe⟧','En ligne en 3 clics', cancelInfo(s).online ? cancelInfo(s).where : 'Non proposé par ce service'],
-  ].map(([k,ic,b,sp])=>`<button class="option ${resil.method===k?'on':''}" data-method="${k}" ${k==='enligne'&&!cancelInfo(s).online?'disabled style="opacity:.5"':''}><span class="ic">${ic}</span><div><b>${b}</b><span>${sp}</span></div></button>`).join('')}
-  <div class="card" style="padding:4px 16px"><div class="kv"><span>Comment résilier</span><span style="text-align:right;max-width:58%">${cancelInfo(s).where}</span></div><div class="kv"><span>Préavis</span><span style="text-align:right;max-width:58%">${cancelInfo(s).notice}</span></div></div>
-  ${cancelInfo(s).url ? `<a class="btn ghost" href="${cancelInfo(s).url}" target="_blank" rel="noopener">⟦globe⟧ Page officielle de résiliation ${esc(cancelInfo(s).brand)}</a>` : `<p class="muted small" style="margin:0 2px 12px">Pas de page de résiliation en ligne connue pour ce service : la lettre préremplie est la voie la plus sûre.</p>`}
+  ].map(([k,ic,b,sp])=>`<button class="option ${resil.method===k?'on':''}" data-method="${k}" ${k==='enligne'&&!cancelInfo(s).online?'disabled style="opacity:.5"':''}><span class="ic">${ic}</span><div><b>${b}</b><span>${esc(sp)}</span></div></button>`).join('')}
+  <div class="card" style="padding:4px 16px"><div class="kv"><span>Comment résilier</span><span style="text-align:right;max-width:58%">${esc(cancelInfo(s).where)}</span></div><div class="kv"><span>Préavis</span><span style="text-align:right;max-width:58%">${esc(cancelInfo(s).notice)}</span></div></div>
+  ${cancelInfo(s).url ? `<a class="btn ghost" href="${esc(cancelInfo(s).url)}" target="_blank" rel="noopener">⟦globe⟧ Page officielle de résiliation ${esc(cancelInfo(s).brand)}</a>` : `<p class="muted small" style="margin:0 2px 12px">Pas de page de résiliation en ligne connue pour ce service : la lettre préremplie est la voie la plus sûre.</p>`}
   <div class="section-h"><h2>Les étapes</h2></div>
   <ol class="cancel-steps">${(cancelInfo(s).url ? [`Ouvrez la page officielle ${esc(cancelInfo(s).brand)} et connectez-vous.`, `Suivez : ${esc(cancelInfo(s).where)}.`, 'Gardez l’e-mail de confirmation, puis revenez confirmer ici.'] : ['Choisissez la lettre (ou l’e-mail) : tout est prérempli.', 'Envoyez-la en recommandé avec accusé de réception.', 'Revenez confirmer ici : on surveille que le prélèvement s’arrête.']).map(x=>`<li>${x}</li>`).join('')}</ol>
   <div class="banner blue"><span class="ic">⟦info⟧</span><div>Pour un contrat souscrit en ligne, la loi impose au service de proposer une résiliation en ligne simple (« résiliation en 3 clics »).</div></div>
@@ -1033,8 +1216,8 @@ ${USER.prenom} ${USER.nom}`;
   <h1 style="font-size:23px;letter-spacing:-.02em">Votre ${resil.method==='email'?'demande':'lettre'} est prête</h1>
   <p class="muted small" style="margin:6px 0 14px">Vérifiez les informations, tout est prérempli.</p>
   ${resil.method==='enligne'
-    ? `<div class="card"><b>Résiliez directement chez ${s.name}</b><p class="muted small" style="margin-top:6px">Chemin : ${cancelInfo(s).where}</p><p class="muted small" style="margin-top:6px">On vous guide écran par écran, puis vous revenez confirmer ici.</p>${cancelInfo(s).url ? `<a class="btn" style="margin-top:12px" href="${cancelInfo(s).url}" target="_blank" rel="noopener">⟦globe⟧ Ouvrir la page officielle</a>` : ''}</div>`
-    : `<div class="letter">${letter}</div>`}
+    ? `<div class="card"><b>Résiliez directement chez ${esc(s.name)}</b><p class="muted small" style="margin-top:6px">Chemin : ${esc(cancelInfo(s).where)}</p><p class="muted small" style="margin-top:6px">On vous guide écran par écran, puis vous revenez confirmer ici.</p>${cancelInfo(s).url ? `<a class="btn" style="margin-top:12px" href="${esc(cancelInfo(s).url)}" target="_blank" rel="noopener">⟦globe⟧ Ouvrir la page officielle</a>` : ''}</div>`
+    : `<div class="letter">${esc(letter)}</div>`}
   <div class="btn-pair">
     <button class="btn ghost" id="copy-letter">⟦copy⟧ Copier</button>
     <button class="btn ghost" id="print-letter">⟦download⟧ Imprimer / PDF</button>
@@ -1050,17 +1233,17 @@ ${USER.prenom} ${USER.nom}`;
   <div class="card" style="padding:4px 16px">
     <div class="kv"><span>⟦check⟧ Demande envoyée</span><span>${new Date().toLocaleDateString('fr-FR')}</span></div>
     <div class="kv"><span>⟦clock⟧ Confirmation attendue</span><span>sous 10 jours</span></div>
-    <div class="kv"><span>⟦bell⟧ On vous alerte si</span><span style="text-align:right;max-width:55%">un nouveau prélèvement ${s.name} passe malgré tout</span></div>
+    <div class="kv"><span>⟦bell⟧ On vous alerte si</span><span style="text-align:right;max-width:55%">un nouveau prélèvement ${esc(s.name)} passe malgré tout</span></div>
   </div>
-  <div class="banner green"><span class="ic">⟦coin⟧</span><div><b>${eur(s.price)} économisés par mois</b>soit ${eur(s.price*12)} sur un an.</div></div>
+  <div class="banner green"><span class="ic">⟦coin⟧</span><div><b>${eur(s.price)} économisés par mois</b>soit ${eur(annual(s.price))} sur un an.</div></div>
   <button class="btn mint" id="confirm-resil" data-id="${s.id}">Confirmer la résiliation</button>
 </div>`;
   return `
 <div class="screen"><div class="success">
   <div class="ok">⟦check⟧</div>
-  <h1 style="font-size:24px">Bien joué ${USER.prenom} !</h1>
-  <p class="muted" style="margin:8px 0 6px">${s.name} est en cours de résiliation.</p>
-  <p style="font-size:30px;font-weight:650;color:var(--mint);margin:14px 0 2px">+${eur(s.price*12)}</p>
+  <h1 style="font-size:24px">Bien joué ${esc(USER.prenom)} !</h1>
+  <p class="muted" style="margin:8px 0 6px">${esc(s.name)} est en cours de résiliation.</p>
+  <p style="font-size:30px;font-weight:650;color:var(--mint);margin:14px 0 2px">+${eur(annual(s.price))}</p>
   <p class="muted small">économisés sur un an</p>
 </div>
 <a class="btn" href="#/dashboard">Voir mes économies</a>
@@ -1076,9 +1259,41 @@ screens.alertes = (q) => {
   const free = shown.filter(a => !a.premium), prem = shown.filter(a => a.premium);
   const visible = P ? shown : free;
   const unread = al.filter(a => !state.readAlerts.includes(a.id)).length;
-  const row = a => `<a class="tx pp al-row ${state.readAlerts.includes(a.id) ? '' : 'unread'}" href="${a.link}" data-alert="${a.id}"><span class="cat">${a.ic}</span><div class="mid"><div class="name">${a.title}</div><div class="meta">${a.text}</div></div>${a.amt ? `<div class="amt">${a.amt}</div>` : ''}</a>`;
-  const order = ['Aujourd’hui', 'Cette semaine', 'Plus tôt'];
-  const groups = order.filter(g => visible.some(a => a.group === g)).map(g => `<section class="mo"><h2>${g}</h2>${visible.filter(a => a.group === g).map(row).join('')}</section>`).join('');
+  const alertRowEl = a => {
+    const row = document.createElement('a');
+    row.className = 'tx pp al-row' + (state.readAlerts.includes(a.id) ? '' : ' unread');
+    row.href = a.link || '#/alertes';
+    if (a.id) row.dataset.alert = a.id;
+    const cat = document.createElement('span');
+    cat.className = 'cat';
+    cat.innerHTML = icons(a.ic || '');
+    const mid = document.createElement('div');
+    mid.className = 'mid';
+    const name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = a.title || '';
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = a.text || '';
+    mid.append(name, meta);
+    row.append(cat, mid);
+    if (a.amt) { const amt = document.createElement('div'); amt.className = 'amt'; amt.textContent = a.amt; row.appendChild(amt); }
+    return row;
+  };
+  const appendAlertGroups = (frag, rows) => {
+    const order = ['Aujourd’hui', 'Cette semaine', 'Plus tôt'];
+    order.forEach(g => {
+      const items = rows.filter(a => a.group === g);
+      if (!items.length) return;
+      const sec = document.createElement('section');
+      sec.className = 'mo';
+      const h2 = document.createElement('h2');
+      h2.textContent = g;
+      sec.appendChild(h2);
+      items.forEach(a => sec.appendChild(alertRowEl(a)));
+      frag.appendChild(sec);
+    });
+  };
   const chip = (k, l) => `<button type="button" role="tab" aria-selected="${f === k}" class="${f === k ? 'on' : ''}" data-af="${k}">${l}</button>`;
   const tog = (k, lab, open) => { const locked = !open && !P; const on = alertOn(k); return `<button type="button" class="acct-row" data-alert-set="${k}" ${locked ? `aria-label="${lab}, réservé à Premium"` : `role="switch" aria-checked="${on}"`}><span class="acct-lab">${lab}</span>${locked ? '<span class="acct-aside">Premium</span><span class="acct-go">⟦lock⟧</span>' : `<span class="sw ${on ? 'on' : ''}"></span>`}</button>`; };
   return `
@@ -1087,7 +1302,7 @@ screens.alertes = (q) => {
   <p class="al-lead">${unread ? unread + ' non lue' + (unread > 1 ? 's' : '') : 'Tout est lu'} · hausses, doublons, rappels</p>
   <div class="seg ops-seg four" role="tablist" aria-label="Filtrer les alertes">${chip('all','Toutes')}${chip('up','Hausses')}${chip('dup','Doublons')}${chip('next','Rappels')}</div>
   ${unread ? '<div class="al-tools"><button type="button" id="read-all">Tout marquer comme lu</button></div>' : ''}
-  <div class="act-list">${groups || (!prem.length ? emptyState('bell', 'Tout est calme', 'Rien dans ce filtre. On vous prévient ici dès qu’un prix bouge ou qu’une banque demande votre attention.') : '')}</div>
+  ${visible.length ? listSlot('act-list', frag => appendAlertGroups(frag, visible)) : (!prem.length ? `<div class="act-list">${emptyState('bell', 'Tout est calme', 'Rien dans ce filtre. On vous prévient ici dès qu’un prix bouge ou qu’une banque demande votre attention.')}</div>` : '')}
   ${P || !prem.length ? '' : `<a class="one-card" href="#/premium"><div><b>${prem.length} alertes d’économies</b><span>Hausses, doublons et rappels. ${CFG.trial}.</span></div>${logoMark()}</a>`}
   <p class="acct-k">Réglages</p>
   <div class="menu-card">
@@ -1107,11 +1322,11 @@ screens.banques = () => {
   <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a><h1>Mes banques</h1>${demoTag}</div>
   <div class="card bankcard">
     <div style="display:flex;gap:12px;align-items:center">${bankTile(b, 'lg')}
-      <div style="flex:1"><div style="font-weight:700">${b.name}</div><div class="muted small">${b.accounts}</div></div>
+      <div style="flex:1"><div style="font-weight:700">${esc(b.name)}</div><div class="muted small">${esc(b.accounts)}</div></div>
       <span class="status ${b.status==='expired'?'err':'ok'}">${b.status==='expired'?'Expirée':'Connectée'}</span></div>
     <div class="kv"><span>Données lues</span><span>${b.sync}</span></div>
     <div class="kv"><span>${API ? 'Accès bancaire' : 'Session de test'}</span><span class="${b.status==='expired'?'t-amber':''}">${b.expires}</span></div>
-    ${LIVE.accounts.map(a=>`<div class="kv"><span class="small">${a.name}</span><span class="nw">${(a.balance||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} ${a.currency==='EUR'||!a.currency?'€':a.currency}</span></div>`).join('')}
+    ${LIVE.accounts.map(a=>`<div class="kv"><span class="small">${esc(a.name)}</span><span class="nw">${(a.balance||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} ${a.currency==='EUR'||!a.currency?'€':esc(a.currency)}</span></div>`).join('')}
     ${b.status==='expired' ? `<div class="banner amber" style="margin:10px 0 0"><span class="ic">⟦key⟧</span><div><b>Session de test expirée</b>Le jeton Powens de test ne dure que 30 minutes. Les résultats restent affichés ; reconnectez-vous pour relire les comptes.</div></div>` : ''}
     <button class="btn small-btn" id="${API ? 'api-sync' : b.status==='expired'?'pw-connect':'pw-refresh'}" style="margin-top:12px">${b.status==='expired'?'Reconnecter la banque de test':'Relire les opérations'}</button>
   </div>
@@ -1169,7 +1384,7 @@ screens.banque = (q, id) => {
   </div>
   ${up.length ? `<p class="acct-k">À venir</p><div class="panel">${up.map(x => `<a class="tx up" href="${x.sub ? '#/abo/' + x.sub : '#/operations'}">${catChip(x.cat)}<div class="mid"><div class="name">${esc(x.name)}</div><div class="meta">${dayLabel(x.t)}</div></div><div class="amt">${signed(x.amt)}</div></a>`).join('')}</div>` : ''}
   <p class="acct-k">Dernières opérations</p>
-  <div class="panel">${tx.length ? txGroups(tx, 4, 8) : '<p class="insight">Aucune opération récente sur cette banque.</p>'}</div>
+  ${tx.length ? listSlot('panel', frag => appendTxGroups(frag, tx, 4, 8, false)) : '<div class="panel"><p class="insight">Aucune opération récente sur cette banque.</p></div>'}
   ${b.status === 'error' ? `<button class="btn" data-toast="Reconnexion lancée (simulation)">Reconnecter ${esc(b.name)}</button>` : `<a class="btn ghost" href="#/operations">Toutes les transactions</a>`}
   <div class="banner blue"><span class="ic">⟦lock⟧</span><div><b>Lecture seule</b>Prelevo ne peut rien virer depuis ${esc(b.name)}. Vous pouvez couper l’accès à tout moment.</div></div>
 </div>`;
@@ -1177,8 +1392,8 @@ screens.banque = (q, id) => {
 
 const themePref = () => (window.PrelevoTheme ? PrelevoTheme.get() : 'auto');
 const themeLabel = () => ({ light:'Clair', dark:'Sombre', auto:'Automatique' }[themePref()] || 'Automatique');
-function appIcon(){ try { const v = localStorage.getItem('prelevo-icon'); if (v === 'noir' || v === 'defaut' || v === 'bleu') return v; } catch (e) {} return 'bleu'; }
-function setAppIcon(v){ try { if (v === 'noir' || v === 'defaut') localStorage.setItem('prelevo-icon', v); else localStorage.removeItem('prelevo-icon'); } catch (e) {} document.documentElement.setAttribute('data-icon', appIcon()); }
+function appIcon(){ const v = Store.readRaw('prelevo-icon'); if (v === 'noir' || v === 'defaut' || v === 'bleu') return v; return 'bleu'; }
+function setAppIcon(v){ if (v === 'noir' || v === 'defaut') Store.writeRaw('prelevo-icon', v); else Store.remove('prelevo-icon'); document.documentElement.setAttribute('data-icon', appIcon()); }
 setAppIcon(appIcon());
 function pickTheme(v){
   if (window.PrelevoTheme) PrelevoTheme.set(v);
@@ -1238,15 +1453,13 @@ screens.apropos = () => `
   <button class="btn ghost" id="reset" type="button">Réinitialiser les données</button>
 </div>`;
 function refCode(){
-  try {
-    const saved = localStorage.getItem('prelevo-ref');
-    if (saved) return saved;
-    const base = (USER.prenom || 'PRELEVO').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/gi, '').toUpperCase().slice(0, 8) || 'PRELEVO';
-    const n = [...base].reduce((a, ch) => (a * 33 + ch.charCodeAt(0)) % 90, 11);
-    const code = base + String(10 + n);
-    localStorage.setItem('prelevo-ref', code);
-    return code;
-  } catch (e) { return 'CAMILLE21'; }
+  const saved = Store.readRaw('prelevo-ref');
+  if (saved) return saved;
+  const base = (USER.prenom || 'PRELEVO').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z]/gi, '').toUpperCase().slice(0, 8) || 'PRELEVO';
+  const n = [...base].reduce((a, ch) => (a * 33 + ch.charCodeAt(0)) % 90, 11);
+  const code = base + String(10 + n);
+  if (!Store.writeRaw('prelevo-ref', code)) return 'CAMILLE21';
+  return code;
 }
 function refShareText(){
   return `${USER.prenom} vous invite sur ${APP_NAME}. Code ${refCode()} : 1 mois de Premium offert pour vous deux, dès qu’une banque est connectée. https://jhnxmr.github.io/prelevo/app/?demo=1`;
@@ -1257,8 +1470,7 @@ const REF_SEED = [
   { name:'Inès K.', date:'8 oct.', status:'envoye', detail:'Invitation envoyée' },
 ];
 function myRefs(){
-  let extra = [];
-  try { extra = JSON.parse(localStorage.getItem('prelevo-refs') || '[]'); } catch (e) {}
+  const extra = Store.readJSON('prelevo-refs', []);
   return (Array.isArray(extra) ? extra : []).concat(REF_SEED);
 }
 const REF_LABEL = { offert:'Offert', inscrit:'Inscrit', envoye:'Envoyé' };
@@ -1349,7 +1561,7 @@ screens.aide = () => `
     <p class="small" style="color:var(--ink2);margin:10px 0 12px;line-height:1.45">Sarah, Karim et Marie (exemple) répondent du lundi au samedi, de 9 h à 19 h. Réponse moyenne : moins de 2 h${isP()?' · prioritaire pour vous':''}.</p>
     <div class="btn-pair" style="margin:0">
       <a class="btn mint" href="#/chat">⟦chat⟧ Chat</a>
-      <button class="btn ghost" data-toast="E-mail à ${CFG.supportEmail} (simulation)">⟦mail⟧ E-mail</button>
+      <button class="btn ghost" data-toast="E-mail à ${esc(CFG.supportEmail)} (simulation)">⟦mail⟧ E-mail</button>
     </div>
   </div>
   <div class="card" style="padding:4px 16px">
@@ -1390,7 +1602,7 @@ const CHAT = [
 screens.chat = () => `
 <div class="screen chat-screen">
   <div class="topbar"><a class="back" href="#/aide">⟦back⟧</a><div class="chat-who"><span class="av avc a">S</span><div><h1>Sarah</h1><div class="muted small">Équipe support · humaine · en ligne</div></div></div>${demoTag}</div>
-  <div class="chat">${CHAT.map(m=>`<div class="msg ${m.me?'me':''}"><div class="bubble">${m.t}</div><div class="h">${m.h}</div></div>`).join('')}</div>
+  <div class="chat">${CHAT.map(m=>`<div class="msg ${m.me?'me':''}"><div class="bubble">${esc(m.t)}</div><div class="h">${esc(m.h)}</div></div>`).join('')}</div>
   <form class="chat-input" id="chat-form"><input id="chat-text" placeholder="Écrivez votre message…" aria-label="Votre message" autocomplete="off"><button class="send" aria-label="Envoyer">⟦send⟧</button></form>
   <p class="muted small center" style="margin-top:8px">Conversation simulée – aucun message n’est envoyé.</p>
 </div>`;
@@ -1423,10 +1635,10 @@ screens.premium = () => {
   </div>
   ${status}
   <div class="payoff">
-    <div class="win"><div class="k">${P ? 'Économies débloquées' : 'Trouvées chez ' + USER.prenom}</div><b>${eur(t.found)}</b><div class="k">par mois</div></div>
+    <div class="win"><div class="k">${P ? 'Économies débloquées' : 'Trouvées chez ' + esc(USER.prenom)}</div><b>${eur(t.found)}</b><div class="k">par mois</div></div>
     <div><div class="k">${Y ? 'Premium annuel' : 'Premium mensuel'}</div><b>${prix(monthEq)}</b><div class="k">par mois${times ? ` · remboursé ${times}×` : ''}</div></div>
   </div>
-  ${shown.length ? `<ul class="found-list">${shown.map(h => `<li>${h}</li>`).join('')}${rest > 0 ? `<li>et ${rest} autre${rest > 1 ? 's' : ''}</li>` : ''}</ul>` : ''}
+  ${shown.length ? `<ul class="found-list">${shown.map(h => `<li>${esc(h)}</li>`).join('')}${rest > 0 ? `<li>et ${rest} autre${rest > 1 ? 's' : ''}</li>` : ''}</ul>` : ''}
   <div class="plans" role="radiogroup" aria-label="Formules">
     <div class="plan free"><div class="pl-l"><h3>Gratuit</h3><span>Scan + liste · avec pubs</span></div><div class="pl-r"><div class="p">0 €</div></div></div>
     <div class="plan-stack ${Y?'':'on'}"><button class="plan ${Y?'':'on'}" data-billing="month" role="radio" aria-checked="${!Y}">${P && !Y ? '<em class="rec-b">Votre formule</em>' : ''}<i class="radio"></i><div class="pl-l"><h3>Premium Mensuel</h3><span>Sans engagement · Zéro pub</span></div><div class="pl-r"><div class="p">${prix(CFG.priceMonth)}<small>/mois</small></div></div></button>${Y ? '' : perks(true)}</div>
@@ -1532,7 +1744,7 @@ function timeline(){
   }
   ev.push(...xfer);
   ev.sort((a,b)=>a.t-b.t);
-  const remaining = t.list.filter(s => s.day >= 10 && s.day < 21).reduce((a,s)=>a+s.price,0);
+  const remaining = sumEuros(t.list.filter(s => s.day >= 10 && s.day < 21), s => s.price);
   const end = t.reste + remaining + LEFTOVER;
   let bal = end; for (let i = ev.length - 1; i >= 0; i--){ ev[i].after = bal; bal -= ev[i].amt; }
   _timeline = { ev, startBal: bal, end };
@@ -1571,8 +1783,8 @@ function chartGeom(S){
 }
 function balanceChart(){
   if (LIVE) return `<div class="card" id="balance"><div style="font-weight:700;margin-bottom:2px">${API ? 'Mes comptes' : 'Comptes de test'}</div>
-    <div class="muted small" style="margin-bottom:6px">Soldes lus chez ${LIVE.bank}${API ? '' : ' (sandbox Powens)'}</div>
-    ${LIVE.accounts.map(a=>`<div class="kv"><span class="small">${a.name}</span><span class="nw">${(a.balance||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} ${a.currency==='EUR'||!a.currency?'€':a.currency}</span></div>`).join('')}</div>`;
+    <div class="muted small" style="margin-bottom:6px">Soldes lus chez ${esc(LIVE.bank)}${API ? '' : ' (sandbox Powens)'}</div>
+    ${LIVE.accounts.map(a=>`<div class="kv"><span class="small">${esc(a.name)}</span><span class="nw">${(a.balance||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} ${a.currency==='EUR'||!a.currency?'€':esc(a.currency)}</span></div>`).join('')}</div>`;
   const S = samples(balPeriod), P = PERIODS[balPeriod], { ticks, x, y } = chartGeom(S);
   window.__BAL = S;
   const line = 'M' + S.map((p,i)=>`${x(i).toFixed(1)},${y(p.bal).toFixed(1)}`).join(' L');
@@ -1613,7 +1825,7 @@ function balSelect(i){
   c.setAttribute('x1', x(i)); c.setAttribute('x2', x(i)); c.style.display = '';
   s.setAttribute('cx', x(i)); s.setAttribute('cy', y(p.bal)); s.style.display = '';
   const h = PERIODS[balPeriod].fmt === 'hour' ? ` · ${String(p.t.getHours()).padStart(2,'0')} h` : '';
-  const subs = p.subs.length ? ` · <span class="g-sub">${p.subs.map(e=>`${e.name} −${eur(-e.amt)}`).join(', ')}</span>` : '';
+  const subs = p.subs.length ? ` · <span class="g-sub">${p.subs.map(e=>`${esc(e.name)} −${eur(-e.amt)}`).join(', ')}</span>` : '';
   document.getElementById('bc-date').innerHTML = (isLast ? 'Aujourd’hui' : fDate(p.t)) + h + subs;
   document.getElementById('bc-val').textContent = eur(p.bal);
 }
@@ -1648,7 +1860,8 @@ screens.pwscan = () => `
   <div id="pw-err"></div>
 </div></div>`;
 async function runPwScan(){
-  const fail = (title, text) => { const e = $('#pw-err'); if (e) e.innerHTML = icons(`<div class="banner err" style="margin-top:18px;text-align:left"><span class="ic">⟦alert⟧</span><div><b>${title}</b>${text}</div></div>
+  const gen = _viewGen;
+  const fail = (title, text) => { if (gen !== _viewGen) return; const e = $('#pw-err'); if (e) e.innerHTML = icons(`<div class="banner err" style="margin-top:18px;text-align:left"><span class="ic">⟦alert⟧</span><div><b>${esc(title)}</b>${esc(text)}</div></div>
     <button class="btn" id="pw-connect">Réessayer</button><a class="btn ghost" href="#/onboarding" id="pw-quit">Revenir à la démo</a>`); };
   const err = PWX.returnError();
   history.replaceState(null, '', location.pathname + '#/pwscan');
@@ -1657,10 +1870,12 @@ async function runPwScan(){
   if (!tk || tk.expired) return fail('Session de test expirée', 'La session de test ne dure que 30 minutes. Relancez la connexion.');
   try {
     const r = await PWX.fetchAll();
+    if (gen !== _viewGen) return;
     applyLive(r); state.connected = true; save();
     location.hash = '#/dashboard';
     toast(`${r.subs.length} prélèvement${r.subs.length>1?'s':''} récurrent${r.subs.length>1?'s':''} détecté${r.subs.length>1?'s':''} sur ${r.txCount} opérations${r.history && r.history.limited ? ' (historique court)' : ''}`);
   } catch(e){
+    if (gen !== _viewGen) return;
     if (e.status === 401 || e.status === 403) fail('Session de test expirée', 'La session de test n’est plus valable. Relancez la connexion.');
     else fail('Lecture impossible', humanError(e, 'Nous n’avons pas pu lire les comptes de test. Vérifiez votre connexion, puis réessayez.'));
   }
@@ -1725,7 +1940,7 @@ async function apiVerify(token){
 async function apiFinish(){
   const p = API.returnParams();
   history.replaceState(null, '', location.pathname + '#/apiwait');
-  const fail = (t, x) => { const e = $('#api-err'); if (e) e.innerHTML = icons(`<div class="banner err" style="margin-top:18px;text-align:left"><span class="ic">⟦alert⟧</span><div><b>${t}</b>${esc(x)}</div></div><button class="btn" id="api-connect">Réessayer</button><a class="btn ghost" href="#/onboarding">Plus tard</a>`); };
+  const fail = (t, x) => { const e = $('#api-err'); if (e) e.innerHTML = icons(`<div class="banner err" style="margin-top:18px;text-align:left"><span class="ic">⟦alert⟧</span><div><b>${esc(t)}</b>${esc(x)}</div></div><button class="btn" id="api-connect">Réessayer</button><a class="btn ghost" href="#/onboarding">Plus tard</a>`); };
   if (!p) return fail('Retour de connexion incomplet', 'Relancez la connexion de votre banque.');
   try {
     const r = await API.finishConnect(p);
@@ -1746,26 +1961,52 @@ async function apiFinish(){
 }
 
 // ---------- routeur ----------
-function render(){
+let _viewGen = 0;
+const _leave = [];
+function onLeave(fn) { _leave.push(fn); }
+function leaveView() {
+  _viewGen++;
+  const fns = _leave.splice(0);
+  for (const fn of fns) { try { fn(); } catch (e) {} }
+  if (typeof window.__chartEnd === 'function') window.__chartEnd();
   CURVES = [];
+  SPARK = null;
   _timeline = null;
+  _mounts.length = 0;
   document.querySelectorAll('body > .sub-bar').forEach(n => n.remove());
+}
+function resetScroll() {
+  try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {}
+  window.scrollTo(0, 0);
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+}
+function syncNav(name) {
+  const tabbed = ['dashboard','graphiques','operations','abonnements','alertes','premium','abo','aide','apropos','banques','banque','compte','apparence','parrainage'].includes(name) || (!screens[name]);
+  const bar = $('#tabbar');
+  const tabName = name==='abo' || name==='operations' ? 'abonnements' : !screens[name] ? 'dashboard' : name;
+  if (tabbed) { bar.hidden = false; bar.removeAttribute('aria-hidden'); }
+  else { bar.hidden = true; bar.setAttribute('aria-hidden', 'true'); }
+  document.querySelectorAll('#tabbar a').forEach(a => {
+    const on = a.dataset.tab === tabName;
+    a.classList.toggle('on', on);
+    if (tabbed && on) a.setAttribute('aria-current', 'page');
+    else a.removeAttribute('aria-current');
+  });
+  paintAlertBadge();
+}
+function render(){
+  leaveView();
   const raw = location.hash.replace(/^#\/?/, '') || (API ? (API.loggedIn() && LIVE ? 'dashboard' : 'onboarding') : state.connected ? 'dashboard' : 'onboarding');
   const [path, qs] = raw.split('?');
   const [name, ...args] = path.split('/');
   const fn = screens[name] || screens.dashboard;
   $('#app').innerHTML = icons(fn(new URLSearchParams(qs||''), ...args));
-  const bar = $('#app .sub-bar'); if (bar) document.body.appendChild(bar);
-  const tabbed = ['dashboard','graphiques','operations','abonnements','alertes','premium','abo','aide','apropos','banques','banque','compte','apparence','parrainage'].includes(name) || (!screens[name]);
-  $('#tabbar').hidden = !tabbed;
+  flushMounts();
+  const sub = $('#app .sub-bar'); if (sub) document.body.appendChild(sub);
   if (API && ['onboarding','connexion','dashboard','connect','banques'].includes(name)){ const sc = $('#app').firstElementChild; if (sc && !sc.querySelector('.alpha-note')) sc.insertAdjacentHTML('afterbegin', '<div class="alpha-note" role="note"><b>Bêta privée</b> — banques de test uniquement pour l’instant</div>'); }
-  const tabName = name==='abo' || name==='operations' ? 'abonnements' : !screens[name] ? 'dashboard' : name;
-  document.querySelectorAll('#tabbar a').forEach(a => { const on = a.dataset.tab === tabName; a.classList.toggle('on', on); if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
-  const unreadN = alerts().filter(a => !state.readAlerts.includes(a.id)).length;
-  const alertTab = document.querySelector('#tabbar a[data-tab="alertes"]');
-  if (alertTab) alertTab.setAttribute('aria-label', unreadN ? `Alertes, ${unreadN} non lue${unreadN > 1 ? 's' : ''}` : 'Alertes');
-  $('#alert-dot').classList.toggle('show', unreadN > 0);
-  window.scrollTo(0,0);
+  syncNav(name);
+  resetScroll();
   if (name==='dashboard') animateHome();
   if (name==='scan') runScan();
   if (name==='pwscan' && PWX && !LIVE) runPwScan();
@@ -1775,9 +2016,15 @@ function render(){
 }
 
 function runScan(){
+  const gen = _viewGen;
   const items = [...document.querySelectorAll('#scanlist div')];
-  items.forEach((el,i)=>setTimeout(()=>el.classList.add('done'), 400 + i*450));
-  setTimeout(()=>{ state.connected = true; save(); location.hash = '#/dashboard'; toast(SUBS.length + ' abonnements détectés'); }, 400 + items.length*450 + 500);
+  const timers = [];
+  items.forEach((el,i)=> timers.push(setTimeout(()=>{ if (gen !== _viewGen) return; el.classList.add('done'); }, 400 + i*450)));
+  timers.push(setTimeout(()=>{
+    if (gen !== _viewGen) return;
+    state.connected = true; save(); location.hash = '#/dashboard'; toast(SUBS.length + ' abonnements détectés');
+  }, 400 + items.length*450 + 500));
+  onLeave(() => timers.forEach(clearTimeout));
 }
 
 function txEmptyNode(show, query){
@@ -1862,11 +2109,10 @@ document.addEventListener('click', e => {
     const input = $('#ref-who');
     const name = (input && input.value || '').replace(/\s+/g, ' ').trim().slice(0, 40);
     if (name.length < 2) return toast('Indiquez un prénom');
-    let extra = [];
-    try { extra = JSON.parse(localStorage.getItem('prelevo-refs') || '[]'); } catch (e) {}
+    let extra = Store.readJSON('prelevo-refs', []);
     if (!Array.isArray(extra)) extra = [];
     extra.unshift({ name, date: new Date().toLocaleDateString('fr-FR', { day:'numeric', month:'short' }).replace(/\.$/, ''), status:'envoye', detail:'Invitation envoyée' });
-    try { localStorage.setItem('prelevo-refs', JSON.stringify(extra.slice(0, 20))); } catch (e) {}
+    Store.writeJSON('prelevo-refs', extra.slice(0, 20));
     location.hash = '#/parrainage/suivi';
     toast('Invitation notée');
     render();
@@ -1876,7 +2122,7 @@ document.addEventListener('click', e => {
   else if (el.id==='api-logout'){ API.logout().then(()=>{ ME = null; LIVE = null; state.connected = false; save(); location.replace(location.pathname + '#/onboarding'); location.reload(); }); }
   else if (el.id==='del-check'){ const b = $('#api-delete'); if (b) b.disabled = !el.checked; }
   else if (el.id==='api-delete'){ if (!$('#del-check') || !$('#del-check').checked) return; el.disabled = true; el.textContent = 'Suppression…';
-    API.deleteAccount().then(()=>{ localStorage.removeItem(KEY); sessionStorage.setItem('prelevo-deleted', '1'); location.replace(location.pathname + '#/onboarding'); location.reload(); })
+    API.deleteAccount().then(()=>{ Store.remove(KEY); sessionStorage.setItem('prelevo-deleted', '1'); location.replace(location.pathname + '#/onboarding'); location.reload(); })
       .catch(err => { el.disabled = false; el.textContent = 'Supprimer définitivement'; apiFail(err); }); }
   else if (el.id==='login-again'){ loginSent = null; render(); }
   else if (el.id==='pw-connect'){ e.preventDefault(); pwConnect(); }
@@ -1894,10 +2140,12 @@ document.addEventListener('click', e => {
       el.dataset.arm = '1';
       const lab = el.querySelector('.acct-lab');
       if (lab) lab.textContent = 'Touchez encore pour confirmer'; else el.textContent = 'Touchez encore pour confirmer';
-      setTimeout(() => { if (!el.isConnected) return; delete el.dataset.arm; if (lab) lab.textContent = 'Réinitialiser les données'; else el.textContent = 'Réinitialiser les données'; }, 4000);
+      const armTimer = setTimeout(() => { if (!el.isConnected) return; delete el.dataset.arm; if (lab) lab.textContent = 'Réinitialiser les données'; else el.textContent = 'Réinitialiser les données'; }, 4000);
+      onLeave(() => clearTimeout(armTimer));
       return;
     }
-    try { localStorage.removeItem(KEY); localStorage.removeItem('prelevo-refs'); } catch (e) {}
+    Store.remove(KEY);
+    Store.remove('prelevo-refs');
     const demo = QS.has('demo') || (!API && !LIVE);
     const q = location.search || (demo ? '?demo=1' : '');
     location.replace(location.pathname + q + (demo ? '#/dashboard' : '#/onboarding'));
@@ -1916,15 +2164,18 @@ document.addEventListener('submit', e => {
   e.preventDefault();
   const v = $('#chat-text').value.trim(); if (!v) return;
   const h = new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit' });
-  CHAT.push({ me:true, t:v.replace(/</g,'&lt;'), h });
+  CHAT.push({ me:true, t:v, h });
   render();
-  setTimeout(()=>{ CHAT.push({ me:false, t:'Merci, je regarde ça et je vous réponds dans quelques minutes (réponse simulée)', h }); if (location.hash.startsWith('#/chat')) render(); }, 1200);
+  const reply = setTimeout(()=>{ CHAT.push({ me:false, t:'Merci, je regarde ça et je vous réponds dans quelques minutes (réponse simulée)', h }); if (location.hash.startsWith('#/chat')) render(); }, 1200);
+  onLeave(() => clearTimeout(reply));
 });
 
+save.pub = true;
 if (PWX && !QS.has('demo')) {
   if (PWX.isReturn()) history.replaceState(null, '', location.pathname + location.search + '#/pwscan');
   else { const r = PWX.result(); if (r) applyLive(r); }
 }
+publishSubs();
 // expiration du jeton de test (30 min) : on rafraîchit l'affichage quand elle survient
 setInterval(() => { if (LIVE && /banques|dashboard|alertes/.test(location.hash)) { const tk = PWX.tokenInfo(); if (tk && tk.expired && !tk._shown) { sessionStorage.setItem('prelevo-pw-token', JSON.stringify({...tk, _shown:1})); render(); toast('Session de test Powens expirée (30 min)'); } } }, 30000);
 window.addEventListener('hashchange', render);
@@ -2282,6 +2533,7 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
   document.addEventListener('pointerup', pend);
   document.addEventListener('pointercancel', pend);
 
+  window.__chartEnd = end;
   window.__scrubTo = f => {
     const el = document.querySelector('.spark.home-spark') || document.querySelector('.spark');
     if (!el || !chartData(el)) return;
