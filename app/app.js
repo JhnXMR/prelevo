@@ -411,8 +411,6 @@ function logoMark(size){
   const inner = id === 'bleu' ? '<img src="icons/logo-mark.svg" alt="">' : '<i class="glyph"></i>';
   return `<span class="logo-chip ${size || ''} ${tone}">${inner}</span>`;
 }
-const yearSave = () => Math.round((1 - CFG.priceYear / (CFG.priceMonth*12)) * 100);
-
 screens.onboarding = () => `
 <div class="onb">
   ${logoMark('xl')}
@@ -1986,67 +1984,47 @@ screens.chat = () => `
 
 let billing = 'year';
 screens.premium = () => {
-  const t = totals(); const Y = billing==='year';
   const B = API && ME ? ME.billing : null, P = isP();
+  const interval = B ? (B.interval === 'year' ? 'year' : 'month') : (P ? (billing === 'month' ? 'month' : 'year') : 'free');
   const fd = d => d ? new Date(d).toLocaleDateString('fr-FR', { day:'numeric', month:'long', year:'numeric' }) : '';
-  const status = !P ? '' : B ? `<div class="card plan-status"><div class="ps-h"><span class="plan-pill p">Premium</span><b>${B.interval === 'year' ? 'Formule annuelle' : 'Formule mensuelle'}</b></div>
-      <p class="muted small">${B.status === 'trialing' ? `Période d’essai gratuite jusqu’au ${fd(B.periodEnd)}.` : B.cancelAtPeriodEnd ? `Résilié : Premium reste actif jusqu’au ${fd(B.periodEnd)}.` : B.status === 'past_due' ? '<span class="t-red">Paiement en échec : mettez à jour votre carte.</span>' : `Prochain renouvellement le ${fd(B.periodEnd)}.`}</p>
-      ${B.manageable ? `<button class="btn ghost" id="billing-portal">Gérer mon abonnement</button>` : ''}</div>`
-    : `<div class="card plan-status"><div class="ps-h"><span class="plan-pill p">Premium</span><b>Formule annuelle (exemple)</b></div><p class="muted small">Période d’essai gratuite jusqu’au ${fd(new Date(nowRef().getTime() + 30 * DAY_MS))}. Factures, carte et résiliation : en 1 clic depuis « Gérer mon abonnement ».</p><button class="btn ghost" data-toast="Portail de paiement (simulation)">Gérer mon abonnement</button></div>`;
-  const perks = open => `<details class="perks"${open ? ' open' : ''}><summary>Principaux avantages</summary><ul><li>Zéro publicité</li><li>Alertes de hausse de prix</li><li>Rappel avant chaque prélèvement</li><li>Doubles prélèvements, oubliés et doublons</li><li>Résiliation guidée et lettres</li><li>Reste à vivre et suivi des économies</li><li>Banques illimitées</li><li>Support prioritaire</li></ul></details>`;
-  const monthEq = Y ? CFG.priceYear / 12 : CFG.priceMonth;
-  const times = t.found > 0 ? Math.max(1, Math.round(t.found / monthEq)) : 0;
-  const hits = [];
-  t.list.filter(s => s.doubleCharge).forEach(s => hits.push(`${s.name} prélevé deux fois`));
-  t.dups.forEach(s => { const o = byId(s.duplicate); hits.push(o ? `Doublon : ${s.name} et ${o.name}` : `Doublon : ${s.name}`); });
-  t.ups.forEach(s => hits.push(`${s.name} a augmenté de ${eur(increase(s))}`));
-  t.smalls.forEach(s => hits.push(`${s.name} · ${eur(s.price)} oubliés`));
-  const shown = hits.slice(0, 4), rest = hits.length - shown.length;
+  const manage = B
+    ? (B.manageable ? '<button type="button" class="btn ghost" id="billing-portal">Gérer mon abonnement</button>' : '')
+    : '<button type="button" class="btn ghost" data-toast="Portail de paiement (simulation)">Gérer mon abonnement</button>';
+  const statusLine = B
+    ? (B.status === 'trialing' ? `Période d’essai gratuite jusqu’au ${fd(B.periodEnd)}.` : B.cancelAtPeriodEnd ? `Résilié : Premium reste actif jusqu’au ${fd(B.periodEnd)}.` : B.status === 'past_due' ? '<span class="t-red">Paiement en échec : mettez à jour votre carte.</span>' : `Prochain renouvellement le ${fd(B.periodEnd)}.`)
+    : `Essai gratuit jusqu’au ${fd(new Date(nowRef().getTime() + 30 * DAY_MS))}.`;
+  const status = !P
+    ? `<div class="card plan-status"><div class="ps-h"><span class="plan-pill">Gratuit</span><b>Formule actuelle</b></div></div>`
+    : `<div class="card plan-status"><div class="ps-h"><span class="plan-pill p">Premium</span><b>${interval === 'year' ? 'Premium annuel' : 'Premium mensuel'}${B ? '' : ' (exemple)'}</b></div><p class="muted small">${statusLine}</p>${manage}</div>`;
+  const portalBtn = (label, primary) => B && B.manageable
+    ? `<button type="button" class="btn ${primary ? '' : 'ghost'}" data-portal="1">${label}</button>`
+    : (B ? '' : `<button type="button" class="btn ghost" data-toast="Portail de paiement (simulation)">${label}</button>`);
+  const action = kind => {
+    const current = interval === kind;
+    if (kind === 'free') {
+      if (current) return '<button type="button" class="btn ghost" disabled>Formule actuelle</button>';
+      if (B) return portalBtn('Revenir au gratuit', false);
+      return '<button type="button" class="btn ghost" id="go-free">Revenir au gratuit</button>';
+    }
+    if (current) return B ? portalBtn('Gérer mon abonnement', false) : '<button type="button" class="btn ghost" data-toast="Portail de paiement (simulation)">Gérer mon abonnement</button>';
+    if (P && B) return portalBtn('Changer de formule', true);
+    return `<button type="button" class="btn" data-checkout="${kind}">S’abonner</button>`;
+  };
+  const acc = (id, name, price, items) => `<section class="pacc${interval === id ? ' is-current' : ''}${id === 'free' ? ' is-free' : ''}">
+    <h2><button type="button" id="pacc-${id}-btn" data-acc="${id}" aria-expanded="false" aria-controls="pacc-${id}"><span class="pacc-name">${name}${interval === id ? '<em>Formule actuelle</em>' : ''}</span><span class="pacc-price">${price}</span></button></h2>
+    <div class="pacc-panel" id="pacc-${id}" role="region" aria-labelledby="pacc-${id}-btn" hidden><ul>${items.map(t => `<li>${t}</li>`).join('')}</ul>${action(id)}</div>
+  </section>`;
+  const premiumPerks = ['Sans publicité', 'Alertes de hausse de prix', 'Rappel avant chaque prélèvement', 'Résiliation guidée', 'Reste à vivre', 'Banques illimitées'];
   return `
 <div class="screen">
   <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a>${demoTag}</div>
-  <div class="center" style="margin-bottom:6px">
-    
-    <h1 style="font-size:25px;letter-spacing:-.02em;margin-top:4px">${APP_NAME} Premium</h1>
-    <p class="muted" style="margin-top:6px;font-size:14.5px">${P ? 'Vos alertes et le reste à vivre sont débloqués.' : 'L’app qui vous fait économiser plus qu’elle ne coûte.'}</p>
-  </div>
+  <h1 class="prem-title">${APP_NAME} Premium</h1>
   ${status}
-  <div class="payoff">
-    <div class="win"><div class="k">${P ? 'Économies débloquées' : 'Trouvées chez ' + esc(USER.prenom)}</div><b>${eur(t.found)}</b><div class="k">par mois</div></div>
-    <div><div class="k">${Y ? 'Premium annuel' : 'Premium mensuel'}</div><b>${prix(monthEq)}</b><div class="k">par mois${times ? ` · remboursé ${times}×` : ''}</div></div>
+  <div class="paccs">
+    ${acc('free', 'Gratuit', '0 €', ['Scan de vos comptes', 'Liste de vos abonnements', 'Une banque', 'Publicités signalées'])}
+    ${acc('month', 'Premium mensuel', prix(CFG.priceMonth), premiumPerks)}
+    ${acc('year', 'Premium annuel', prix(CFG.priceYear), premiumPerks.concat(['Facturé ' + prix(CFG.priceYear) + ' une fois par an']))}
   </div>
-  ${shown.length ? `<ul class="found-list">${shown.map(h => `<li>${esc(h)}</li>`).join('')}${rest > 0 ? `<li>et ${rest} autre${rest > 1 ? 's' : ''}</li>` : ''}</ul>` : ''}
-  <div class="plans" role="radiogroup" aria-label="Formules">
-    <div class="plan free"><div class="pl-l"><h3>Gratuit</h3><span>Scan + liste · avec pubs</span></div><div class="pl-r"><div class="p">0 €</div></div></div>
-    <div class="plan-stack ${Y?'':'on'}"><button class="plan ${Y?'':'on'}" data-billing="month" role="radio" aria-checked="${!Y}">${P && !Y ? '<em class="rec-b">Votre formule</em>' : ''}<i class="radio"></i><div class="pl-l"><h3>Premium Mensuel</h3><span>Sans engagement · Zéro pub</span></div><div class="pl-r"><div class="p">${prix(CFG.priceMonth)}<small>/mois</small></div></div></button>${Y ? '' : perks(true)}</div>
-    <div class="plan-stack ${Y?'on':''}"><button class="plan rec ${Y?'on':''}" data-billing="year" role="radio" aria-checked="${Y}"><em class="rec-b">${P && Y ? 'Votre formule' : 'Recommandé'}</em><i class="radio"></i><div class="pl-l"><h3>Premium Annuel <b class="save">−${yearSave()} %</b></h3><span>soit ${prix(CFG.priceYear/12)}/mois · Zéro pub</span></div><div class="pl-r"><div class="p">${prix(CFG.priceYear)}<small>/an</small></div></div></button>${Y ? perks(true) : ''}</div>
-  </div>
-  ${P ? '' : `<div class="trial">⟦gift⟧ <span><b>${CFG.trial}</b><br>puis <span class="${Y?'':'sel'}">${prix(CFG.priceMonth)}/mois</span> ou <span class="${Y?'sel':''}">${prix(CFG.priceYear)}/an</span></span></div>`}
-  <details class="cmp-more">
-    <summary>Comparer Gratuit et Premium</summary>
-    <div class="card">
-    <table class="cmp">
-      <tr><th></th><th>Gratuit</th><th>Premium</th></tr>
-      <tr><td>Scan des comptes</td><td class="y">⟦check⟧</td><td class="y">⟦check⟧</td></tr>
-      <tr><td>Liste des abonnements et total</td><td class="y">⟦check⟧</td><td class="y">⟦check⟧</td></tr>
-      <tr><td>Banques connectées</td><td>1</td><td><b>Illimitées</b></td></tr>
-      <tr><td>Alertes hausse de prix</td><td class="n">—</td><td class="y">⟦check⟧</td></tr>
-      <tr><td>Rappel avant chaque prélèvement</td><td class="n">—</td><td class="y">⟦check⟧</td></tr>
-      <tr><td>Alerte double prélèvement</td><td class="n">—</td><td class="y">⟦check⟧</td></tr>
-      <tr><td>Petits prélèvements oubliés et doublons</td><td class="n">—</td><td class="y">⟦check⟧</td></tr>
-      <tr><td>Résiliation guidée et lettres</td><td class="n">—</td><td class="y">⟦check⟧</td></tr>
-      <tr><td>Reste à vivre et suivi des économies</td><td class="n">—</td><td class="y">⟦check⟧</td></tr>
-      <tr><td>Support humain</td><td class="y">⟦check⟧</td><td><b>Prioritaire</b></td></tr>
-      <tr><td>Sans publicité</td><td class="n">—</td><td class="y">⟦check⟧</td></tr>
-      <tr><td>Conseils neutres (aucun sponsor n’influence vos résultats)</td><td class="y">⟦check⟧</td><td class="y">⟦check⟧</td></tr>
-    </table>
-    </div>
-  </details>
-  ${neutral}
-  <a class="card sup-mini" href="#/chat"><span class="avatars"><span class="avc a">S</span><span class="avc b">K</span></span><div><b>Une question avant de vous abonner ?</b><span>Un humain vous répond, pas un robot.</span></div><span class="chev">⟦chev⟧</span></a>
-  ${P ? '' : `<p class="muted small center" style="margin:10px 0 0">${API && ME ? 'Paiement sécurisé par Stripe (mode test : aucune carte réelle débitée). Les 500 premiers inscrits ont 3 mois offerts.' : 'Les 500 premiers inscrits ont 3 mois offerts.'}</p>`}
-  <p class="muted small center" style="margin-top:10px">Formule ${Y?'Annuelle':'Mensuelle'} : puis ${Y?prix(CFG.priceYear)+'/an (soit '+prix(CFG.priceYear/12)+'/mois)':prix(CFG.priceMonth)+'/mois'} après l’essai. Annulable en 1 clic, à tout moment. Paiement simulé dans cette maquette.</p>
-  ${P ? '' : `<div class="sub-bar"><button class="btn mint" id="go-premium"><span>S’abonner</span><small>${Y ? prix(CFG.priceYear)+' / an' : prix(CFG.priceMonth)+' / mois'} · 1 mois offert</small></button></div>`}
 </div>`;
 };
 
@@ -2507,7 +2485,18 @@ document.addEventListener('click', e => {
   }
   const appIco = e.target.closest('[data-app-icon]');
   if (appIco){ pickIcon(appIco.dataset.appIcon); return; }
-  const el = e.target.closest('[data-bank],[data-method],[data-toast],[data-billing],[data-alert],[data-af],[data-alert-set],[data-plan],#go-scan,#keep,#confirm-resil,#go-premium,#reset,#read-all,#pw-connect,#pw-quit,#pw-refresh,#api-connect,#api-sync,#api-logout,#api-delete,#login-again,#del-check,#copy-letter,#print-letter,#billing-portal,#toggle-balance');
+  const accBtn = e.target.closest('[data-acc]');
+  if (accBtn){
+    const open = accBtn.getAttribute('aria-expanded') === 'true';
+    document.querySelectorAll('[data-acc]').forEach(b => {
+      const panel = document.getElementById(b.getAttribute('aria-controls'));
+      const on = b === accBtn && !open;
+      b.setAttribute('aria-expanded', on ? 'true' : 'false');
+      if (panel) panel.hidden = !on;
+    });
+    return;
+  }
+  const el = e.target.closest('[data-bank],[data-method],[data-toast],[data-billing],[data-checkout],[data-portal],[data-alert],[data-af],[data-alert-set],[data-plan],#go-scan,#keep,#confirm-resil,#go-premium,#go-free,#reset,#read-all,#pw-connect,#pw-quit,#pw-refresh,#api-connect,#api-sync,#api-logout,#api-delete,#login-again,#del-check,#copy-letter,#print-letter,#billing-portal,#toggle-balance');
   if (!el) return;
   if (el.dataset.toast){ e.preventDefault(); toast(el.dataset.toast); }
   else if (el.dataset.bank){ state.bank = el.dataset.bank; save(); render(); }
@@ -2560,10 +2549,12 @@ document.addEventListener('click', e => {
   else if (el.id==='go-scan'){ if(state.bank) location.hash = '#/scan'; }
   else if (el.id==='keep'){ const id = el.dataset.id; state.kept = state.kept || []; if (id && !state.kept.includes(id)) state.kept.push(id); save(); toast('C’est noté : nous ne vous alerterons plus pour cet abonnement.'); render(); }
   else if (el.id==='confirm-resil'){ const id = el.dataset.id; if(!state.resiliated.includes(id)) state.resiliated.push(id); save(); location.hash = '#/resilier/'+id+'/4'; }
-  else if (el.id==='go-premium'){
+  else if (el.id==='go-premium' || el.dataset.checkout){
+    if (el.dataset.checkout === 'month' || el.dataset.checkout === 'year') billing = el.dataset.checkout;
     if (API && ME){ el.disabled = true; el.textContent = 'Ouverture du paiement…'; API.checkout(billing).then(r => location.assign(r.url)).catch(e => { el.disabled = false; render(); toast(e.message || 'Paiement indisponible'); }); }
     else { state.premium = true; save(); toast(CFG.trial + ' : Premium activé (simulation)'); render(); } }
-  else if (el.id==='billing-portal'){ el.disabled = true; API.portal().then(r => location.assign(r.url)).catch(e => { el.disabled = false; toast(e.message || 'Portail indisponible'); }); }
+  else if (el.id==='go-free'){ state.premium = false; save(); toast('Formule gratuite (simulation)'); render(); }
+  else if (el.id==='billing-portal' || el.dataset.portal){ el.disabled = true; API.portal().then(r => location.assign(r.url)).catch(e => { el.disabled = false; toast(e.message || 'Portail indisponible'); }); }
   else if (el.id==='reset'){
     if (!el.dataset.arm) {
       el.dataset.arm = '1';
