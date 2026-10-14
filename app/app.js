@@ -364,6 +364,7 @@ function alerts(){
     if (b.status==='error') out.unshift({ id:'err-'+b.id, kind:'bank', set:'bank', ic:'⟦link⟧', title:b.name,
       text:'Ne se synchronise plus', when:'Hier', link:'#/banques', group:'Cette semaine' });
   });
+  budgetAlertRows().forEach(a => out.push(a));
   const kept = out.filter(a => alertOn(a.set || 'bank'));
   const first = kept.filter(a=>!a.premium).concat(kept.filter(a=>a.id==='dbl-mobi'||a.id==='up-flixo'));
   const rest = kept.filter(a=>!first.includes(a));
@@ -392,9 +393,10 @@ function publishSubs() {
 }
 function onSubsChange() {
   homeKpi = totals();
-  paintAlertBadge();
+  publishBudget();
 }
 Store.on('subs', onSubsChange);
+Store.on('budget', function () { paintAlertBadge(); });
 
 // ---------- écrans ----------
 const screens = {};
@@ -1033,7 +1035,7 @@ function txActivity(){
   const t = totals();
   return `
 <div class="screen act">
-  <div class="topbar"><h1>Transactions</h1>${demoTag}</div>
+  <div class="topbar"><h1>Transactions</h1><span class="tx-tools"><button type="button" class="tx-export" id="open-export" aria-label="Exporter les transactions en CSV">⟦download⟧</button>${demoTag}</span></div>
   <a class="tx-subs" href="#/abonnements?vue=recurrents"><span><b>Abonnements détectés</b><i>${t.list.length} actifs</i></span><strong>${eur(t.monthly)}<small>/mois</small></strong></a>
   <label class="tx-search">⟦search⟧<input id="tx-q" type="search" placeholder="Rechercher" aria-label="Rechercher une opération" value="${esc(opsQuery)}" autocomplete="off" enterkeyhint="search"></label>
   <div class="seg ops-seg four" role="tablist" aria-label="Filtrer les transactions">${[['all','Tout'],['out','Dépenses'],['in','Reçus'],['abo','Abos']].map(([k, l]) => `<button type="button" role="tab" aria-selected="${opsFilter === k}" class="${opsFilter === k ? 'on' : ''}" data-ops="${k}">${l}</button>`).join('')}</div>
@@ -1251,6 +1253,275 @@ ${USER.prenom} ${USER.nom}`;
 </div>`;
 };
 
+// ---------- Export CSV et budget mensuel (centimes entiers, bus Store) ----------
+const BUDGET_KEY = 'prelevo-budget';
+const BUDGET_CATS = ['logement','courses','resto','transport','shopping','sante','energie','telecom','abo','loisirs','voyage','retrait','pret','autre'];
+let exportPeriod = 'month';
+
+function centsOf(v) {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
+}
+function parseEuroToCents(raw) {
+  let s = String(raw == null ? '' : raw).trim().replace(/[\s\u00A0\u202F]/g, '');
+  if (!s) return 0;
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+  if (!/^\d+(\.\d{1,2})?$/.test(s)) return null;
+  const cents = toCents(s);
+  if (cents > 1000000000) return null;
+  return cents;
+}
+function centsToField(c) {
+  if (!c) return '';
+  const euros = Math.floor(c / 100);
+  const dec = c % 100;
+  return dec ? euros + ',' + String(dec).padStart(2, '0') : String(euros);
+}
+function readBudget() {
+  const raw = Store.readJSON(BUDGET_KEY, null);
+  const cats = {};
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { global: 0, cats };
+  if (raw.cats && typeof raw.cats === 'object') {
+    BUDGET_CATS.forEach(k => { const c = centsOf(raw.cats[k]); if (c) cats[k] = c; });
+  }
+  return { global: centsOf(raw.global), cats };
+}
+function monthWindow(ref) {
+  const start = new Date(ref.getFullYear(), ref.getMonth(), 1);
+  const end = new Date(ref.getFullYear(), ref.getMonth() + 1, 1);
+  return { start, end };
+}
+function spendCents(list) {
+  let total = 0;
+  for (const x of list) total += Math.abs(toCents(x.amt));
+  return total;
+}
+function monthMoves(ref) {
+  const win = monthWindow(ref || nowRef());
+  return ledger().tx.filter(x => x.amt < 0 && x.cat !== 'virement' && x.t >= win.start && x.t < win.end);
+}
+function budgetStatus() {
+  const budget = readBudget();
+  const ref = nowRef();
+  const moves = monthMoves(ref);
+  const byCat = {};
+  moves.forEach(x => { const k = BUDGET_CATS.includes(x.cat) ? x.cat : 'autre'; byCat[k] = (byCat[k] || 0) + Math.abs(toCents(x.amt)); });
+  const ym = ref.getFullYear() + '-' + String(ref.getMonth() + 1).padStart(2, '0');
+  return { global: budget.global, cats: budget.cats, spent: spendCents(moves), byCat, ref, ym, monthLabel: MOIS_LONG[ref.getMonth()] + ' ' + ref.getFullYear() };
+}
+function publishBudget() { Store.emit('budget', budgetStatus()); }
+function budgetLevel(spent, budget) {
+  if (!(budget > 0)) return 0;
+  if (spent >= budget) return 100;
+  if (spent * 5 >= budget * 4) return 80;
+  return 0;
+}
+function pctOf(spent, budget) { return budget > 0 ? Math.floor(spent * 100 / budget) : 0; }
+function budgetAlertRows() {
+  let st;
+  try { st = budgetStatus(); } catch (e) { return []; }
+  const rows = [];
+  const push = (id, title, text, pct) => rows.push({
+    id, kind:'budget', set:'budget', ic:'⟦coin⟧', amt: pct + ' %',
+    title, text, when:'Aujourd’hui', link:'#/budget', premium:false, group:'Aujourd’hui'
+  });
+  const g = budgetLevel(st.spent, st.global);
+  if (g) push('bud-' + st.ym + '-g-' + g, 'Budget du mois',
+    g === 100 ? 'Vous avez atteint 100 % de votre budget mensuel.' : 'Vous avez atteint 80 % de votre budget mensuel.',
+    pctOf(st.spent, st.global));
+  BUDGET_CATS.forEach(k => {
+    const cap = st.cats[k];
+    const spent = st.byCat[k] || 0;
+    const lv = budgetLevel(spent, cap);
+    if (!lv) return;
+    const name = (CATS[k] || CATS.autre).l;
+    push('bud-' + st.ym + '-' + k + '-' + lv, 'Budget ' + name,
+      lv === 100 ? 'Vous avez atteint 100 % du budget ' + name + '.' : 'Vous avez atteint 80 % du budget ' + name + '.',
+      pctOf(spent, cap));
+  });
+  return rows;
+}
+function budgetTrack(label, spent, budget) {
+  const pct = pctOf(spent, budget);
+  const lv = budgetLevel(spent, budget);
+  const cls = lv === 100 ? ' over' : lv === 80 ? ' warn' : '';
+  const left = budget - spent;
+  const rest = left >= 0 ? 'Reste ' + eur(fromCents(left)) : 'Dépassé de ' + eur(fromCents(-left));
+  return `<div class="bh"><span>${esc(label)}</span><b>${eur(fromCents(spent))} / ${eur(fromCents(budget))}</b></div>
+    <div class="budget-track${cls}" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.min(100, pct)}" aria-label="${esc(label)}, ${pct} pour cent"><i style="width:${Math.min(100, pct)}%"></i></div>
+    <div class="budget-legend"><span>${pct} % dépensé</span><span>${rest}</span></div>`;
+}
+function budgetCard() {
+  let st;
+  try { st = budgetStatus(); } catch (e) { return ''; }
+  const cats = Object.keys(st.cats);
+  if (!st.global && !cats.length) return `<a class="budget-card budget-empty" href="#/budget"><b>Budget mensuel</b><span>Fixez un plafond global et, si vous le souhaitez, un plafond par catégorie. Une alerte vous prévient à 80 % et à 100 %.</span></a>`;
+  if (st.global) return `<a class="budget-card" href="#/budget">${budgetTrack('Budget · ' + st.monthLabel, st.spent, st.global)}</a>`;
+  let worst = cats[0];
+  cats.forEach(k => { if (pctOf(st.byCat[k] || 0, st.cats[k]) > pctOf(st.byCat[worst] || 0, st.cats[worst])) worst = k; });
+  return `<a class="budget-card" href="#/budget">${budgetTrack((CATS[worst] || CATS.autre).l, st.byCat[worst] || 0, st.cats[worst])}</a>`;
+}
+function budRow(k, st) {
+  const name = (CATS[k] || CATS.autre).l;
+  const spent = st.byCat[k] || 0;
+  return `<label class="bud-row"><span class="bud-lab">${esc(name)}<small>${spent ? 'Dépensé : ' + eur(fromCents(spent)) : 'Rien ce mois-ci'}</small></span><input name="cat-${k}" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="—" aria-label="Budget ${esc(name)} en euros" value="${esc(centsToField(st.cats[k] || 0))}"><span class="bud-eur">€</span></label>`;
+}
+screens.budget = () => {
+  const st = budgetStatus();
+  const active = BUDGET_CATS.filter(k => (st.byCat[k] || 0) > 0 || st.cats[k]);
+  const shown = active.length ? active : BUDGET_CATS.slice(0, 4);
+  const rest = BUDGET_CATS.filter(k => !shown.includes(k));
+  const bars = [
+    st.global ? `<div class="budget-card">${budgetTrack('Budget · ' + st.monthLabel, st.spent, st.global)}</div>` : '',
+    ...Object.keys(st.cats).map(k => `<div class="budget-card">${budgetTrack((CATS[k] || CATS.autre).l, st.byCat[k] || 0, st.cats[k])}</div>`)
+  ].filter(Boolean).join('');
+  return `
+<div class="screen">
+  <div class="topbar"><a class="back" href="#/alertes">⟦back⟧</a><h1>Budget</h1>${demoTag}</div>
+  <p class="bud-lead">Fixez le plafond du mois. Les dépenses déjà passées en ${esc(st.monthLabel.toLowerCase())} sont comparées à ce plafond. Une alerte apparaît à 80 % et à 100 %.</p>
+  ${bars}
+  <form id="budget-form">
+    <label class="bud-global"><span>Budget global</span><span class="bud-field"><input id="bud-global" name="global" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0,00" aria-label="Budget global en euros" value="${esc(centsToField(st.global))}"><i>€</i></span></label>
+    <p class="acct-k">Par catégorie <i class="bud-opt">facultatif</i></p>
+    <div class="menu-card bud-card">${shown.map(k => budRow(k, st)).join('')}</div>
+    ${rest.length ? `<details class="bud-more"><summary>Autres catégories</summary><div class="menu-card bud-card">${rest.map(k => budRow(k, st)).join('')}</div></details>` : ''}
+    <button class="btn" type="submit">Enregistrer le budget</button>
+  </form>
+</div>`;
+};
+function saveBudgetFromForm(form) {
+  const globalEl = form.elements.namedItem('global');
+  const global = parseEuroToCents(globalEl && globalEl.value);
+  if (global == null) return toast('Indiquez un budget global valide, par exemple 1 200 ou 1 200,50.');
+  const cats = {};
+  for (const k of BUDGET_CATS) {
+    const input = form.elements['cat-' + k];
+    if (!input) continue;
+    const cents = parseEuroToCents(input.value);
+    if (cents == null) return toast('Le budget ' + (CATS[k] || CATS.autre).l + ' n’est pas un montant valide.');
+    if (cents > 0) cats[k] = cents;
+  }
+  Store.writeJSON(BUDGET_KEY, { global, cats });
+  publishBudget();
+  toast(global || Object.keys(cats).length ? 'Budget enregistré.' : 'Budget mensuel retiré.');
+  render();
+}
+
+function pad2(n) { return String(n).padStart(2, '0'); }
+function frDate(d) { return pad2(d.getDate()) + '/' + pad2(d.getMonth() + 1) + '/' + d.getFullYear(); }
+function frAmountCsv(n) {
+  const c = toCents(n);
+  const sign = c < 0 ? '-' : '';
+  const abs = Math.abs(c);
+  return sign + Math.floor(abs / 100) + ',' + pad2(abs % 100);
+}
+function csvCell(v) {
+  const s = String(v == null ? '' : v);
+  return /[;"\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+}
+function exportRange(key) {
+  const now = nowRef();
+  const endToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+  if (key === 'prev') {
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const end = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+    return { start, end, label: 'Mois dernier' };
+  }
+  if (key === '30' || key === '90') {
+    const days = key === '30' ? 29 : 89;
+    const start = new Date(endToday);
+    start.setDate(start.getDate() - days);
+    start.setHours(0, 0, 0, 0);
+    return { start, end: endToday, label: key === '30' ? '30 derniers jours' : '90 derniers jours' };
+  }
+  if (key === 'all') return { start: new Date(2000, 0, 1), end: endToday, label: 'Tout l’historique' };
+  return { start: new Date(now.getFullYear(), now.getMonth(), 1), end: endToday, label: 'Ce mois-ci' };
+}
+function txInRange(range) {
+  return ledger().tx.filter(x => x.t >= range.start && x.t <= range.end).slice().sort((a, b) => a.t - b.t);
+}
+function csvFor(rows) {
+  const head = ['Date', 'Libellé', 'Catégorie', 'Montant (€)', 'Compte'];
+  const lines = [head.join(';')];
+  rows.forEach(x => {
+    const cat = (CATS[x.cat] || CATS.autre).l;
+    const account = x.where || (x.bank && x.bank.name) || '';
+    lines.push([frDate(x.t), x.name || '', cat, frAmountCsv(x.amt), account].map(csvCell).join(';'));
+  });
+  return lines.join('\r\n');
+}
+function exportFileName(range) {
+  const d = range.end;
+  return 'prelevo-transactions-' + pad2(d.getDate()) + '-' + pad2(d.getMonth() + 1) + '-' + d.getFullYear() + '.csv';
+}
+function isIosSafari() {
+  const ua = navigator.userAgent || '';
+  const iOS = /iP(hone|ad|od)/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  return iOS && /WebKit/i.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/i.test(ua);
+}
+function canShareFile(file) {
+  try { return !!(navigator.canShare && navigator.canShare({ files: [file] })); }
+  catch (e) { return false; }
+}
+function openCsvBlob(blob) {
+  const url = URL.createObjectURL(blob);
+  const opened = window.open(url, '_blank');
+  if (!opened) location.assign(url);
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+function deliverCsv(filename, body, count) {
+  const blob = new Blob(['\uFEFF' + body], { type: 'text/csv;charset=utf-8' });
+  const file = new File([blob], filename, { type: 'text/csv' });
+  const n = count || 0;
+  const nToast = () => n + ' opération' + (n > 1 ? 's' : '') + ' exportée' + (n > 1 ? 's' : '') + '.';
+  if (isIosSafari() && navigator.share) {
+    const shareFile = canShareFile(file) ? file : new File([blob], filename, { type: 'text/plain' });
+    const can = canShareFile(shareFile);
+    if (can) {
+      navigator.share({ files: [shareFile], title: 'Transactions ' + APP_NAME }).then(() => toast(nToast())).catch(err => {
+        if (err && err.name === 'AbortError') return;
+        openCsvBlob(blob);
+        toast('Export ouvert. Vous pouvez l’enregistrer ou le partager.');
+      });
+      return;
+    }
+    openCsvBlob(blob);
+    toast('Export ouvert. Vous pouvez l’enregistrer ou le partager.');
+    return;
+  }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  toast(nToast());
+}
+function runExport() {
+  const range = exportRange(exportPeriod);
+  const rows = txInRange(range);
+  if (!rows.length) return toast('Aucune opération sur cette période.');
+  deliverCsv(exportFileName(range), csvFor(rows), rows.length);
+}
+screens.export = () => {
+  const opts = [['month','Ce mois-ci'],['prev','Mois dernier'],['30','30 derniers jours'],['90','90 derniers jours'],['all','Tout l’historique']];
+  return `
+<div class="screen">
+  <div class="topbar"><a class="back" href="#/abonnements">⟦back⟧</a><h1>Exporter</h1>${demoTag}</div>
+  <p class="bud-lead">Choisissez la période. Le fichier est en CSV, séparateur point-virgule, dates au format JJ/MM/AAAA et montants avec une virgule. Il s’ouvre dans Excel.</p>
+  ${opts.map(([k, lab]) => {
+    const n = txInRange(exportRange(k)).length;
+    const detail = n ? n + ' opération' + (n > 1 ? 's' : '') : 'Aucune opération';
+    return `<button type="button" class="option ${exportPeriod === k ? 'on' : ''}" data-export-period="${k}"><span class="ic">⟦calendar⟧</span><div><b>${lab}</b><span>${detail}</span></div></button>`;
+  }).join('')}
+  <button type="button" class="btn" id="do-export">⟦download⟧ Exporter en CSV</button>
+</div>`;
+};
+
 screens.alertes = (q) => {
   const al = alerts(); const P = isP();
   const f = (q && q.get('f')) || 'all';
@@ -1299,7 +1570,8 @@ screens.alertes = (q) => {
   return `
 <div class="screen act">
   <div class="topbar"><h1>Alertes</h1>${demoTag}</div>
-  <p class="al-lead">${unread ? unread + ' non lue' + (unread > 1 ? 's' : '') : 'Tout est lu'} · hausses, doublons, rappels</p>
+  ${budgetCard()}
+  <p class="al-lead">${unread ? unread + ' non lue' + (unread > 1 ? 's' : '') : 'Tout est lu'} · hausses, doublons, budget, rappels</p>
   <div class="seg ops-seg four" role="tablist" aria-label="Filtrer les alertes">${chip('all','Toutes')}${chip('up','Hausses')}${chip('dup','Doublons')}${chip('next','Rappels')}</div>
   ${unread ? '<div class="al-tools"><button type="button" id="read-all">Tout marquer comme lu</button></div>' : ''}
   ${visible.length ? listSlot('act-list', frag => appendAlertGroups(frag, visible)) : (!prem.length ? `<div class="act-list">${emptyState('bell', 'Tout est calme', 'Rien dans ce filtre. On vous prévient ici dès qu’un prix bouge ou qu’une banque demande votre attention.')}</div>` : '')}
@@ -1982,9 +2254,9 @@ function resetScroll() {
   document.body.scrollTop = 0;
 }
 function syncNav(name) {
-  const tabbed = ['dashboard','graphiques','operations','abonnements','alertes','premium','abo','aide','apropos','banques','banque','compte','apparence','parrainage'].includes(name) || (!screens[name]);
+  const tabbed = ['dashboard','graphiques','operations','abonnements','alertes','premium','abo','aide','apropos','banques','banque','compte','apparence','parrainage','budget','export'].includes(name) || (!screens[name]);
   const bar = $('#tabbar');
-  const tabName = name==='abo' || name==='operations' ? 'abonnements' : !screens[name] ? 'dashboard' : name;
+  const tabName = name==='abo' || name==='operations' || name==='export' ? 'abonnements' : name==='budget' ? 'alertes' : !screens[name] ? 'dashboard' : name;
   if (tabbed) { bar.hidden = false; bar.removeAttribute('aria-hidden'); }
   else { bar.hidden = true; bar.setAttribute('aria-hidden', 'true'); }
   document.querySelectorAll('#tabbar a').forEach(a => {
@@ -2011,7 +2283,7 @@ function render(){
   if (name==='scan') runScan();
   if (name==='pwscan' && PWX && !LIVE) runPwScan();
   if (name==='connexion' && API){ const tk = new URLSearchParams(qs||'').get('token'); if (tk) apiVerify(tk); }
-  if (API && !API.loggedIn() && ['dashboard','abonnements','alertes','banques','abo','supprimer'].includes(name)){ location.replace('#/onboarding'); }
+  if (API && !API.loggedIn() && ['dashboard','abonnements','alertes','banques','abo','supprimer','budget','export'].includes(name)){ location.replace('#/onboarding'); }
   if (name==='resilier' && !isP()) toast('La résiliation guidée fait partie de Premium');
 }
 
@@ -2069,6 +2341,9 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('click', e => {
   const ops = e.target.closest('[data-ops]'); if (ops){ opsFilter = ops.dataset.ops; const q = document.getElementById('tx-q'); if (q) opsQuery = q.value; render(); return; }
+  const expP = e.target.closest('[data-export-period]'); if (expP){ exportPeriod = expP.dataset.exportPeriod; render(); return; }
+  if (e.target.closest('#open-export')){ location.hash = '#/export'; return; }
+  if (e.target.closest('#do-export')){ runExport(); return; }
   const th = e.target.closest('[data-theme-set]');
   if (th){ pickTheme(th.dataset.themeSet); return; }
   const thAuto = e.target.closest('[data-theme-auto]');
@@ -2146,6 +2421,7 @@ document.addEventListener('click', e => {
     }
     Store.remove(KEY);
     Store.remove('prelevo-refs');
+    Store.remove(BUDGET_KEY);
     const demo = QS.has('demo') || (!API && !LIVE);
     const q = location.search || (demo ? '?demo=1' : '');
     location.replace(location.pathname + q + (demo ? '#/dashboard' : '#/onboarding'));
@@ -2154,6 +2430,7 @@ document.addEventListener('click', e => {
 });
 
 document.addEventListener('submit', e => {
+  if (e.target.id === 'budget-form'){ e.preventDefault(); saveBudgetFromForm(e.target); return; }
   if (e.target.id === 'login-form'){ e.preventDefault();
     const email = $('#login-email').value.trim(); const btn = $('#login-submit');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return toast('Indiquez une adresse e-mail valide.');
