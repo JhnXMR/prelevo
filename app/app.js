@@ -5,9 +5,9 @@ const APP_NAME = CFG.name;
 document.title = `${APP_NAME} – ${CFG.tagline}`;
 
 const USER = { prenom: 'Camille', nom: 'Exemple', adresse: '12 rue de l’Exemple\n75011 Paris' };
-let INCOME = 2150;          // salaire net (exemple)
+let INCOME = 2200;          // salaire net (exemple), autour de 2 200 €
 let RENT = 720;             // loyer (exemple)
-let SPENT = 832;            // courses, essence, restos déjà passés depuis la paie (exemple)
+let SPENT = 577.47;         // courses, essence, restos déjà passés depuis la paie (exemple)
 let PAYDAY_IN = 12;         // jours avant la prochaine paie
 let PAST_SAVED = 6.99;      // un abonnement déjà résilié le mois dernier (exemple)
 
@@ -24,6 +24,10 @@ const SUBS = [
     cancel:{ online:false, where:'Lettre recommandée', notice:'Engagement 12 mois terminé, préavis 1 mois' } },
   { id:'mobi', name:'Mobi Forfait 100 Go', cat:'Téléphonie', color:'#0AA5A5', ini:'M', price:15.99, day:8, since:'avr. 2022', hist:[12.99,12.99,15.99,15.99,15.99,15.99], prev:12.99,
     doubleCharge:'8 oct.', cancel:{ online:true, where:'Portabilité avec le code RIO (3179)', notice:'Sans préavis' } },
+  { id:'navigo', name:'Passe Navigo', cat:'Transport', txCat:'transport', color:'#5C2D91', ini:'NV', price:86.40, day:2, since:'sept. 2019', hist:[86.40,86.40,86.40,86.40,86.40,86.40],
+    cancel:{ online:true, where:'Espace personnel › Mon passe › Résilier', notice:'Fin à l’échéance du mois en cours' } },
+  { id:'lumiere', name:'Lumière Électricité', cat:'Énergie', txCat:'energie', color:'#C47B12', ini:'L', price:79, day:6, since:'mars 2018', hist:[79,79,79,79,79,79],
+    cancel:{ online:true, where:'Espace client › Contrat › Résilier', notice:'Selon le contrat, souvent sous un mois' } },
   { id:'shopprime', name:'ShopPrime', cat:'Livraison', color:'#232F3E', ini:'SP', price:6.99, day:27, since:'nov. 2022', hist:[6.99,6.99,6.99,6.99,6.99,6.99],
     cancel:{ online:true, where:'Compte › Gérer mon abonnement', notice:'Sans préavis' } },
   { id:'assurhab', name:'AssurHabitat', cat:'Assurance', color:'#5B6B8C', ini:'AH', price:18.40, day:10, since:'janv. 2021', hist:[17.20,17.20,17.20,18.40,18.40,18.40], prev:17.20,
@@ -566,12 +570,12 @@ function demoLedger(){
   const total = sumEuros(banks, b => b.total), others = fromCents(toCents(total) - toCents(T.end));
   const from = NOW.getTime() - 100 * DAY_MS;
   const tx = T.ev.filter(e => e.k !== 'xfer' && e.t.getTime() >= from).map(e => {
-    if (e.k === 'spend'){ const a = -e.amt, pool = a < 9 ? MERCH.s : a < 40 ? MERCH.m : MERCH.l, m = pool[Math.floor(e.t.getTime() / 6e4) % pool.length];
+    if (e.k === 'spend'){
       const bk = banks[(Math.floor(e.t.getTime() / 864e5) % 3) % banks.length] || banks[0];
-      return { t:e.t, name:m[0], cat:m[1], amt:e.amt, where:bk.name, bank:bk }; }
-    if (e.k === 'in') return { t:e.t, name:'Salaire · Exemple SAS', cat:'revenu', amt:e.amt, where:LINKED[0].name, bank:banks[0] };
+      return { t:e.t, name:e.name || 'Carte', cat:e.cat || 'autre', amt:e.amt, where:bk.name, bank:bk }; }
+    if (e.k === 'in') return { t:e.t, name: e.prime ? 'Salaire et prime · Exemple SAS' : 'Salaire · Exemple SAS', cat:'revenu', amt:e.amt, where:LINKED[0].name, bank:banks[0] };
     if (e.k === 'rent') return { t:e.t, name:'Loyer · Agence Fictive', cat:'logement', amt:e.amt, where:LINKED[0].name, bank:banks[0] };
-    const s = SUBS.find(x => x.name === e.name); return { t:e.t, name:e.name, cat:'abo', amt:e.amt, sub:s && s.id, where:'Prélèvement · ' + banks[0].name, bank:banks[0] };
+    const s = SUBS.find(x => x.name === e.name); return { t:e.t, name:e.name, cat:e.cat || 'abo', amt:e.amt, sub:s && s.id, where:'Prélèvement · ' + banks[0].name, bank:banks[0] };
   }).reverse();
   const curve = samples('1M').map(p => ({ t:p.t, v:p.bal + others }));
   const t0 = day0(NOW), up = [];
@@ -760,11 +764,10 @@ function deskWhen(fmt, t, partial){
   return partial ? s + ' · estimation' : s;
 }
 function spendCat(e){
+  if (e.cat) return e.cat;
   if (e.k === 'rent') return 'logement';
   if (e.k === 'sub') return 'abo';
-  if (e.k !== 'spend') return 'autre';
-  const a = -e.amt, pool = a < 9 ? MERCH.s : a < 40 ? MERCH.m : MERCH.l;
-  return pool[Math.floor(e.t.getTime() / 6e4) % pool.length][1];
+  return 'autre';
 }
 function deskEvents(){
   if (LIVE) return ledger().tx.filter(x => x.cat !== 'virement').map(x => ({
@@ -813,8 +816,7 @@ function projectPartial(row, start, now){
     const plotSpend = fromCents(Math.round(toCents(row.spend) * dim / elapsed));
     return { plotIncome, plotSpend, plotNet: fromCents(toCents(plotIncome) - toCents(plotSpend)) };
   }
-  const prime = start.getMonth() === 4 ? 5200 : start.getMonth() === 11 ? 6800 : 0;
-  const extraInc = row.salary ? 0 : toCents(INCOME) + toCents(prime);
+  const extraInc = row.salary ? 0 : toCents(payOf(start.getFullYear(), start.getMonth()).euros);
   let extraSpend = now.getDate() < 5 ? toCents(RENT) : 0;
   active().forEach(s => { if ((s.day || 1) > now.getDate()) extraSpend += toCents(s.price); });
   const variablePace = Math.round(toCents(row.variable) * dim / elapsed);
@@ -2076,22 +2078,50 @@ let homeTf = '1M';
 const homeTfMeta = () => HOME_TF.find(x => x[0] === homeTf) || HOME_TF[2];
 let _timeline = null;
 function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-// Courses, cafés, transports : 2 à 4 achats par jour, plus marqués l’été et en décembre.
-function cardSpends(d){
-  const r = rng(d.getFullYear() * 400 + (d.getMonth() + 1) * 32 + d.getDate());
-  const season = [1, 0.70, 0.96, 1.08, 1.06, 1.02, 1.22, 1.48, 1.18, 1.00, 1.06, 1.68][d.getMonth()];
-  const weekend = (d.getDay() === 0 || d.getDay() === 6) ? 1.18 : 1;
-  let n = 2;
-  if (r() < 0.55) n++;
-  if (r() < 0.18) n++;
-  const out = [];
-  for (let i = 0; i < n; i++) {
-    const hour = 8 + Math.floor(r() * 12), min = Math.floor(r() * 60), roll = r();
-    let cents = roll > 0.985 ? 9000 + Math.floor(r() * 11000) : roll > 0.92 ? 2800 + Math.floor(r() * 3200) : 220 + Math.floor(r() * 1100);
-    cents = Math.max(150, Math.round(cents * season * weekend));
-    out.push({ t:new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour, min), amt:-fromCents(cents), name:'Carte', k:'spend' });
-  }
+// Salaire autour de 2 200 €, petite variation, prime de fin d’année modeste (revenu annuel ~27 k€).
+function payOf(year, month){
+  const r = rng(year * 80 + month * 3 + 17);
+  const wobble = Math.round((r() - 0.5) * 50);
+  const prime = month === 11 ? 250 : 0;
+  return { euros: 2200 + wobble + prime, prime: prime > 0 };
+}
+function allotCents(total, weights){
+  const sum = weights.reduce((a, b) => a + b, 0) || 1;
+  const out = weights.map(w => Math.round(total * w / sum));
+  out[out.length - 1] += total - out.reduce((a, b) => a + b, 0);
   return out;
+}
+// Courses, resto, loisirs : budget mensuel réaliste, un peu plus haut l’été et à Noël.
+function monthPlan(year, month){
+  if (!monthPlan.cache) monthPlan.cache = {};
+  const key = year + '-' + month;
+  if (monthPlan.cache[key]) return monthPlan.cache[key];
+  const r = rng(year * 400 + (month + 1) * 32 + 7);
+  const disc = [0.96, 0.94, 0.99, 1.02, 1.03, 1.05, 1.12, 1.16, 1.04, 1.00, 1.06, 1.50][month];
+  const groc = [1.02, 0.96, 1.00, 1.02, 1.04, 1.05, 1.07, 1.10, 1.04, 1.02, 1.06, 1.12][month];
+  const dim = new Date(year, month + 1, 0).getDate();
+  const groups = [
+    ['courses', Math.round(35000 * groc), [['Boulangerie Martin', 3], ['Supérette du Canal', 28], ['Boulangerie Martin', 2], ['Marché Saint-Louis', 16], ['Primeur Bio', 8], ['Boulangerie Martin', 2], ['Supérette du Canal', 42]]],
+    ['transport', 4800 + Math.round(r() * 1400), [['Carburant · Station du Canal', 1]]],
+    ['resto', Math.round(18500 * disc), [['Café Lumière', 4], ['Café Lumière', 3], ['Cantine Sato', 6], ['Cantine Sato', 5], ['Bistrot Les Amis', 8]]],
+    ['loisirs', Math.round(10500 * disc), [['Librairie du Parc', 4], ['Ciné Rex', 6]]],
+    ['shopping', Math.round(7500 * disc), [['Kiosque Presse', 2], ['Bricolage Dupont', 5]]],
+    ['sante', 2400 + Math.round(r() * 1600), [['Pharmacie des Lilas', 1]]],
+  ];
+  const events = [];
+  groups.forEach(([cat, cents, parts]) => {
+    const amounts = allotCents(cents, parts.map(p => p[1]));
+    parts.forEach(([name], i) => {
+      const day = 1 + Math.min(dim - 1, Math.floor((i + 0.5) * dim / parts.length));
+      const hour = 8 + Math.floor(r() * 12), min = Math.floor(r() * 60);
+      events.push({ t:new Date(year, month, day, hour, min), amt:-fromCents(amounts[i]), name, k:'spend', cat });
+    });
+  });
+  monthPlan.cache[key] = events;
+  return events;
+}
+function cardSpends(d){
+  return monthPlan(d.getFullYear(), d.getMonth()).filter(e => e.t.getDate() === d.getDate());
 }
 function timeline(){
   if (_timeline) return _timeline;
@@ -2107,26 +2137,16 @@ function timeline(){
     const fixed = []; 
     ds.forEach(d => {
       if (d.getDate() === 21) {
-        const prime = d.getMonth() === 4 ? 5200 : d.getMonth() === 11 ? 6800 : 0;
-        fixed.push({ t:new Date(d.getFullYear(), d.getMonth(), 21, 7, 30), amt:INCOME + prime, name: prime ? 'Salaire et prime' : 'Salaire', k:'in' });
+        const pay = payOf(d.getFullYear(), d.getMonth());
+        fixed.push({ t:new Date(d.getFullYear(), d.getMonth(), 21, 7, 30), amt:pay.euros, name: pay.prime ? 'Salaire et prime' : 'Salaire', k:'in', prime:pay.prime });
       }
+      if (d.getDate() === 24) fixed.push({ t:new Date(d.getFullYear(), d.getMonth(), 24, 9, 15), amt:-200, name:'Virement épargne', k:'xfer' });
       if (d.getDate() === 5) fixed.push({ t:new Date(d.getFullYear(), d.getMonth(), 5, 6, 10), amt:-RENT, name:'Loyer', k:'rent' });
-      t.list.forEach(s => { if (s.day === d.getDate()) fixed.push({ t:new Date(d.getFullYear(), d.getMonth(), d.getDate(), 5 + (s.price*7 % 4), 0), amt:-s.price, name:s.name, k:'sub' }); });
+      t.list.forEach(s => { if (s.day === d.getDate()) fixed.push({ t:new Date(d.getFullYear(), d.getMonth(), d.getDate(), 5 + (s.price*7 % 4), 0), amt:-s.price, name:s.name, k:'sub', cat:s.txCat || 'abo' }); });
       cardSpends(d).forEach(e => fixed.push(e));
     });
     fixed.forEach(e => { if (e.t <= NOW) ev.push(e); });
   });
-  ev.sort((a,b)=>a.t-b.t);
-  // Le surplus part en épargne, sauf juste après les primes de mai et décembre : le pic reste visible une quinzaine de jours.
-  let run = 1900;
-  const xfer = [];
-  for (const e of ev) {
-    run += e.amt;
-    const m = e.t.getMonth(), d = e.t.getDate();
-    const spike = (m === 4 && d >= 21) || (m === 5 && d <= 6) || (m === 11 && d >= 21) || (m === 0 && d <= 6);
-    if (!spike && e.k !== 'in' && run > 2600) { const skim = Math.round(run - 1800); xfer.push({ t:new Date(e.t.getTime() + 36e5), amt:-skim, name:'Virement épargne', k:'xfer' }); run = 1800; }
-  }
-  ev.push(...xfer);
   ev.sort((a,b)=>a.t-b.t);
   const remaining = sumEuros(t.list.filter(s => s.day >= 10 && s.day < 21), s => s.price);
   const end = t.reste + remaining + LEFTOVER;
