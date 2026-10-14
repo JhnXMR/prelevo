@@ -3,7 +3,7 @@
 'use strict';
 (function(){
   const base = ((window.APP_CONFIG || {}).apiBase || '').replace(/\/+$/, '');
-  const K_SESSION = 'prelevo-session', K_STATE = 'prelevo-bank-state';
+  const K_SESSION = 'prelevo-session', K_STATE = 'prelevo-bank-state', K_FLOW = 'prelevo-bank-flow';
   const demo = new URLSearchParams(location.search).has('demo');
   if (!base || demo) { window.PAPI = null; return; }           // pas d'API configurée, ou mode démo : maquette seule
 
@@ -34,19 +34,59 @@
     async verify(token){ const r = await call('POST', '/auth/verify', { token }); session.set(r.session); return r.user; },
     async logout(){ try { await call('POST', '/auth/logout'); } catch(e){} session.clear(); },
     me: () => call('GET', '/me'),
+    rememberBank(url, flow){
+      try {
+        sessionStorage.setItem(K_STATE, new URL(url).searchParams.get('state') || '');
+        sessionStorage.setItem(K_FLOW, flow);
+      } catch(e){}
+    },
     async connectBank(){
       const r = await call('POST', '/bank/connect');
       // le state voyage aussi dans l'URL ; on le garde pour vérifier qu'on revient bien de NOTRE demande
-      try { sessionStorage.setItem(K_STATE, new URL(r.url).searchParams.get('state') || ''); } catch(e){}
+      this.rememberBank(r.url, 'connect');
       location.assign(r.url);
     },
-    /** Retour de la Webview Powens : ?state=…&connection_id=… (ou ?error=…) */
-    returnParams(){
-      const q = new URLSearchParams(location.search);
-      if (!q.has('state') || !(q.has('connection_id') || q.has('connection_ids') || q.has('error'))) return null;
-      return { state: q.get('state'), connection_id: q.get('connection_id') || undefined, error: q.get('error') || undefined };
+    /** Renouvellement SCA (webview /reconnect). Le succès ne renvoie que le state. */
+    async reconnect(connectionId){
+      const r = await call('POST', '/bank/reconnect', connectionId ? { connectionId: connectionId } : {});
+      this.rememberBank(r.url, 'reconnect');
+      location.assign(r.url);
     },
-    async finishConnect(p){ sessionStorage.removeItem(K_STATE); return call('POST', '/bank/callback', p); },
+    /** Retour de la Webview Powens : succès, erreur, ou annulation. */
+    returnParams(){
+      const Flow = window.PowensFlow;
+      let expected = null, flow = 'connect';
+      try { expected = sessionStorage.getItem(K_STATE); flow = sessionStorage.getItem(K_FLOW) || 'connect'; } catch(e){}
+      if (!expected) return null;
+      if (!Flow) {
+        const q = new URLSearchParams(location.search);
+        if (q.get('state') !== expected) return null;
+        if (flow === 'reconnect' && !q.get('error')) return { state: expected, flow: 'reconnect', ok: true };
+        if (!(q.has('connection_id') || q.has('connection_ids') || q.has('error'))) return null;
+        return { state: expected, connection_id: q.get('connection_id') || undefined, error: q.get('error') || undefined, flow: flow };
+      }
+      const o = Flow.callbackOutcome(location.search, expected, flow);
+      if (!o) return null;
+      return {
+        ok: o.ok, cancelled: !!o.cancelled, reason: o.reason, title: o.title, text: o.text,
+        state: o.state || expected, flow: o.flow || flow, error: o.error || undefined,
+        connection_id: o.connectionId || undefined,
+        connection_ids: o.connectionIds || undefined
+      };
+    },
+    clearBankReturn(){
+      try { sessionStorage.removeItem(K_STATE); sessionStorage.removeItem(K_FLOW); } catch(e){}
+    },
+    async finishConnect(p){
+      this.clearBankReturn();
+      return call('POST', '/bank/callback', {
+        state: p.state,
+        connection_id: p.connection_id,
+        connection_ids: p.connection_ids,
+        error: p.error,
+        flow: p.flow
+      });
+    },
     sync: () => call('POST', '/bank/sync'),
     checkout: interval => call('POST', '/billing/checkout', { interval }),
     portal: () => call('POST', '/billing/portal'),

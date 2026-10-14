@@ -86,6 +86,7 @@ const PWX = API ? null : (window.PW || null);
 let ME = null;               // réponse de GET /me
 if (PWX && QS.has('demo')) PWX.clear();            // ?demo=1 = toujours les données d'exemple
 let LIVE = null;
+function powensProd(){ return !!(window.PowensFlow && PowensFlow.isProduction(CFG)); }
 function applyLive(r){
   LIVE = r;
   SUBS.splice(0, SUBS.length, ...r.subs);
@@ -93,12 +94,17 @@ function applyLive(r){
   INCOME = r.income; RENT = 0; SPENT = r.spent; PAYDAY_IN = r.payIn; PAST_SAVED = 0;
   Object.assign(USER, { prenom:'', nom:'[Prénom Nom]', adresse:'[Votre adresse]' });
   state.resiliated = state.resiliated.filter(id => SUBS.some(s => s.id === id));
-  demoTag = '<span class="demo live">Banque de test Powens</span>';
+  demoTag = powensProd() ? '<span class="demo live">Comptes synchronisés</span>' : '<span class="demo live">Banque de test Powens</span>';
 }
 function liveBank(){
   if (API){ const n = LIVE.accounts.length;
+    const sca = LIVE.sca || { daysLeft: null, renew: false, expired: false };
+    const status = LIVE.bankStatus === 'error' ? 'error' : (LIVE.bankStatus === 'sca' || sca.expired || sca.renew) ? 'sca' : 'ok';
+    const days = sca.daysLeft == null ? null : sca.daysLeft;
     return { id:'pw', name:LIVE.bank, color:LIVE.bankColor || '#0066FF', logo:LIVE.bankLogo || null, ini:'', live:true, accounts:`${n} compte${n>1?'s':''} · ${LIVE.txCount} opérations`,
-      status:'ok', sync: LIVE.at ? 'il y a ' + ago(LIVE.at) : '—', expiresIn: 999, expires:'180 jours (règle DSP2)', mins: 0 }; }
+      status, sync: LIVE.at ? 'il y a ' + ago(LIVE.at) : '—',
+      expiresIn: days == null ? 180 : days,
+      expires: days == null ? '180 jours (règle DSP2)' : (days <= 0 ? 'à renouveler' : `encore ${days} j`), mins: 0 }; }
   const tk = PWX && PWX.tokenInfo(); const expired = !tk || tk.expired;
   const mins = tk ? Math.max(0, Math.round((tk.exp - Date.now())/60000)) : 0;
   const n = LIVE.accounts.length;
@@ -114,12 +120,17 @@ function applyServer(me){
   if (me.billing){ state.premium = me.billing.plan === 'premium'; save(); }
   if (!me.bankConnected || !me.stats) return;
   const st = me.stats || {};
+  const bank = me.bank || {};
+  const sca = window.PowensFlow ? PowensFlow.scaStatus(bank.scaExpiresAt || bank.expire) : { daysLeft: null, renew: false, expired: false };
+  let bankStatus = bank.status || 'ok';
+  if (bankStatus !== 'error' && (bankStatus === 'sca' || sca.expired)) bankStatus = 'sca';
   applyLive({ subs: me.subscriptions, months: st.months && st.months.length ? st.months : MONTHS.slice(), income: st.income || 0, spent: st.spent || 0,
-    payIn: st.payIn || 30, accounts: me.accounts || [], recent: me.transactions || [], txCount: me.txCount || 0, bank: (me.bank && me.bank.name) || st.bank || 'Ma banque',
-    bankLogo: (me.bank && me.bank.logo) || st.bankLogo || null, bankColor: (me.bank && me.bank.color) || st.bankColor || null,
-    at: me.lastSyncAt ? Date.parse(me.lastSyncAt) : null, history: { days: st.days, debits: st.debits, total: st.total, limited: st.limited }, savings: st.savings });
+    payIn: st.payIn || 30, accounts: me.accounts || [], recent: me.transactions || [], txCount: me.txCount || 0, bank: bank.name || st.bank || 'Ma banque',
+    bankLogo: bank.logo || st.bankLogo || null, bankColor: bank.color || st.bankColor || null,
+    at: me.lastSyncAt ? Date.parse(me.lastSyncAt) : null, history: { days: st.days, debits: st.debits, total: st.total, limited: st.limited }, savings: st.savings,
+    sca, bankStatus, connectionId: bank.connectionId || bank.id || null });
   state.connected = true; save();
-  demoTag = '<span class="demo live">Banque de test</span>';
+  demoTag = powensProd() ? '<span class="demo live">Comptes synchronisés</span>' : '<span class="demo live">Banque de test</span>';
 }
 function humanError(e, fallback){
   const msg = String((e && e.message) || '');
@@ -139,7 +150,7 @@ function apiFail(e){
   toast(humanError(e));
 }
 async function apiLoadMe(){ try { applyServer(await API.me()); } catch(e){ apiFail(e); } }
-const sandboxNote = () => window.PW && API ? `<div class="pw-note"><b>Banque de test (sandbox Powens)</b>
+const sandboxNote = () => window.PW && API && !powensProd() ? `<div class="pw-note"><b>Banque de test (sandbox Powens)</b>
   ${window.PW.testCreds.map(c=>`<div><span>${c.bank}</span>${c.fields}</div>`).join('')}
   <p>Pendant la bêta privée, seules les fausses banques de test sont proposées.</p></div>` : '';
 const notBank = (extra='') => `<p class="notbank ${extra}">⟦shield⟧<span><b>${APP_NAME} n’est pas une banque.</b> C’est une télécommande élégante pour celles que vous avez déjà : on s’y branche en lecture seule, via un agrégateur agréé par l’ACPR.</span></p>`;
@@ -147,9 +158,10 @@ const pwNote = () => `<div class="pw-note"><b>Identifiants de test Powens</b>
   ${(PWX ? PWX.testCreds : []).map(c=>`<div><span>${c.bank}</span>${c.fields}</div>`).join('')}
   <p>Fausses banques, faux comptes : aucune vraie donnée. Session de test valable 30 min, gardée seulement dans cet onglet.</p></div>`;
 function pwConnect(){
+  if (powensProd()) return toast('La connexion à votre banque passe par nos serveurs.');
   if (!PWX) return toast('Module Powens indisponible');
   toast('Ouverture de la banque de test Powens…');
-  PWX.start().catch(err => toast(humanError(err, 'La banque de test est injoignable. Réessayez.')));
+  PWX.start().catch(err => toast(err && err.code === 'serverOnly' ? err.message : humanError(err, 'La banque de test est injoignable. Réessayez.')));
 }
 
 
@@ -1108,12 +1120,14 @@ screens.banques = () => {
   <div class="card bankcard">
     <div style="display:flex;gap:12px;align-items:center">${bankTile(b, 'lg')}
       <div style="flex:1"><div style="font-weight:700">${b.name}</div><div class="muted small">${b.accounts}</div></div>
-      <span class="status ${b.status==='expired'?'err':'ok'}">${b.status==='expired'?'Expirée':'Connectée'}</span></div>
+      <span class="status ${b.status==='ok'?'ok':'err'}">${b.status==='error'?'En échec':b.status==='expired'?'Expirée':b.status==='sca'?'À renouveler':'Connectée'}</span></div>
     <div class="kv"><span>Données lues</span><span>${b.sync}</span></div>
-    <div class="kv"><span>${API ? 'Accès bancaire' : 'Session de test'}</span><span class="${b.status==='expired'?'t-amber':''}">${b.expires}</span></div>
+    <div class="kv"><span>${API ? 'Accès bancaire' : 'Session de test'}</span><span class="${b.status==='ok'?'':'t-amber'}">${b.expires}</span></div>
     ${LIVE.accounts.map(a=>`<div class="kv"><span class="small">${a.name}</span><span class="nw">${(a.balance||0).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})} ${a.currency==='EUR'||!a.currency?'€':a.currency}</span></div>`).join('')}
+    ${b.status==='error' ? `<div class="banner err" style="margin:10px 0 0"><span class="ic">⟦link⟧</span><div><b>La banque ne répond plus</b>Souvent après un changement d’identifiant. Reconnectez-vous pour relire vos comptes.</div></div>` : ''}
+    ${b.status==='sca' ? `<div class="banner amber" style="margin:10px 0 0"><span class="ic">⟦key⟧</span><div><b>Renouvelez l’accès à votre banque</b>Votre banque redemande une validation tous les 180 jours. Sans ce renouvellement, la lecture de vos comptes s’arrête.</div></div>` : ''}
     ${b.status==='expired' ? `<div class="banner amber" style="margin:10px 0 0"><span class="ic">⟦key⟧</span><div><b>Session de test expirée</b>Le jeton Powens de test ne dure que 30 minutes. Les résultats restent affichés ; reconnectez-vous pour relire les comptes.</div></div>` : ''}
-    <button class="btn small-btn" id="${API ? 'api-sync' : b.status==='expired'?'pw-connect':'pw-refresh'}" style="margin-top:12px">${b.status==='expired'?'Reconnecter la banque de test':'Relire les opérations'}</button>
+    <button class="btn small-btn" id="${API ? (b.status==='sca' || b.status==='error' ? 'api-reconnect' : 'api-sync') : b.status==='expired'?'pw-connect':'pw-refresh'}" style="margin-top:12px">${b.status==='error'?'Reconnecter la banque':b.status==='sca'?'Renouveler l’accès':b.status==='expired'?'Reconnecter la banque de test':'Relire les opérations'}</button>
   </div>
   <p class="muted small" style="margin:2px 2px 12px">Comptes en euros uniquement. ${LIVE.subs.length} prélèvement${LIVE.subs.length>1?'s':''} retenu${LIVE.subs.length>1?'s':''} sur ${LIVE.txCount} opérations : « confirmé » = au moins 2 prélèvements à ~1 mois d’écart et montant à ±10 % ; « probable » = 1 seul prélèvement au libellé typique d’un abonnement.</p>
   ${API ? sandboxNote() : `<button class="btn ghost" id="pw-quit">Revenir aux données d’exemple</button>
@@ -1650,9 +1664,9 @@ screens.pwscan = () => `
 async function runPwScan(){
   const fail = (title, text) => { const e = $('#pw-err'); if (e) e.innerHTML = icons(`<div class="banner err" style="margin-top:18px;text-align:left"><span class="ic">⟦alert⟧</span><div><b>${title}</b>${text}</div></div>
     <button class="btn" id="pw-connect">Réessayer</button><a class="btn ghost" href="#/onboarding" id="pw-quit">Revenir à la démo</a>`); };
-  const err = PWX.returnError();
+  const back = PWX.returnError();
   history.replaceState(null, '', location.pathname + '#/pwscan');
-  if (err) return fail('Connexion annulée', 'La connexion a été annulée. Vous pouvez réessayer quand vous voulez.');
+  if (back) return fail(back.title || 'Connexion impossible', back.text || 'Réessayez dans un instant.');
   const tk = PWX.tokenInfo();
   if (!tk || tk.expired) return fail('Session de test expirée', 'La session de test ne dure que 30 minutes. Relancez la connexion.');
   try {
@@ -1725,16 +1739,25 @@ async function apiVerify(token){
 async function apiFinish(){
   const p = API.returnParams();
   history.replaceState(null, '', location.pathname + '#/apiwait');
-  const fail = (t, x) => { const e = $('#api-err'); if (e) e.innerHTML = icons(`<div class="banner err" style="margin-top:18px;text-align:left"><span class="ic">⟦alert⟧</span><div><b>${t}</b>${esc(x)}</div></div><button class="btn" id="api-connect">Réessayer</button><a class="btn ghost" href="#/onboarding">Plus tard</a>`); };
+  const fail = (t, x) => { API.clearBankReturn(); const e = $('#api-err'); if (e) e.innerHTML = icons(`<div class="banner err" style="margin-top:18px;text-align:left"><span class="ic">⟦alert⟧</span><div><b>${t}</b>${esc(x)}</div></div><button class="btn" id="${p && p.flow==='reconnect' ? 'api-reconnect' : 'api-connect'}">Réessayer</button><a class="btn ghost" href="#/onboarding">Plus tard</a>`); };
   if (!p) return fail('Retour de connexion incomplet', 'Relancez la connexion de votre banque.');
+  if (p.cancelled || p.reason === 'state' || (p.error && !p.ok)) return fail(p.title || 'Connexion impossible', p.text || 'Réessayez dans un instant.');
   try {
+    if (p.flow === 'reconnect') {
+      await API.finishConnect(p);
+      await apiLoadMe();
+      location.hash = '#/dashboard';
+      toast('Accès bancaire renouvelé');
+      return;
+    }
     const r = await API.finishConnect(p);
     await apiLoadMe();
     location.hash = '#/dashboard';
     toast(`${r.subscriptions} prélèvement${r.subscriptions>1?'s':''} récurrent${r.subscriptions>1?'s':''} détecté${r.subscriptions>1?'s':''}${r.history && r.history.limited ? ' (historique court)' : ''}`);
   } catch(e){
     if (e.status === 401) return apiFail(e);
-    if (p.error) return fail('Connexion annulée', 'La connexion a été annulée. Vous pouvez réessayer quand vous voulez.');
+    if (p.flow === 'reconnect') return fail('Renouvellement impossible', humanError(e, 'Le renouvellement n’a pas abouti. Réessayez dans un instant.'));
+    if (p.error) return fail(p.title || 'Connexion impossible', p.text || 'Réessayez dans un instant.');
     // la banque met parfois quelques secondes à transmettre les comptes : on retente via une synchro (le retour n'est valable qu'une fois)
     for (const wait of [4000, 8000, 15000]) {
       await new Promise(ok => setTimeout(ok, wait));
@@ -1758,7 +1781,7 @@ function render(){
   const bar = $('#app .sub-bar'); if (bar) document.body.appendChild(bar);
   const tabbed = ['dashboard','graphiques','operations','abonnements','alertes','premium','abo','aide','apropos','banques','banque','compte','apparence','parrainage'].includes(name) || (!screens[name]);
   $('#tabbar').hidden = !tabbed;
-  if (API && ['onboarding','connexion','dashboard','connect','banques'].includes(name)){ const sc = $('#app').firstElementChild; if (sc && !sc.querySelector('.alpha-note')) sc.insertAdjacentHTML('afterbegin', '<div class="alpha-note" role="note"><b>Bêta privée</b> — banques de test uniquement pour l’instant</div>'); }
+  if (API && ['onboarding','connexion','dashboard','connect','banques'].includes(name)){ const sc = $('#app').firstElementChild; if (sc && !sc.querySelector('.alpha-note')) sc.insertAdjacentHTML('afterbegin', powensProd() ? '<div class="alpha-note" role="note"><b>Lecture seule</b> — vos identifiants restent chez votre banque</div>' : '<div class="alpha-note" role="note"><b>Bêta privée</b> — banques de test uniquement pour l’instant</div>'); }
   const tabName = name==='abo' || name==='operations' ? 'abonnements' : !screens[name] ? 'dashboard' : name;
   document.querySelectorAll('#tabbar a').forEach(a => { const on = a.dataset.tab === tabName; a.classList.toggle('on', on); if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
   const unreadN = alerts().filter(a => !state.readAlerts.includes(a.id)).length;
@@ -1831,7 +1854,7 @@ document.addEventListener('click', e => {
   }
   const appIco = e.target.closest('[data-app-icon]');
   if (appIco){ pickIcon(appIco.dataset.appIcon); return; }
-  const el = e.target.closest('[data-bank],[data-method],[data-toast],[data-billing],[data-alert],[data-af],[data-alert-set],[data-plan],#go-scan,#keep,#confirm-resil,#go-premium,#reset,#read-all,#pw-connect,#pw-quit,#pw-refresh,#api-connect,#api-sync,#api-logout,#api-delete,#login-again,#del-check,#copy-letter,#print-letter,#billing-portal,#toggle-balance');
+  const el = e.target.closest('[data-bank],[data-method],[data-toast],[data-billing],[data-alert],[data-af],[data-alert-set],[data-plan],#go-scan,#keep,#confirm-resil,#go-premium,#reset,#read-all,#pw-connect,#pw-quit,#pw-refresh,#api-connect,#api-reconnect,#api-sync,#api-logout,#api-delete,#login-again,#del-check,#copy-letter,#print-letter,#billing-portal,#toggle-balance');
   if (!el) return;
   if (el.dataset.toast){ e.preventDefault(); toast(el.dataset.toast); }
   else if (el.dataset.bank){ state.bank = el.dataset.bank; save(); render(); }
@@ -1849,6 +1872,7 @@ document.addEventListener('click', e => {
     save(); render();
   }
   else if (el.id==='api-connect'){ e.preventDefault(); toast('Ouverture de la connexion bancaire…'); API.connectBank().catch(apiFail); }
+  else if (el.id==='api-reconnect'){ e.preventDefault(); toast('Ouverture du renouvellement…'); API.reconnect(LIVE && LIVE.connectionId).catch(apiFail); }
   else if (el.id==='toggle-balance'){ state.hideBalance = !state.hideBalance; save(); render(); }
   else if (el.id==='copy-letter'){ const l = $('.letter'); navigator.clipboard && l ? navigator.clipboard.writeText(l.innerText).then(()=>toast('Lettre copiée'), ()=>toast('Copie impossible')) : toast('Copie impossible'); }
   else if (el.id==='copy-ref'){ const t = refShareText(); navigator.clipboard ? navigator.clipboard.writeText(t).then(()=>toast('Code copié'), ()=>toast(refCode())) : toast(refCode()); }
@@ -1926,7 +1950,7 @@ if (PWX && !QS.has('demo')) {
   else { const r = PWX.result(); if (r) applyLive(r); }
 }
 // expiration du jeton de test (30 min) : on rafraîchit l'affichage quand elle survient
-setInterval(() => { if (LIVE && /banques|dashboard|alertes/.test(location.hash)) { const tk = PWX.tokenInfo(); if (tk && tk.expired && !tk._shown) { sessionStorage.setItem('prelevo-pw-token', JSON.stringify({...tk, _shown:1})); render(); toast('Session de test Powens expirée (30 min)'); } } }, 30000);
+setInterval(() => { if (!PWX || !LIVE || !/banques|dashboard|alertes/.test(location.hash)) return; const tk = PWX.tokenInfo(); if (tk && tk.expired && !tk._shown) { sessionStorage.setItem('prelevo-pw-token', JSON.stringify({...tk, _shown:1})); render(); toast('Session de test Powens expirée (30 min)'); } }, 30000);
 window.addEventListener('hashchange', render);
 if (API){
   if (sessionStorage.getItem('prelevo-deleted')){ sessionStorage.removeItem('prelevo-deleted'); setTimeout(()=>toast('Compte supprimé. Toutes vos données ont été effacées.'), 300); }

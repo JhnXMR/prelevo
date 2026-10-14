@@ -20,10 +20,12 @@ Après une modification, changer CACHE dans sw.js (ex. prelevo-app-v11) pour for
 
 Prix et essai : config.js (priceMonth, priceYear, trial).
 
-API Prelevo (alpha) : `apiBase` dans config.js. Vide (valeur publiée) = maquette seule, comportement inchangé.
-Renseigné (ex. `http://localhost:8795`) = connexion par lien magique (`#/connexion?token=`), banque via `POST /bank/connect` puis
+API Prelevo (alpha) : `apiBase` dans config.js. Vide = maquette seule. Renseigné (valeur publiée : l’API sur Clever Cloud) =
+connexion par lien magique (`#/connexion?token=`), banque via `POST /bank/connect` puis
 retour Webview `POST /bank/callback` (state vérifié), écrans depuis `GET /me`, Réglages > Se déconnecter / Supprimer mon compte (`DELETE /me`).
 `?demo=1` reste toujours en données d'exemple. Le service worker ne met jamais en cache les appels API (autre origine, en-tête Authorization, /auth /bank /me).
+
+Powens : `config.js` → `powens` (env `sandbox` par défaut, valeurs publiques seulement). La webview de test reste dans le navigateur. En `production`, le navigateur n’appelle plus Powens : l’API ouvre la webview. Le code du backend (prelevo-api) n’est pas dans ce dépôt. Bascule, secrets Clever Cloud, webhooks, SCA 180 jours et suppression de compte : `docs/powens-prod.md`.
 
 Écrans : #/onboarding, #/connect, #/scan, #/dashboard, #/abonnements (?f=up|small|eco), #/abo/<id>,
 #/resilier/<id>/<1-4> (Premium), #/alertes, #/premium, #/aide, #/chat, #/banques

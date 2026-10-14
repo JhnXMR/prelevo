@@ -1,27 +1,21 @@
-/* Prelevo – connexion à la banque de TEST Powens (sandbox), 100 % côté navigateur.
-   - Aucun secret ici : client_id public uniquement. Le jeton temporaire Powens (30 min) reste en sessionStorage.
-   - Données : faux comptes de la sandbox Powens (Demo Institution / Connecteur de test). */
+/* Prelevo – connexion Powens côté navigateur.
+   Sandbox (défaut) : utilisateur temporaire, 30 min, jeton en sessionStorage, aucun secret.
+   Production : ce module ne crée pas d'utilisateur. La webview vient de l'API (jeton permanent chiffré côté serveur).
+   Domaine, client_id et redirect_uri viennent de config.js (valeurs publiques). */
 'use strict';
 (function(){
-  const PW_CFG = Object.assign({
-    domain: 'prelevo-sandbox.biapi.pro',
-    clientId: '80438676',
-    webview: 'https://webview.powens.com/fr/connect',
-    canonicalRedirect: 'https://jhnxmr.github.io/prelevo/app/'
-  }, window.POWENS_CONFIG || {});
-  const API = `https://${PW_CFG.domain}/2.0`;
-  const K_TOKEN = 'prelevo-pw-token', K_RESULT = 'prelevo-pw-result';
-  const TOKEN_TTL = 1800 * 1000;
+  const Flow = window.PowensFlow;
+  const PW_CFG = Flow ? Flow.resolvePublicConfig(window.APP_CONFIG, window.POWENS_CONFIG) : { env: 'sandbox', domain: '', clientId: '', redirectUri: '', webviewBase: '', ready: false };
+  const API = PW_CFG.domain ? `https://${PW_CFG.domain}/2.0` : '';
+  const K_TOKEN = 'prelevo-pw-token', K_RESULT = 'prelevo-pw-result', K_STATE = 'prelevo-pw-state';
 
   const ss = {
     get(k){ try { return JSON.parse(sessionStorage.getItem(k) || 'null'); } catch(e){ return null; } },
     set(k, v){ sessionStorage.setItem(k, JSON.stringify(v)); },
     del(k){ sessionStorage.removeItem(k); }
   };
-  // Le redirect_uri doit être déclaré dans la console Powens : on n'utilise que l'URL publiée.
-  const redirectUri = () => /(^|\.)jhnxmr\.github\.io$/.test(location.hostname)
-    ? location.origin + location.pathname.replace(/index\.html$/, '')
-    : PW_CFG.canonicalRedirect;
+  // Le redirect_uri doit être déclaré dans la console Powens.
+  const redirectUri = () => Flow ? Flow.redirectFor(PW_CFG, location) : PW_CFG.redirectUri;
 
   class PwError extends Error { constructor(msg, status, code){ super(msg); this.status = status; this.code = code; } }
   async function api(path, opts = {}){
@@ -34,24 +28,28 @@
     return data;
   }
 
-  // 1) jeton temporaire (sans secret) -> 2) code à usage unique -> 3) webview Powens
+  // Sandbox seulement : 1) jeton temporaire (sans secret) -> 2) code à usage unique -> 3) webview Powens
   async function start(){
+    if (PW_CFG.env === 'production') throw new PwError('La connexion à votre banque passe par nos serveurs.', 0, 'serverOnly');
+    if (!PW_CFG.ready || !Flow) throw new PwError('La connexion à la banque de test n’est pas configurée.', 0, 'config');
     const init = await api('/auth/init', { method: 'POST', token: null });
     if (!init || !init.auth_token) throw new PwError('Jeton Powens non reçu');
+    if (init.type === 'permanent') throw new PwError('Réponse Powens inattendue.', 0, 'permanent');
     ss.set(K_TOKEN, { token: init.auth_token, exp: Date.now() + (init.expires_in || 1800) * 1000 });
     ss.del(K_RESULT);
     const code = await api('/auth/token/code?type=singleAccess', { token: init.auth_token });
-    const u = new URL(PW_CFG.webview);
-    u.searchParams.set('domain', PW_CFG.domain);
-    u.searchParams.set('client_id', PW_CFG.clientId);
-    u.searchParams.set('redirect_uri', redirectUri());
-    u.searchParams.set('code', code.code);
-    location.assign(u.toString());
+    const state = Flow.randomState();
+    ss.set(K_STATE, state);
+    location.assign(Flow.buildWebviewUrl({
+      webviewBase: PW_CFG.webviewBase, domain: PW_CFG.domain, clientId: PW_CFG.clientId,
+      redirectUri: redirectUri(), code: code.code, state: state, flow: 'connect'
+    }));
   }
 
   const tokenInfo = () => { const t = ss.get(K_TOKEN); if (!t) return null; return Object.assign({}, t, { expired: Date.now() >= t.exp }); };
-  const isReturn = () => { const q = new URLSearchParams(location.search); return q.has('connection_id') || (q.has('error') && !!ss.get(K_TOKEN)); };
-  const returnError = () => { const q = new URLSearchParams(location.search); return q.get('error') ? (q.get('error_description') || q.get('error')) : null; };
+  const outcome = () => Flow ? Flow.callbackOutcome(location.search, ss.get(K_STATE), 'connect') : null;
+  const isReturn = () => { const o = outcome(); return !!(o && (o.ok || o.cancelled || o.error || o.reason)); };
+  const returnError = () => { const o = outcome(); if (!o || o.ok) return null; return o; };
 
   // ---------- détection des prélèvements récurrents (notre algo, pas celui de Powens) ----------
   const STOP = /\b(PRLV|PRELEVEMENT|PRELEVT|SEPA|SDD|ECH|CB|CARTE|PAIEMENT|PAIEMT|FACT|DU|LE|LA|LES|DE|DES|REF|MANDAT|ICS|EUR|FR)\b/g;
@@ -222,11 +220,11 @@
     return result;
   }
 
-  function clear(){ ss.del(K_TOKEN); ss.del(K_RESULT); }
+  function clear(){ ss.del(K_TOKEN); ss.del(K_RESULT); ss.del(K_STATE); }
 
-  window.PW = { start, fetchAll, detect, norm, clear, tokenInfo, isReturn, returnError,
+  window.PW = { start, fetchAll, detect, norm, clear, tokenInfo, isReturn, returnError, outcome,
     result: () => ss.get(K_RESULT), config: PW_CFG, PwError,
-    testCreds: [
+    testCreds: PW_CFG.env === 'production' ? [] : [
       { bank: 'Demo Institution', fields: 'Cherchez « demo » · Usecase : bank · Mot de passe : n’importe lequel (ex. 1234) · puis « Tout sélectionner » et « Connecter »' }
     ] };
 })();
