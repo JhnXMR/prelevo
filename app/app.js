@@ -1921,6 +1921,75 @@ function pickIcon(v){
   render();
   toast(v === 'noir' ? 'Icône noire' : v === 'defaut' ? 'Icône blanche' : 'Icône par défaut');
 }
+const PUSH_KEY = 'prelevo-push';
+const PUSH_KINDS = [
+  ['calendar', 'Prélèvement à venir', 'La veille, pour un prélèvement prévu le lendemain.'],
+  ['trend', 'Hausse de prix', 'Quand le montant d’un abonnement augmente.'],
+  ['coin', 'Budget à 80 % et à 100 %', 'Quand vos dépenses du mois atteignent ces seuils.'],
+];
+let pushDemo = null;
+function readPushPref() {
+  const raw = Store.readJSON(PUSH_KEY, {});
+  return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+}
+function pushSupported() {
+  return typeof Notification !== 'undefined' && 'serviceWorker' in navigator;
+}
+function vapidKey() {
+  return String((CFG && CFG.vapidPublicKey) || '').trim();
+}
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(base64);
+  const out = new Uint8Array(raw.length);
+  for (let i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+async function enablePush() {
+  if (!pushSupported()) { toast('Les notifications ne sont pas disponibles sur cet appareil.'); return; }
+  let permission;
+  try { permission = await Notification.requestPermission(); }
+  catch (e) { toast('L’autorisation n’a pas abouti.'); return; }
+  const rec = { opted: permission === 'granted', permission: permission, at: Date.now() };
+  if (permission !== 'granted') {
+    Store.writeJSON(PUSH_KEY, rec);
+    render();
+    toast(permission === 'denied' ? 'Les notifications sont bloquées dans les réglages de cet appareil.' : 'Vous pourrez les activer plus tard, depuis cet écran.');
+    return;
+  }
+  const key = vapidKey();
+  if (key) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(key) });
+      rec.subscription = sub.toJSON();
+    } catch (e) { rec.subscribeError = true; }
+  }
+  Store.writeJSON(PUSH_KEY, rec);
+  render();
+  toast(key ? 'Notifications activées.' : 'Notifications activées sur cet appareil.');
+}
+async function demoPush() {
+  if (!pushSupported()) { toast('Les notifications ne sont pas disponibles sur cet appareil.'); return; }
+  if (Notification.permission !== 'granted') {
+    await enablePush();
+    if (Notification.permission !== 'granted') return;
+  }
+  const title = 'Prélèvement demain';
+  const body = 'FibreBox Internet · 39,99 €';
+  const opts = { body: body, tag: 'prelevo-demo-prelevement', icon: 'icons/icon-192.png', data: { url: '#/alertes', kind: 'prelevement' } };
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    await reg.showNotification(title, opts);
+  } catch (e) {
+    try { new Notification(title, opts); }
+    catch (err) { toast('L’exemple n’a pas pu s’afficher.'); return; }
+  }
+  pushDemo = { title: title, body: body };
+  toast('Exemple envoyé : prélèvement demain.');
+  render();
+}
 screens.compte = () => {
   const P = isP(), unread = alerts().filter(a => !state.readAlerts.includes(a.id)).length;
   const row = (href, ic, lab, aside='') => `<a class="acct-row" href="${href}"><span class="acct-ic">⟦${ic}⟧</span><span class="acct-lab">${lab}</span>${aside ? `<span class="acct-aside">${aside}</span>` : ''}<span class="acct-go">⟦chev⟧</span></a>`;
@@ -1945,6 +2014,7 @@ screens.compte = () => {
   <div class="menu-card">
     <button type="button" class="acct-row" id="toggle-balance" role="switch" aria-checked="${state.hideBalance ? 'true' : 'false'}"><span class="acct-ic">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</span><span class="acct-lab">Masquer le solde</span><span class="sw ${state.hideBalance ? 'on' : ''}"></span></button>
     ${row('#/apparence','auto','Apparence', themeLabel())}
+    ${row('#/notifications','bell','Notifications', (pushSupported() && Notification.permission === 'granted' && readPushPref().opted) ? 'Activées' : 'Désactivées')}
     ${row('#/premium','star',APP_NAME+' Premium', P ? 'Actif' : 'Gratuit')}
     ${row('#/parrainage','gift','Parrainage','1 mois offert')}
     <button type="button" class="acct-row danger" id="reset"><span class="acct-ic">⟦refresh⟧</span><span class="acct-lab">Réinitialiser les données</span></button>
@@ -1968,6 +2038,26 @@ screens.apropos = () => `
   </div>
   <button class="btn ghost" id="reset" type="button">Réinitialiser les données</button>
 </div>`;
+screens.notifications = () => {
+  const pref = readPushPref();
+  const perm = pushSupported() ? Notification.permission : 'unsupported';
+  const on = perm === 'granted' && pref.opted;
+  const key = vapidKey();
+  const kinds = PUSH_KINDS.map(([ic, title, text]) => `<div class="push-kind"><span class="acct-ic">⟦${ic}⟧</span><span><b>${title}</b><small>${text}</small></span></div>`).join('');
+  return `
+<div class="screen">
+  <div class="topbar look-bar"><a class="back" href="#/compte" aria-label="Retour">⟦back⟧</a><h1>Notifications</h1><span></span></div>
+  <p class="push-lead">Vous activez les alertes ici, sur cet appareil. Quatre cas : un prélèvement prévu pour le lendemain, une hausse de prix, le budget à 80 % et le budget à 100 %.</p>
+  <div class="menu-card">${kinds}</div>
+  <p class="push-ios">Sur iPhone, ajoutez Prelevo à l’écran d’accueil. Les alertes arrivent à partir d’iOS 16.4, une fois l’app installée.</p>
+  ${perm === 'denied' ? '<p class="push-status">Les notifications sont bloquées dans les réglages de cet appareil. Autorisez-les pour Prelevo, puis revenez ici.</p>' : ''}
+  ${perm === 'unsupported' ? '<p class="push-status">Cet appareil ne propose pas les notifications.</p>' : ''}
+  ${on ? `<p class="push-status">Notifications activées sur cet appareil.${key ? '' : ' La clé publique du serveur est vide : l’exemple reste local.'}</p>` : ''}
+  ${on || perm === 'unsupported' ? '' : '<button class="btn" type="button" id="enable-push">Activer les notifications</button>'}
+  ${perm === 'unsupported' ? '' : `<button class="btn ${on ? '' : 'ghost'}" type="button" id="demo-push">Voir un exemple</button>`}
+  ${pushDemo ? `<p class="push-note" role="status"><b>${esc(pushDemo.title)}</b><span>${esc(pushDemo.body)}</span></p>` : ''}
+</div>`;
+};
 function refCode(){
   const saved = Store.readRaw('prelevo-ref');
   if (saved) return saved;
@@ -2613,10 +2703,18 @@ document.addEventListener('input', e => {
   });
   if (document.querySelector('.act-list .mo')) txEmptyNode(!n, s);
 });
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', ev => {
+    const data = ev.data || {};
+    if (data.type === 'prelevo-open' && typeof data.url === 'string' && data.url.charAt(0) === '#') location.hash = data.url;
+  });
+}
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape' && document.querySelector('.cat-sheet')) { closeCatSheet(); e.preventDefault(); }
 });
 document.addEventListener('click', e => {
+  if (e.target.closest('#enable-push')) { enablePush(); return; }
+  if (e.target.closest('#demo-push')) { demoPush(); return; }
   const catBtn = e.target.closest('[data-cat-edit]');
   if (catBtn) { e.preventDefault(); openCatSheet(catBtn.dataset.catName || '', catBtn.dataset.catCurrent || 'autre'); return; }
   if (e.target.closest('[data-cat-close]')) { closeCatSheet(); return; }
@@ -2717,6 +2815,7 @@ document.addEventListener('click', e => {
     Store.remove(KEY);
     Store.remove('prelevo-refs');
     Store.remove(BUDGET_KEY);
+    Store.remove(PUSH_KEY);
     Store.remove(CAT_KEY);
     const demo = QS.has('demo') || (!API && !LIVE);
     const q = location.search || (demo ? '?demo=1' : '');
