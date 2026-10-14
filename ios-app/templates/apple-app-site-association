@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAMID.fr.prelevo.app",
+        "paths": ["/prelevo/app", "/prelevo/app/", "/prelevo/app/*"]
+      }
+    ]
+  }
+}

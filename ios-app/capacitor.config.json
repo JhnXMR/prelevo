@@ -1,0 +1,28 @@
+{
+  "appId": "fr.prelevo.app",
+  "appName": "Prelevo",
+  "webDir": "www",
+  "server": {
+    "iosScheme": "https"
+  },
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0066FF"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "launchShowDuration": 600,
+      "backgroundColor": "#0066FF",
+      "showSpinner": false,
+      "launchFadeOutDuration": 200
+    },
+    "PushNotifications": {
+      "presentationOptions": [
+        "badge",
+        "sound",
+        "alert"
+      ]
+    }
+  }
+}

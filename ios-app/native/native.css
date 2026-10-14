@@ -1,0 +1,48 @@
+/* Règles actives seulement dans l'app iOS (html.native-ios). La PWA ne charge pas ce fichier. */
+html.native-ios {
+  --prelevo-safe-top: env(safe-area-inset-top);
+  --prelevo-safe-bottom: env(safe-area-inset-bottom);
+}
+html.native-ios .screen {
+  padding-top: calc(18px + max(env(safe-area-inset-top), var(--prelevo-safe-top, 0px)));
+  padding-bottom: calc(108px + env(safe-area-inset-bottom));
+}
+html.native-ios .tabbar {
+  bottom: calc(8px + max(env(safe-area-inset-bottom), var(--prelevo-safe-bottom, 0px)));
+}
+html.native-ios .native-lock {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));
+  background: var(--bg, #fff);
+  color: var(--ink, #0A0B0D);
+  text-align: center;
+}
+html.native-ios .native-lock h1 {
+  font-size: 22px;
+  letter-spacing: -.03em;
+  font-weight: 650;
+}
+html.native-ios .native-lock p {
+  color: var(--ink2, #5B616E);
+  font-size: 15px;
+  line-height: 1.4;
+  max-width: 280px;
+}
+html.native-ios .native-lock .btn { min-height: 52px; width: min(320px, 100%); }
+html.native-ios .toast { z-index: 90; }
+html.native-ios .native-pay-note {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: var(--soft, #F5F6F8);
+  color: var(--ink2, #5B616E);
+  font-size: 14px;
+  line-height: 1.4;
+}

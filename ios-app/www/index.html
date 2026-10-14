@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#FFFFFF">
+  <script>/* thème Jour / Nuit / Automatique, appliqué avant le CSS : pas de flash */
+  (function(){var K='prelevo-theme',t,d=document.documentElement,m=window.matchMedia&&matchMedia('(prefers-color-scheme: dark)');
+  try{t=localStorage.getItem(K)}catch(e){} if(t!=='light'&&t!=='dark')t='auto';
+  function a(){var n=t==='dark'||(t==='auto'&&m&&m.matches);d.setAttribute('data-theme',n?'dark':'light');d.setAttribute('data-theme-pref',t);
+    var c=document.querySelector('meta[name="theme-color"]');if(c)c.setAttribute('content',n?'#0A0B0D':'#FFFFFF');
+    var s=document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');if(s)s.setAttribute('content',n?'black':'default')}
+  window.PrelevoTheme={get:function(){return t},set:function(v){t=(v==='light'||v==='dark')?v:'auto';try{t==='auto'?localStorage.removeItem(K):localStorage.setItem(K,t)}catch(e){}a()}};
+  if(m){m.addEventListener?m.addEventListener('change',function(){if(t==='auto')a()}):m.addListener&&m.addListener(function(){if(t==='auto')a()})}
+  a()})();</script>
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="Prelevo – l'app qui traque vos abonnements. Maquette cliquable (données d'exemple).">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Prelevo">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/favicon.svg?v=85" type="image/svg+xml">
+  <link rel="icon" href="icons/favicon-32.png?v=85" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon-180.png?v=85" sizes="180x180">
+  <link rel="stylesheet" href="styles.css?v=86">
+  <title>Prelevo – l'app qui traque vos abonnements</title>
+</head>
+<body>
+  <div id="app" class="app"></div>
+  <nav id="tabbar" class="tabbar" hidden aria-label="Navigation principale">
+    <a href="#/dashboard" data-tab="dashboard" aria-label="Accueil"><span class="ti"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 11l8-7 8 7v9H4z"/></svg></span><span class="lab">Accueil</span></a>
+    <a href="#/graphiques" data-tab="graphiques" aria-label="Graphiques"><span class="ti"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5M4 19h16"/><path d="M8 15l3.2-3.6 2.6 2.2L19 7"/></svg></span><span class="lab">Graphiques</span></a>
+    <a href="#/abonnements" data-tab="abonnements" aria-label="Transactions"><span class="ti"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></span><span class="lab">Transactions</span></a>
+    <a href="#/alertes" data-tab="alertes" aria-label="Alertes"><span class="ti"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><i id="alert-dot" class="dot"></i></span><span class="lab">Alertes</span></a>
+    <a href="#/premium" data-tab="premium" aria-label="Premium"><span class="ti"><svg class="i" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="lab">Premium</span></a>
+  </nav>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="config.js"></script>
+  <script src="powens.js"></script>
+  <script src="api.js"></script>
+  <script src="store.js?v=86"></script>
+  <script src="app.js?v=86"></script>
+  <link rel="stylesheet" href="native.css">
+  <script src="links.js"></script>
+  <script src="native.js"></script>
+</body>
+</html>
