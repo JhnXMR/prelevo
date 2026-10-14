@@ -633,7 +633,7 @@ function spark(curve){
   const nLab = homeTf === '24H' || homeTf === '7J' ? 4 : 5;
   const seen = new Set(), idxs = [];
   for (let k = 0; k < nLab; k++){ const i = Math.round(k * (curve.length - 1) / (nLab - 1)); if (!seen.has(i)) { seen.add(i); idxs.push(i); } }
-  const lab = d => homeTf === '24H' ? String(d.getHours()).padStart(2, '0') + ' h' : (homeTf === '1A' || homeTf === 'TOUT') ? MOIS[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2) : d.getDate() + ' ' + MOIS[d.getMonth()];
+  const lab = d => homeTf === '24H' ? String(d.getHours()).padStart(2, '0') + ' h' : (homeTf === '3M' || homeTf === '1A' || homeTf === 'TOUT') ? MOIS[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2) : d.getDate() + ' ' + MOIS[d.getMonth()];
   const axis = idxs.map((i, k) => `<span class="${k === 0 ? 'a0' : k === idxs.length - 1 ? 'a1' : ''}" style="left:${track[i].x.toFixed(2)}%">${lab(curve[i].t)}</span>`).join('');
   return `<div class="spark home-spark" role="img" aria-label="Évolution du solde sur ${tf[2]}. Glissez pour voir le détail."><div class="spark-plot"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
     <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".5"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
@@ -662,36 +662,54 @@ function curveChart(curve, opt = {}){
   const W = 340, PADL = 4, PADR = 12, PADT = 10, PADB = 8;
   let lo = Math.min(...curve.map(p => p.v)), hi = Math.max(...curve.map(p => p.v));
   if (opt.zero){ lo = Math.min(lo, 0); hi = Math.max(hi, 0); }
+  if (hi === lo) {
+    if (hi === 0) hi = 1;
+    else if (hi > 0) lo = 0;
+    else hi = 0;
+  }
   const span = hi - lo || 1;
   const x = i => PADL + (i / (curve.length - 1)) * (W - PADL - PADR);
   const y = v => PADT + (hi - v) / span * (H - PADT - PADB);
   const pts = curve.map((p, i) => [x(i), y(p.v)]);
-  const d = pts.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const seg = arr => arr.map((p, i) => (i ? 'L' : 'M') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const partial = curve.length >= 2 && !!curve[curve.length - 1].partial;
+  const d = seg(pts);
+  const solid = partial ? seg(pts.slice(0, -1)) : d;
+  const dash = partial ? seg(pts.slice(-2)) : '';
   const last = pts[pts.length - 1], first = pts[0];
   const area = `${d} L${last[0].toFixed(1)},${H} L${first[0].toFixed(1)},${H} Z`;
   const idx = CURVES.length;
   const gid = 'spk' + idx;
   CURVES.push({
-    pts: curve.map((p, i) => ({ x: pts[i][0] / W * 100, y: pts[i][1] / H * 100, v: p.v, t: p.t })),
-    poly: pts, H, line: d, area, fmt: opt.fmt || 'day', signed: !!opt.signed, home: false, link: opt.link || '', slot: opt.slot || ''
+    pts: curve.map((p, i) => ({ x: pts[i][0] / W * 100, y: pts[i][1] / H * 100, v: p.v, t: p.t, partial: !!p.partial })),
+    poly: pts, H, line: solid, area, fmt: opt.fmt || 'day', signed: !!opt.signed, home: false, link: opt.link || '', slot: opt.slot || ''
   });
   const n = curve.length, idxs = [];
-  if (opt.fmt === 'month'){ for (let i = 0; i < n; i++) if (n <= 6 || i === 0 || i === n - 1 || i % 2 === 0) idxs.push(i); }
-  else { const seen = new Set(); for (let k = 0; k < 4; k++){ const i = Math.round(k * (n - 1) / 3); if (!seen.has(i)){ seen.add(i); idxs.push(i); } } }
+  const fmt = opt.fmt || 'day';
+  if (fmt === 'month') {
+    const step = n <= 7 ? 1 : n <= 14 ? 2 : 3;
+    for (let i = 0; i < n; i++) if (i === 0 || i === n - 1 || i % step === 0) idxs.push(i);
+  } else {
+    const seen = new Set();
+    for (let k = 0; k < 4; k++){ const i = Math.round(k * (n - 1) / 3); if (!seen.has(i)){ seen.add(i); idxs.push(i); } }
+  }
   const axis = idxs.map((i, k) => {
-    const txt = opt.fmt === 'month' ? MOIS[curve[i].t.getMonth()] : curve[i].t.getDate() + ' ' + MOIS[curve[i].t.getMonth()];
+    const t = curve[i].t;
+    const txt = fmt === 'hour' ? String(t.getHours()).padStart(2, '0') + ' h' : fmt === 'month' ? MOIS[t.getMonth()] : t.getDate() + ' ' + MOIS[t.getMonth()];
     const style = k === 0 ? 'left:0' : k === idxs.length - 1 ? 'left:100%' : `left:${(pts[i][0] / W * 100).toFixed(2)}%`;
     return `<span class="${k === 0 ? 'a0' : k === idxs.length - 1 ? 'a1' : ''}" style="${style}">${txt}</span>`;
   }).join('');
   const total = opt.total != null ? opt.total : curve[curve.length - 1].v;
-  const head = opt.header != null ? opt.header : (opt.signed ? sgnEUR(total) : (opt.fmt === 'month' ? kEUR(total) : total.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'));
+  const head = opt.header != null ? opt.header : (opt.signed ? sgnEUR(total) : (fmt === 'month' ? kEUR(total) : total.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €'));
   const zero = opt.zero && lo < 0 && hi > 0 ? `<line x1="0" y1="${y(0).toFixed(1)}" x2="${W}" y2="${y(0).toFixed(1)}" stroke="currentColor" stroke-opacity=".2" stroke-dasharray="3 4"/>` : '';
+  const dotCls = partial ? 'sp-dot is-partial' : 'sp-dot';
   return `<div class="spark lite" data-curve="${idx}" ${opt.link ? `data-link="${opt.link}"` : ''} style="--spk:${color}" role="img" aria-label="${opt.label || 'Courbe. Glissez pour le détail.'}"><div class="sp-read"><span>${opt.caption || ''}</span><b>${head}</b></div><div class="spark-plot" style="height:${H}px"><svg viewBox="0 0 ${W} ${H}" style="height:${H}px" preserveAspectRatio="none" aria-hidden="true">
     <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".42"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
     ${zero}<path class="sp-area" d="${area}" fill="url(#${gid})"/>
     <path class="sp-dim" d="" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
-    <path class="sp-line" d="${d}" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
-  </svg><i class="sp-vline" hidden></i><i class="sp-dot" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%;background:${color};box-shadow:0 0 0 4px var(--bg)"></i>
+    <path class="sp-line" d="${solid}" fill="none" stroke="${color}" stroke-width="2.2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+    ${dash ? `<path class="sp-dash" d="${dash}" fill="none" stroke="${color}" stroke-width="2.2" stroke-dasharray="4 3" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
+  </svg><i class="${dotCls}" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%"></i>
   <div class="sp-hit" aria-hidden="true"></div></div><div class="sp-axis">${axis}</div></div>`;
 }
 function sparkLite(curve, color){
@@ -725,65 +743,146 @@ function incomeOf(tx){
   return tx.filter(x => x.amt > 0 && x.cat === 'revenu' && +x.t >= from);
 }
 function incomeBars(tx){ return flowBars(incomeOf(tx), 'var(--up)', 'Revenus'); }
-let deskRange = '12';
+const DESK = {
+  '24h': { label: '24 h', grain: 'hour', n: 24 },
+  '1w': { label: '1 sem.', grain: 'day', n: 7 },
+  '1m': { label: '1 mois', grain: 'day', n: 30 },
+  '6m': { label: '6 mois', grain: 'month', n: 6 },
+  '1y': { label: '1 an', grain: 'month', n: 12 },
+  'all': { label: 'Tout', grain: 'month', n: 0 },
+};
+let deskRange = '1y';
+const deskSpec = () => DESK[deskRange] || DESK['1y'];
 const kEUR = n => Math.abs(Math.round(n)).toLocaleString('fr-FR') + ' €';
 const sgnEUR = n => (n > 0 ? '+' : n < 0 ? '−' : '') + kEUR(n);
+function deskWhen(fmt, t, partial){
+  const s = fmt === 'hour' ? String(t.getHours()).padStart(2, '0') + ' h' : fmt === 'month' ? MOIS[t.getMonth()] + ' ' + t.getFullYear() : t.getDate() + ' ' + MOIS[t.getMonth()];
+  return partial ? s + ' · estimation' : s;
+}
+function spendCat(e){
+  if (e.k === 'rent') return 'logement';
+  if (e.k === 'sub') return 'abo';
+  if (e.k !== 'spend') return 'autre';
+  const a = -e.amt, pool = a < 9 ? MERCH.s : a < 40 ? MERCH.m : MERCH.l;
+  return pool[Math.floor(e.t.getTime() / 6e4) % pool.length][1];
+}
 function deskEvents(){
-  if (LIVE) return ledger().tx.filter(x => x.cat !== 'virement').map(x => ({ t: x.t, amt: x.amt, inc: x.cat === 'revenu' || x.amt > 0 }));
-  return timeline().ev.filter(e => e.k !== 'xfer').map(e => ({ t: e.t, amt: e.amt, inc: e.k === 'in' }));
+  if (LIVE) return ledger().tx.filter(x => x.cat !== 'virement').map(x => ({
+    t: x.t, amt: x.amt, inc: x.cat === 'revenu' || x.amt > 0,
+    k: x.cat === 'revenu' ? 'in' : x.cat === 'logement' ? 'rent' : x.cat === 'abo' ? 'sub' : 'spend',
+    variable: x.amt < 0 && x.cat !== 'logement' && x.cat !== 'abo',
+    cat: x.cat || 'autre'
+  }));
+  return timeline().ev.filter(e => e.k !== 'xfer').map(e => ({
+    t: e.t, amt: e.amt, inc: e.k === 'in', k: e.k, variable: e.k === 'spend', cat: spendCat(e)
+  }));
+}
+function deskBounds(now, ev){
+  const spec = deskSpec();
+  if (spec.grain === 'hour') {
+    const endH = new Date(now); endH.setMinutes(0, 0, 0);
+    return { from: new Date(endH.getTime() - 23 * 36e5), to: new Date(endH.getTime() + 36e5) };
+  }
+  if (spec.grain === 'day') {
+    const endD = day0(now);
+    return { from: new Date(endD.getTime() - (spec.n - 1) * DAY_MS), to: new Date(endD.getTime() + DAY_MS) };
+  }
+  const end = new Date(now.getFullYear(), now.getMonth(), 1);
+  let n = spec.n;
+  if (!n) {
+    const oldest = (ev || deskEvents()).reduce((m, e) => Math.min(m, +e.t), +now);
+    const o = new Date(oldest);
+    n = Math.max(1, (end.getFullYear() - o.getFullYear()) * 12 + end.getMonth() - o.getMonth() + 1);
+  }
+  return { from: new Date(end.getFullYear(), end.getMonth() - (n - 1), 1), to: new Date(end.getFullYear(), end.getMonth() + 1, 1), months: n };
+}
+function rollup(ev, start, stop, now){
+  let inc = 0, spend = 0, variable = 0, salary = false;
+  for (const e of ev) {
+    if (e.t < start || e.t >= stop || e.t > now) continue;
+    if (e.inc) { inc += toCents(Math.abs(e.amt)); if (e.k === 'in') salary = true; }
+    else if (e.amt < 0) { const c = toCents(-e.amt); spend += c; if (e.variable) variable += c; }
+  }
+  return { income: fromCents(inc), spend: fromCents(spend), variable: fromCents(variable), net: fromCents(inc - spend), salary };
+}
+function projectPartial(row, start, now){
+  const dim = new Date(start.getFullYear(), start.getMonth() + 1, 0).getDate();
+  const elapsed = Math.max(1, Math.min(dim, now.getDate()));
+  if (LIVE) {
+    const plotIncome = fromCents(Math.round(toCents(row.income) * dim / elapsed));
+    const plotSpend = fromCents(Math.round(toCents(row.spend) * dim / elapsed));
+    return { plotIncome, plotSpend, plotNet: fromCents(toCents(plotIncome) - toCents(plotSpend)) };
+  }
+  const prime = start.getMonth() === 4 ? 5200 : start.getMonth() === 11 ? 6800 : 0;
+  const extraInc = row.salary ? 0 : toCents(INCOME) + toCents(prime);
+  let extraSpend = now.getDate() < 5 ? toCents(RENT) : 0;
+  active().forEach(s => { if ((s.day || 1) > now.getDate()) extraSpend += toCents(s.price); });
+  const variablePace = Math.round(toCents(row.variable) * dim / elapsed);
+  const plotSpend = fromCents(toCents(row.spend) - toCents(row.variable) + variablePace + extraSpend);
+  const plotIncome = fromCents(toCents(row.income) + extraInc);
+  return { plotIncome, plotSpend, plotNet: fromCents(toCents(plotIncome) - toCents(plotSpend)) };
 }
 function deskSeries(){
   const ev = deskEvents();
   const now = nowRef();
-  const end = new Date(now.getFullYear(), now.getMonth(), 1);
-  let n = deskRange === '6' ? 6 : deskRange === '12' ? 12 : 18;
-  if (deskRange === 'all') {
-    const oldest = ev.reduce((m, e) => Math.min(m, +e.t), +now);
-    const o = new Date(oldest);
-    n = Math.max(1, Math.min(18, (end.getFullYear() - o.getFullYear()) * 12 + end.getMonth() - o.getMonth() + 1));
-  }
+  const spec = deskSpec();
   const rows = [];
+  const push = (start, stop, partial) => {
+    const row = rollup(ev, start, stop, now);
+    const plot = partial ? projectPartial(row, start, now) : { plotIncome: row.income, plotSpend: row.spend, plotNet: row.net };
+    rows.push({ t: start, ...row, ...plot, partial });
+  };
+  if (spec.grain === 'hour') {
+    const endH = new Date(now); endH.setMinutes(0, 0, 0);
+    for (let i = 23; i >= 0; i--) { const start = new Date(endH.getTime() - i * 36e5); push(start, new Date(+start + 36e5), false); }
+    return rows;
+  }
+  if (spec.grain === 'day') {
+    const endD = day0(now);
+    for (let i = spec.n - 1; i >= 0; i--) { const start = new Date(endD.getTime() - i * DAY_MS); push(start, new Date(+start + DAY_MS), false); }
+    return rows;
+  }
+  const end = new Date(now.getFullYear(), now.getMonth(), 1);
+  const n = deskBounds(now, ev).months;
   for (let i = n - 1; i >= 0; i--) {
     const start = new Date(end.getFullYear(), end.getMonth() - i, 1);
     const stop = new Date(start.getFullYear(), start.getMonth() + 1, 1);
-    const slice = ev.filter(e => e.t >= start && e.t < stop && e.t <= now);
-    const income = sumEuros(slice.filter(e => e.inc), e => Math.abs(e.amt));
-    const spend = sumEuros(slice.filter(e => !e.inc && e.amt < 0), e => -e.amt);
-    rows.push({ t: start, income, spend, net: income - spend });
+    push(start, stop, start.getFullYear() === now.getFullYear() && start.getMonth() === now.getMonth() && now < stop);
   }
   return rows;
 }
-function monthAxis(series, key){
-  const n = series.length;
-  const vals = key ? series.map(s => Math.abs(s[key])) : [];
-  const max = vals.length ? Math.max(...vals, 0) : 0;
-  const peak = new Set();
-  if (max > 0) vals.forEach((v, i) => { if (v >= max * .7) peak.add(i); });
-  return series.map((s, i) => {
-    const show = n <= 6 || i === 0 || i === n - 1 || (key ? peak.has(i) : i % 2 === 0);
-    if (!show) return '';
-    return `<span style="left:${((i + .5) / n * 100).toFixed(2)}%">${MOIS[s.t.getMonth()]}</span>`;
-  }).join('');
+function deskTitles(){
+  const g = deskSpec().grain;
+  if (g === 'hour') return { spend: 'Dépenses par heure', income: 'Rentrées par heure', net: 'Net par heure', fmt: 'hour' };
+  if (g === 'day') return { spend: 'Dépenses par jour', income: 'Rentrées par jour', net: 'Net par jour', fmt: 'day' };
+  return { spend: 'Dépenses mensuelles', income: 'Rentrées d’argent', net: 'Net', fmt: 'month' };
 }
 function monthBars(series, key, color){
-  const curve = series.map(s => ({ t: s.t, v: s[key] }));
+  const plotKey = key === 'income' ? 'plotIncome' : 'plotSpend';
+  const titles = deskTitles();
+  const curve = series.map(s => ({ t: s.t, v: s[plotKey], partial: s.partial }));
   if (curve.length < 2) return '';
-  const total = sumEuros(curve, p => p.v);
-  return curveChart(curve, { color, h: 108, fmt: 'month', total, link: 'desk', slot: key === 'income' ? 'income' : 'spend', label: key === 'income' ? 'Rentrées' : 'Dépenses mensuelles' });
+  const total = sumEuros(series, s => s[key]);
+  const label = (key === 'income' ? titles.income : titles.spend) + (curve[curve.length - 1].partial ? '. Le dernier point est une estimation.' : '');
+  return curveChart(curve, { color, h: 108, fmt: titles.fmt, total, header: kEUR(total), link: 'desk', slot: key, label });
 }
 function netLine(series){
-  const curve = series.map(s => ({ t: s.t, v: s.net }));
+  const titles = deskTitles();
+  const curve = series.map(s => ({ t: s.t, v: s.plotNet, partial: s.partial }));
   if (curve.length < 2) return '';
-  const net = sumEuros(curve, p => p.v);
-  return curveChart(curve, { color: net >= 0 ? 'var(--up)' : 'var(--down)', h: 108, fmt: 'month', signed: true, zero: true, total: net, link: 'desk', slot: 'net', label: 'Net' });
+  const net = sumEuros(series, s => s.net);
+  const label = titles.net + (curve[curve.length - 1].partial ? '. Le dernier point est une estimation.' : '');
+  return curveChart(curve, { color: net >= 0 ? 'var(--up)' : 'var(--down)', h: 108, fmt: titles.fmt, signed: true, zero: true, total: net, header: sgnEUR(net), link: 'desk', slot: 'net', label });
 }
-function posteRows(tx){
-  const rows = spendOf(tx);
+function posteRows(){
+  const now = nowRef();
+  const ev = deskEvents();
+  const b = deskBounds(now, ev);
+  const rows = ev.filter(e => !e.inc && e.amt < 0 && e.t >= b.from && e.t < b.to && e.t <= now);
   const by = {};
-  rows.forEach(x => { const k = x.cat || 'autre'; by[k] = (by[k] || 0) + -x.amt; });
+  rows.forEach(e => { const k = e.cat || 'autre'; by[k] = (by[k] || 0) + -e.amt; });
   const tops = Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 6);
-  const max = tops.length ? tops[0][1] : 1;
-  if (!tops.length) return emptyState('search', 'Aucune dépense', 'Rien sur les 30 derniers jours.');
+  if (!tops.length) return emptyState('search', 'Aucune dépense', 'Rien sur cette période.');
   return tops.map(([k, v]) => `<div class="poste"><span>${esc((CATS[k] || CATS.autre).l)}</span><b>${kEUR(v)}</b></div>`).join('');
 }
 screens.graphiques = () => {
@@ -792,7 +891,10 @@ screens.graphiques = () => {
   const inc = sumEuros(series, s => s.income);
   const out = sumEuros(series, s => s.spend);
   const net = inc - out;
-  const ranges = [['6', '6 mois'], ['12', '12 mois'], ['all', 'Tout']];
+  const titles = deskTitles();
+  const partial = series.length && series[series.length - 1].partial;
+  const mo = MOIS_LONG[nowRef().getMonth()].toLowerCase();
+  const ranges = Object.entries(DESK);
   return `
 <div class="screen desk">
   <div class="topbar"><h1>Graphiques</h1>${demoTag}</div>
@@ -801,16 +903,17 @@ screens.graphiques = () => {
     <div><span>Dépenses</span><b class="down">${hid ? '••••' : kEUR(out)}</b></div>
     <div><span>Net</span><b class="${net >= 0 ? 'up' : 'down'}">${hid ? '••••' : sgnEUR(net)}</b></div>
   </div>
-  <div class="tf desk-tf" role="tablist" aria-label="Période">${ranges.map(([k, l]) => `<button type="button" role="tab" data-desk="${k}" aria-selected="${deskRange === k}" class="${deskRange === k ? 'on' : ''}">${l}</button>`).join('')}</div>
+  <div class="tf desk-tf" role="tablist" aria-label="Période">${ranges.map(([k, s]) => `<button type="button" role="tab" data-desk="${k}" aria-selected="${deskRange === k}" class="${deskRange === k ? 'on' : ''}">${s.label}</button>`).join('')}</div>
+  ${partial && !hid ? `<p class="desk-note">Le dernier point est une estimation : ${mo} n’est pas terminé.</p>` : ''}
   ${hid ? '<p class="insight">Graphiques masqués avec le solde.</p>' : `
-  <p class="acct-k">Dépenses mensuelles</p>
+  <p class="acct-k">${titles.spend}</p>
   <div class="panel spend-card">${monthBars(series, 'spend', 'var(--accent)')}</div>
-  <p class="acct-k">Rentrées d’argent</p>
+  <p class="acct-k">${titles.income}</p>
   <div class="panel spend-card">${monthBars(series, 'income', 'var(--up)')}</div>
-  <p class="acct-k">Net</p>
+  <p class="acct-k">${titles.net}</p>
   <div class="panel spend-card">${netLine(series)}</div>
-  <p class="acct-k">Postes · 30 jours</p>
-  <div class="panel postes">${posteRows(ledger().tx)}</div>`}
+  <p class="acct-k">Postes · ${deskSpec().label}</p>
+  <div class="panel postes">${posteRows()}</div>`}
 </div>`;
 };
 const catChip = c => `<span class="cat cat-${c}" aria-hidden="true">⟦${(CATS[c] || CATS.autre).ic}⟧</span>`;
@@ -1954,11 +2057,11 @@ const NOW = new Date(2026, 9, 9, 20, 0);                 // 9 oct. 2026, 20 h (d
 const MOIS = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
 const PERIODS = {
   '24H': { days:1,   stepH:1,  dots:true,  fmt:'hour' },
-  '7J':  { days:7,   stepH:2,  dots:true,  fmt:'hour' },
-  '1M':  { days:30,  stepH:4,  dots:true,  fmt:'day' },
-  '3M':  { days:91,  stepH:12, dots:false, fmt:'day' },
+  '7J':  { days:7,   stepH:24, dots:true,  fmt:'day' },
+  '1M':  { days:30,  stepH:24, dots:true,  fmt:'day' },
+  '3M':  { days:91,  stepH:24, dots:false, fmt:'month' },
   '1A':  { days:365, stepH:24, dots:false, fmt:'month' },
-  'TOUT':{ days:556, stepH:48, dots:false, fmt:'month' },   // depuis le 1er avr. 2025
+  'TOUT':{ days:556, stepH:24, dots:false, fmt:'month' },   // depuis le 1er avr. 2025
 };
 let balPeriod = '1M';
 const HOME_TF = [
@@ -1973,6 +2076,23 @@ let homeTf = '1M';
 const homeTfMeta = () => HOME_TF.find(x => x[0] === homeTf) || HOME_TF[2];
 let _timeline = null;
 function rng(seed){ return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+// Courses, cafés, transports : 2 à 4 achats par jour, plus marqués l’été et en décembre.
+function cardSpends(d){
+  const r = rng(d.getFullYear() * 400 + (d.getMonth() + 1) * 32 + d.getDate());
+  const season = [1, 0.70, 0.96, 1.08, 1.06, 1.02, 1.22, 1.48, 1.18, 1.00, 1.06, 1.68][d.getMonth()];
+  const weekend = (d.getDay() === 0 || d.getDay() === 6) ? 1.18 : 1;
+  let n = 2;
+  if (r() < 0.55) n++;
+  if (r() < 0.18) n++;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const hour = 8 + Math.floor(r() * 12), min = Math.floor(r() * 60), roll = r();
+    let cents = roll > 0.985 ? 9000 + Math.floor(r() * 11000) : roll > 0.92 ? 2800 + Math.floor(r() * 3200) : 220 + Math.floor(r() * 1100);
+    cents = Math.max(150, Math.round(cents * season * weekend));
+    out.push({ t:new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour, min), amt:-fromCents(cents), name:'Carte', k:'spend' });
+  }
+  return out;
+}
 function timeline(){
   if (_timeline) return _timeline;
   const t = totals();
@@ -1983,8 +2103,7 @@ function timeline(){
   const cycleKey = d => { const m = d.getDate() >= 21 ? d.getMonth() : d.getMonth() - 1; return new Date(d.getFullYear(), m, 21).getTime(); };
   const cycles = {};
   days.forEach(d => { const k = cycleKey(d); (cycles[k] = cycles[k] || []).push(d); });
-  Object.entries(cycles).forEach(([k, ds]) => {
-    k = +k;
+  Object.entries(cycles).forEach(([, ds]) => {
     const fixed = []; 
     ds.forEach(d => {
       if (d.getDate() === 21) {
@@ -1993,14 +2112,7 @@ function timeline(){
       }
       if (d.getDate() === 5) fixed.push({ t:new Date(d.getFullYear(), d.getMonth(), 5, 6, 10), amt:-RENT, name:'Loyer', k:'rent' });
       t.list.forEach(s => { if (s.day === d.getDate()) fixed.push({ t:new Date(d.getFullYear(), d.getMonth(), d.getDate(), 5 + (s.price*7 % 4), 0), amt:-s.price, name:s.name, k:'sub' }); });
-    });
-    const origin = new Date(k);
-    const lastDay = ds[ds.length - 1];
-    const endDay = new Date(lastDay.getFullYear(), lastDay.getMonth(), lastDay.getDate(), 23, 59);
-    [[1,168],[3,92],[5,46],[7,154],[11,78],[13,36],[14,142],[16,64],[18,52],[21,136],[24,88],[28,74]].forEach(([off, amt]) => {
-      const tt = new Date(origin.getFullYear(), origin.getMonth(), origin.getDate() + off, 11 + (off % 4), (off * 11) % 50);
-      if (tt < ds[0] || tt > endDay || tt > NOW) return;
-      ev.push({ t:tt, amt:-amt, name:'Carte', k:'spend' });
+      cardSpends(d).forEach(e => fixed.push(e));
     });
     fixed.forEach(e => { if (e.t <= NOW) ev.push(e); });
   });
@@ -2027,13 +2139,29 @@ function samples(period){
   const from = new Date(NOW.getTime() - P.days * 864e5);
   const out = []; let j = 0, cur = T.startBal;
   while (j < T.ev.length && T.ev[j].t <= from){ cur = T.ev[j].after; j++; }
-  for (let tt = from.getTime(); tt <= NOW.getTime() + 1; tt += P.stepH * 36e5){
-    const subs = []; let lo = cur, hi = cur;
-    while (j < T.ev.length && T.ev[j].t.getTime() <= tt){ cur = T.ev[j].after; lo = Math.min(lo, cur); hi = Math.max(hi, cur); if (T.ev[j].k === 'sub') subs.push(T.ev[j]); j++; }
-    out.push({ t:new Date(tt), bal:cur, subs, salary:false });
+  if (P.fmt === 'month') {
+    const marks = [new Date(from)];
+    let m = new Date(from.getFullYear(), from.getMonth() + 1, 1);
+    while (m < NOW && (m.getFullYear() !== NOW.getFullYear() || m.getMonth() !== NOW.getMonth())) {
+      marks.push(new Date(m));
+      m = new Date(m.getFullYear(), m.getMonth() + 1, 1);
+    }
+    marks.push(new Date(NOW));
+    marks.forEach(at => {
+      const subs = [];
+      while (j < T.ev.length && T.ev[j].t <= at) { cur = T.ev[j].after; if (T.ev[j].k === 'sub') subs.push(T.ev[j]); j++; }
+      out.push({ t:new Date(at), bal:cur, subs, salary:false });
+    });
+  } else {
+    for (let tt = from.getTime(); tt <= NOW.getTime() + 1; tt += P.stepH * 36e5){
+      const subs = [];
+      while (j < T.ev.length && T.ev[j].t.getTime() <= tt){ cur = T.ev[j].after; if (T.ev[j].k === 'sub') subs.push(T.ev[j]); j++; }
+      out.push({ t:new Date(tt), bal:cur, subs, salary:false });
+    }
+    if (out[out.length-1].t < NOW) out.push({ t:new Date(NOW), bal:T.end, subs:[] });
   }
-  if (out[out.length-1].t < NOW) out.push({ t:new Date(NOW), bal:T.end, subs:[] });
   out[out.length-1].bal = T.end;
+  out[out.length-1].t = new Date(NOW);
   return out;
 }
 const fDate = (d, withYear=true) => `${d.getDate()} ${MOIS[d.getMonth()]}${withYear?' '+d.getFullYear():''}`;
@@ -2279,6 +2407,12 @@ function render(){
   if (API && ['onboarding','connexion','dashboard','connect','banques'].includes(name)){ const sc = $('#app').firstElementChild; if (sc && !sc.querySelector('.alpha-note')) sc.insertAdjacentHTML('afterbegin', '<div class="alpha-note" role="note"><b>Bêta privée</b> — banques de test uniquement pour l’instant</div>'); }
   syncNav(name);
   resetScroll();
+  if (name === 'graphiques') {
+    const on = document.querySelector('.desk-tf .on');
+    if (on && on.parentElement.scrollWidth > on.parentElement.clientWidth + 1) {
+      on.parentElement.scrollLeft = Math.max(0, on.offsetLeft - (on.parentElement.clientWidth - on.offsetWidth) / 2);
+    }
+  }
   if (name==='dashboard') animateHome();
   if (name==='scan') runScan();
   if (name==='pwscan' && PWX && !LIVE) runPwScan();
@@ -2596,7 +2730,7 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     const dl = el.classList.contains('home-spark') ? document.getElementById('sp-delta') : null;
     if (amt) { delete amt.dataset.scrub; amt.innerHTML = o.a; }
     if (dl) dl.innerHTML = o.d;
-    const dot = el.querySelector('.sp-dot'); if (dot) { dot.hidden = false; dot.style.left = o.l; dot.style.top = o.t; }
+    const dot = el.querySelector('.sp-dot'); if (dot) { dot.hidden = false; dot.style.left = o.l; dot.style.top = o.t; dot.classList.toggle('is-partial', !!o.partial); }
     const vl = el.querySelector('.sp-vline'); if (vl) vl.hidden = true;
     const read = el.querySelector('.sp-read'); if (read && o.r != null) read.innerHTML = o.r;
     const S = el._data;
@@ -2628,7 +2762,7 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     el.classList.add('scrub');
     const vl = el.querySelector('.sp-vline'), dot = el.querySelector('.sp-dot');
     if (vl) { vl.hidden = false; vl.style.left = p.x + '%'; }
-    if (dot) { dot.hidden = false; dot.style.left = p.x + '%'; dot.style.top = p.y + '%'; }
+    if (dot) { dot.hidden = false; dot.style.left = p.x + '%'; dot.style.top = p.y + '%'; dot.classList.toggle('is-partial', !!p.partial); }
     const left = poly.slice(0, i + 1), right = poly.slice(i);
     const line = el.querySelector('.sp-line'), dim = el.querySelector('.sp-dim'), area = el.querySelector('.sp-area');
     if (line) line.setAttribute('d', segPath(left));
@@ -2637,8 +2771,8 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     if (area) area.setAttribute('d', segPath(left) + ` L${sx.toFixed(1)},${S.H} L${poly[0][0].toFixed(1)},${S.H} Z`);
     const read = el.querySelector('.sp-read');
     if (read && !state.hideBalance) {
-      const when = MOIS[p.t.getMonth()] + ' ' + p.t.getFullYear();
-      const num = S.signed ? sgnEUR(p.v) : kEUR(p.v);
+      const when = deskWhen(S.fmt, p.t, p.partial);
+      const num = S.signed ? sgnEUR(p.v) : (S.fmt === 'month' ? kEUR(p.v) : p.v.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €');
       read.innerHTML = `<span>${when}</span><b>${num}</b>`;
     }
   };
@@ -2654,11 +2788,11 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
       if (!el._orig) {
         const dot = el.querySelector('.sp-dot'), read = el.querySelector('.sp-read');
         el._data = S;
-        el._orig = { r: read ? read.innerHTML : null, l: dot ? dot.style.left : '', t: dot ? dot.style.top : '' };
+        el._orig = { r: read ? read.innerHTML : null, l: dot ? dot.style.left : '', t: dot ? dot.style.top : '', partial: dot ? dot.classList.contains('is-partial') : false };
       }
       snap(el, S, at);
       bag[S.slot] = S.pts[at].v;
-      if (!when) when = MOIS[S.pts[at].t.getMonth()] + ' ' + S.pts[at].t.getFullYear();
+      if (!when) when = deskWhen(S.fmt, S.pts[at].t, S.pts[at].partial);
     });
     const tape = document.querySelector('.desk .tape');
     if (tape && !state.hideBalance) {
@@ -2707,7 +2841,7 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     } else {
       const read = st.el.querySelector('.sp-read');
       if (read && !state.hideBalance) {
-        const when = S.fmt === 'month' ? MOIS[t.getMonth()] + ' ' + t.getFullYear() : t.getDate() + ' ' + MOIS[t.getMonth()];
+        const when = S.fmt === 'hour' ? String(t.getHours()).padStart(2, '0') + ' h' : S.fmt === 'month' ? MOIS[t.getMonth()] + ' ' + t.getFullYear() : t.getDate() + ' ' + MOIS[t.getMonth()];
         const num = S.signed ? sgnEUR(v) : (S.fmt === 'month' ? kEUR(v) : v.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €');
         read.innerHTML = `<span>${when}</span><b>${num}</b>`;
       }
@@ -2741,7 +2875,8 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
       d: dl ? dl.innerHTML : '',
       r: read ? read.innerHTML : null,
       l: dot ? dot.style.left : '',
-      t: dot ? dot.style.top : ''
+      t: dot ? dot.style.top : '',
+      partial: dot ? dot.classList.contains('is-partial') : false
     };
     syncDay(clientX, false);
     paint();
