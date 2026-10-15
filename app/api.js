@@ -50,6 +50,8 @@
     sync: () => call('POST', '/bank/sync'),
     checkout: interval => call('POST', '/billing/checkout', { interval }),
     portal: () => call('POST', '/billing/portal'),
+    pushSubscribe: body => call('POST', '/push/subscribe', body),
+    pushUnsubscribe: () => call('DELETE', '/push/subscribe'),
     async deleteAccount(){ const r = await call('DELETE', '/me'); session.clear(); return r; }
   };
 })();
