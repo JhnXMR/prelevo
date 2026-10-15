@@ -737,7 +737,7 @@ function spark(curve){
   const lab = d => homeTf === '24H' ? String(d.getHours()).padStart(2, '0') + ' h' : (homeTf === '3M' || homeTf === '1A' || homeTf === 'TOUT') ? MOIS[d.getMonth()] + ' ' + String(d.getFullYear()).slice(2) : d.getDate() + ' ' + MOIS[d.getMonth()];
   const axis = idxs.map((i, k) => `<span class="${k === 0 ? 'a0' : k === idxs.length - 1 ? 'a1' : ''}" style="left:${track[i].x.toFixed(2)}%">${lab(curve[i].t)}</span>`).join('');
   return `<div class="spark home-spark" role="img" aria-label="Évolution du solde sur ${tf[2]}. Glissez pour voir le détail."><div class="spark-plot"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">
-    <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".16"/><stop offset=".62" stop-color="var(--accent)" stop-opacity=".03"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+    <defs><linearGradient id="spk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0066FF" stop-opacity=".25"/><stop offset="1" stop-color="#0066FF" stop-opacity="0"/></linearGradient></defs>
     ${grid.lines}
     <path class="sp-area" d="${area}" fill="url(#spk)"/>
     <path class="sp-dim" d="" fill="none" stroke="var(--accent)" stroke-width="1.35" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
@@ -808,7 +808,7 @@ function curveChart(curve, opt = {}){
   const zero = opt.zero && lo < 0 && hi > 0 ? `<line class="sp-zero" x1="0" y1="${y(0).toFixed(1)}" x2="${W}" y2="${y(0).toFixed(1)}" stroke="currentColor" stroke-opacity=".16" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>` : '';
   const dotCls = partial ? 'sp-dot is-partial' : 'sp-dot';
   return `<div class="spark lite" data-curve="${idx}" ${opt.link ? `data-link="${opt.link}"` : ''} style="--spk:${color}" role="img" aria-label="${opt.label || 'Courbe. Glissez pour le détail.'}"><div class="sp-read"><span>${opt.caption || ''}</span><b>${head}</b></div><div class="spark-plot" style="height:${H}px"><svg viewBox="0 0 ${W} ${H}" style="height:${H}px" preserveAspectRatio="none" aria-hidden="true">
-    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".16"/><stop offset=".62" stop-color="${color}" stop-opacity=".03"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".25"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
     ${grid.lines}${zero}<path class="sp-area" d="${area}" fill="url(#${gid})"/>
     <path class="sp-dim" d="" fill="none" stroke="${color}" stroke-width="1.35" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
     <path class="sp-line" d="${solid}" fill="none" stroke="${color}" stroke-width="1.35" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
@@ -1148,6 +1148,13 @@ function flushMounts() {
     const frag = document.createDocumentFragment();
     job.builder(frag);
     host.appendChild(frag);
+    if (host.classList.contains('cascade')) {
+      host.querySelectorAll('.tx').forEach((el, i) => {
+        if (i > 14) return;
+        el.classList.add('cascade-item');
+        el.style.setProperty('--i', String(i));
+      });
+    }
     host.addEventListener('click', onListClick);
   }
 }
@@ -1196,7 +1203,7 @@ screens.dashboard = () => {
       <button type="button" class="eye" id="toggle-balance" role="switch" aria-checked="${state.hideBalance ? 'true' : 'false'}" aria-label="${state.hideBalance ? 'Afficher le solde' : 'Masquer le solde'}">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</button>
     </div>
     <div class="delta" id="sp-delta">${state.hideBalance ? 'Solde masqué' : `${delta >= 0 ? '⟦trend⟧' : ''}<b class="${delta >= 0 ? 'pos' : ''}">${signed(delta)}</b>${Math.abs(pp) >= 0.5 ? ` <i class="delta-pct ${delta >= 0 ? 'up' : 'down'}">${ppTxt}</i>` : ''} ${homeTf === 'TOUT' ? 'depuis le début' : 'sur ' + tf[2]}`}</div>
-    <div class="tf" role="tablist" aria-label="Période du graphique">${HOME_TF.map(([k, lab]) => `<button type="button" role="tab" data-tf="${k}" aria-selected="${k === homeTf ? 'true' : 'false'}" class="${k === homeTf ? 'on' : ''}">${lab}</button>`).join('')}</div>
+    <div class="tf" role="tablist" aria-label="Période du graphique" style="--tf-i:${Math.max(0, HOME_TF.findIndex(([k]) => k === homeTf))}"><i class="tf-pill" aria-hidden="true"></i>${HOME_TF.map(([k, lab]) => `<button type="button" role="tab" data-tf="${k}" aria-selected="${k === homeTf ? 'true' : 'false'}" class="${k === homeTf ? 'on' : ''}">${lab}</button>`).join('')}</div>
     ${spark(curve)}
     ${P ? `<a class="rav" href="#/abonnements"><span>Reste à vivre jusqu’à la paie</span><b>${state.hideBalance ? '<span class="masked">••••</span>' : eur(t.reste)}</b></a>`
         : `<a class="rav locked" href="#/premium"><span>⟦lock⟧ Reste à vivre jusqu’à la paie</span><b>Premium</b></a>`}
@@ -1275,7 +1282,7 @@ function txActivity(){
   <a class="tx-subs" href="#/abonnements?vue=recurrents"><span><b>Abonnements détectés</b><i>${t.list.length} actifs</i></span><strong>${eur(t.monthly)}<small>/mois</small></strong></a>
   <label class="tx-search">⟦search⟧<input id="tx-q" type="search" placeholder="Rechercher" aria-label="Rechercher une opération" value="${esc(opsQuery)}" autocomplete="off" enterkeyhint="search"></label>
   <div class="seg ops-seg four" role="tablist" aria-label="Filtrer les transactions">${[['all','Tout'],['out','Dépenses'],['in','Reçus'],['abo','Abos']].map(([k, l]) => `<button type="button" role="tab" aria-selected="${opsFilter === k}" class="${opsFilter === k ? 'on' : ''}" data-ops="${k}">${l}</button>`).join('')}</div>
-  ${list.length ? listSlot('act-list', frag => appendTxGroups(frag, list, 8, 240, true)) : `<div class="act-list">${emptyState('search', 'Aucune opération', q ? 'Aucun résultat pour cette recherche. Essayez un autre mot.' : 'Rien sur cette période.')}</div>`}
+  ${list.length ? listSlot('act-list cascade', frag => appendTxGroups(frag, list, 8, 240, true)) : `<div class="act-list">${emptyState('search', 'Aucune opération', q ? 'Aucun résultat pour cette recherche. Essayez un autre mot.' : 'Rien sur cette période.')}</div>`}
 </div>`;
 }
 screens.operations = () => txActivity();
@@ -1341,12 +1348,12 @@ screens.abonnements = (q) => {
   ${LIVE && LIVE.history && LIVE.history.limited ? `<div class="banner amber"><span class="ic">⟦info⟧</span><div><b>Historique court : détection partielle</b>La banque de test ne fournit que ${LIVE.history.days} jours d’opérations (${LIVE.history.debits} débits). Il faut au moins 2 prélèvements pour confirmer un abonnement : ceux vus une seule fois sont marqués « probable ».</div></div>` : ''}
   ${LIVE && !t.list.length ? emptyState('search', 'Aucun prélèvement récurrent', 'Rien de régulier pour le moment. Avec deux mois d’historique ou plus, la détection sera plus complète. Vos comptes restent en lecture seule.') : ''}
   ${P && t.ups.length && f==='all' ? `<div class="banner red"><span class="ic">⟦trend⟧</span><div><b>${t.ups.length} hausse${t.ups.length>1?'s':''} de prix détectée${t.ups.length>1?'s':''}</b>${t.ups.map(s=>`${esc(s.name)} : ${eur(s.prev)} → ${eur(s.price)}`).join(' · ')}. Soit ${eur(fromCents(toCents(sumEuros(t.ups, increase)) * 12))} de plus par an.</div></div>` : ''}
-  ${list.length ? listSlot('act-list', frag => { list.forEach(s => frag.appendChild(subRowEl(s))); }) : ((LIVE && !t.list.length) || (showSmall && t.smalls.length) ? '' : `<div class="act-list">${emptyState('search', f==='all' ? 'Aucun abonnement' : 'Rien dans ce filtre', f==='all' ? 'Dès qu’un prélèvement se répète, il apparaîtra ici.' : 'Essayez un autre filtre, ou revenez à Tous.')}</div>`)}
+  ${list.length ? listSlot('act-list cascade', frag => { list.forEach(s => frag.appendChild(subRowEl(s))); }) : ((LIVE && !t.list.length) || (showSmall && t.smalls.length) ? '' : `<div class="act-list">${emptyState('search', f==='all' ? 'Aucun abonnement' : 'Rien dans ce filtre', f==='all' ? 'Dès qu’un prélèvement se répète, il apparaîtra ici.' : 'Essayez un autre filtre, ou revenez à Tous.')}</div>`)}
   ${adSlot('subs')}
   ${showSmall && t.smalls.length?`
   <div class="section-h"><h2>⟦search⟧ Petits prélèvements oubliés</h2><span class="muted small">${eur(sumEuros(t.smalls, s => s.price))}/mois</span></div>
   <p class="muted small" style="margin:-4px 2px 10px">Moins de ${LIVE?10:5} € chacun, mais ${eur0(fromCents(toCents(sumEuros(t.smalls, s => s.price)) * 12))} par an au total.</p>
-  ${listSlot('act-list', frag => { t.smalls.forEach(s => frag.appendChild(subRowEl(s))); })}`:''}
+  ${listSlot('act-list cascade', frag => { t.smalls.forEach(s => frag.appendChild(subRowEl(s))); })}`:''}
   ${state.resiliated.length?`<div class="section-h"><h2>⟦check⟧ Résiliés</h2></div><div class="card" style="padding:4px 16px">${SUBS.filter(s=>state.resiliated.includes(s.id)).map(s=>`<div class="row">${logo(s)}<div class="mid"><div class="name">${esc(s.name)}</div><div class="meta">Résiliation envoyée</div></div><div class="amt" style="color:var(--mint)">−${eur(s.price)}</div></div>`).join('')}</div>`:''}
 </div>`;
 };
@@ -1410,8 +1417,10 @@ screens.resilier = (q, id, step) => {
   ].map(([k,ic,b,sp])=>`<button class="option ${resil.method===k?'on':''}" data-method="${k}" ${k==='enligne'&&!cancelInfo(s).online?'disabled style="opacity:.5"':''}><span class="ic">${ic}</span><div><b>${b}</b><span>${esc(sp)}</span></div></button>`).join('')}
   <div class="card" style="padding:4px 16px"><div class="kv"><span>Comment résilier</span><span style="text-align:right;max-width:58%">${esc(cancelInfo(s).where)}</span></div><div class="kv"><span>Préavis</span><span style="text-align:right;max-width:58%">${esc(cancelInfo(s).notice)}</span></div></div>
   ${cancelInfo(s).url ? `<a class="btn ghost" href="${esc(cancelInfo(s).url)}" target="_blank" rel="noopener">⟦globe⟧ Page officielle de résiliation ${esc(cancelInfo(s).brand)}</a>` : `<p class="muted small" style="margin:0 2px 12px">Pas de page de résiliation en ligne connue pour ce service : la lettre préremplie est la voie la plus sûre.</p>`}
-  <div class="section-h"><h2>Les étapes</h2></div>
-  <ol class="cancel-steps">${(cancelInfo(s).url ? [`Ouvrez la page officielle ${esc(cancelInfo(s).brand)} et connectez-vous.`, `Suivez : ${esc(cancelInfo(s).where)}.`, 'Gardez l’e-mail de confirmation, puis revenez confirmer ici.'] : ['Choisissez la lettre (ou l’e-mail) : tout est prérempli.', 'Envoyez-la en recommandé avec accusé de réception.', 'Revenez confirmer ici : on surveille que le prélèvement s’arrête.']).map(x=>`<li>${x}</li>`).join('')}</ol>
+  <details class="fold">
+    <summary>Les étapes</summary>
+    <div class="fold-body"><div class="fold-clip"><ol class="cancel-steps">${(cancelInfo(s).url ? [`Ouvrez la page officielle ${esc(cancelInfo(s).brand)} et connectez-vous.`, `Suivez : ${esc(cancelInfo(s).where)}.`, 'Gardez l’e-mail de confirmation, puis revenez confirmer ici.'] : ['Choisissez la lettre (ou l’e-mail) : tout est prérempli.', 'Envoyez-la en recommandé avec accusé de réception.', 'Revenez confirmer ici : on surveille que le prélèvement s’arrête.']).map(x=>`<li>${x}</li>`).join('')}</ol></div></div>
+  </details>
   <div class="banner blue"><span class="ic">⟦info⟧</span><div>Pour un contrat souscrit en ligne, la loi impose au service de proposer une résiliation en ligne simple (« résiliation en 3 clics »).</div></div>
   <a class="btn" href="#/resilier/${s.id}/2">Continuer</a>
 </div>`;
@@ -1630,7 +1639,7 @@ screens.budget = () => {
     <label class="bud-global"><span>Budget global</span><span class="bud-field"><input id="bud-global" name="global" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0,00" aria-label="Budget global en euros" value="${esc(centsToField(st.global))}"><i>€</i></span></label>
     <p class="acct-k">Par catégorie <i class="bud-opt">facultatif</i></p>
     <div class="menu-card bud-card">${shown.map(k => budRow(k, st)).join('')}</div>
-    ${rest.length ? `<details class="bud-more"><summary>Autres catégories</summary><div class="menu-card bud-card">${rest.map(k => budRow(k, st)).join('')}</div></details>` : ''}
+    ${rest.length ? `<details class="bud-more fold"><summary>Autres catégories</summary><div class="fold-body"><div class="fold-clip"><div class="menu-card bud-card">${rest.map(k => budRow(k, st)).join('')}</div></div></div></details>` : ''}
     <button class="btn" type="submit">Enregistrer le budget</button>
   </form>
 </div>`;
@@ -2576,7 +2585,7 @@ screens.premium = () => {
   };
   const acc = (id, name, price, items) => `<section class="pacc${interval === id ? ' is-current' : ''}${id === 'free' ? ' is-free' : ''}">
     <h2><button type="button" id="pacc-${id}-btn" data-acc="${id}" aria-expanded="false" aria-controls="pacc-${id}"><span class="pacc-name">${name}${interval === id ? '<em>Formule actuelle</em>' : ''}</span><span class="pacc-price">${price}</span></button></h2>
-    <div class="pacc-panel" id="pacc-${id}" role="region" aria-labelledby="pacc-${id}-btn" hidden><ul>${items.map(t => `<li>${t}</li>`).join('')}</ul>${action(id)}</div>
+    <div class="pacc-panel" id="pacc-${id}" role="region" aria-labelledby="pacc-${id}-btn" inert><div class="pacc-clip"><ul>${items.map(t => `<li>${t}</li>`).join('')}</ul>${action(id)}</div></div>
   </section>`;
   const premiumPerks = ['Sans publicité', 'Alertes de hausse de prix', 'Rappel avant chaque prélèvement', 'Résiliation guidée', 'Reste à vivre', 'Banques illimitées'];
   return `
@@ -2767,7 +2776,7 @@ function balanceChart(){
     <div class="g-date" id="bc-date">${fDate(last.t)}</div>
     <div class="g-big" id="bc-val">${eur(last.bal)}</div>
     <svg class="g-svg" viewBox="0 0 ${CW} ${CH}" role="img" aria-label="Évolution du solde">
-      <defs><linearGradient id="gfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4D94FF" stop-opacity=".34"/><stop offset=".7" stop-color="#0066FF" stop-opacity=".06"/><stop offset="1" stop-color="#0066FF" stop-opacity="0"/></linearGradient></defs>
+      <defs><linearGradient id="gfill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0066FF" stop-opacity=".25"/><stop offset="1" stop-color="#0066FF" stop-opacity="0"/></linearGradient></defs>
       ${grid}
       <path d="${area}" fill="url(#gfill)"/>
       <path class="g-line" d="${line}"/>
@@ -2804,7 +2813,23 @@ document.addEventListener('pointerdown', e => { const r = e.target.closest && e.
 document.addEventListener('pointerleave', e => { if (e.target.id === 'balance') balReset(); }, true);
 document.addEventListener('click', e => {
   const tf = e.target.closest && e.target.closest('[data-tf]');
-  if (tf && tf.dataset.tf !== homeTf) { homeTf = tf.dataset.tf; render(); return; }
+  if (tf && tf.dataset.tf !== homeTf) {
+    const prev = HOME_TF.findIndex(x => x[0] === homeTf);
+    homeTf = tf.dataset.tf;
+    const next = HOME_TF.findIndex(x => x[0] === homeTf);
+    render();
+    const bar = document.querySelector('.tf');
+    if (bar && prev >= 0 && next >= 0 && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      bar.style.setProperty('--tf-i', String(prev));
+      bar.classList.add('tf-instant');
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        if (!bar.isConnected) return;
+        bar.classList.remove('tf-instant');
+        bar.style.setProperty('--tf-i', String(next));
+      }));
+    }
+    return;
+  }
   const dk = e.target.closest && e.target.closest('[data-desk]');
   if (dk && dk.dataset.desk !== deskRange) { deskRange = dk.dataset.desk; render(); return; }
   const b = e.target.closest && e.target.closest('[data-period]'); if (!b) return;
@@ -3104,7 +3129,10 @@ document.addEventListener('click', e => {
       const panel = document.getElementById(b.getAttribute('aria-controls'));
       const on = b === accBtn && !open;
       b.setAttribute('aria-expanded', on ? 'true' : 'false');
-      if (panel) panel.hidden = !on;
+      if (!panel) return;
+      panel.classList.toggle('is-open', on);
+      if (on) panel.removeAttribute('inert');
+      else panel.setAttribute('inert', '');
     });
     return;
   }
@@ -3225,14 +3253,23 @@ publishSubs();
 // expiration du jeton de test (30 min) : on rafraîchit l'affichage quand elle survient
 setInterval(() => { if (LIVE && /banques|dashboard|alertes/.test(location.hash)) { const tk = PWX.tokenInfo(); if (tk && tk.expired && !tk._shown) { sessionStorage.setItem('prelevo-pw-token', JSON.stringify({...tk, _shown:1})); render(); toast('Session de test Powens expirée (30 min)'); } } }, 30000);
 window.addEventListener('hashchange', render);
-if (API){
-  if (sessionStorage.getItem('prelevo-deleted')){ sessionStorage.removeItem('prelevo-deleted'); setTimeout(()=>toast('Compte supprimé. Toutes vos données ont été effacées.'), 300); }
-  if (API.returnParams()){ render(); apiFinish(); }
-  else if (API.loggedIn()){ $('#app').innerHTML = icons(screens.apiwait().replace('Lecture de vos comptes…','Chargement…').replace(/<p class="muted small"[^>]*>.*?<\/p>/,'')); apiLoadMe().then(render); }
-  else render();
-} else render();
-notifyDue();
-if (lockEnabled()) tryUnlockBio(false);
+function showBootSkeleton(){
+  if (QS.has('static') || matchMedia('(prefers-reduced-motion: reduce)').matches) return 0;
+  const app = document.getElementById('app');
+  if (!app) return 0;
+  app.innerHTML = '<div class="screen boot-sk" role="status" aria-live="polite" aria-busy="true"><p class="boot-label">Chargement…</p><div class="sk-home" aria-hidden="true"><i class="sk-line w40"></i><i class="sk-title"></i><i class="sk-hero"></i><i class="sk-line w30"></i><i class="sk-row"></i><i class="sk-row"></i><i class="sk-row"></i></div></div>';
+  return 250;
+}
+setTimeout(() => {
+  if (API){
+    if (sessionStorage.getItem('prelevo-deleted')){ sessionStorage.removeItem('prelevo-deleted'); setTimeout(()=>toast('Compte supprimé. Toutes vos données ont été effacées.'), 300); }
+    if (API.returnParams()){ render(); apiFinish(); }
+    else if (API.loggedIn()){ $('#app').innerHTML = icons(screens.apiwait().replace('Lecture de vos comptes…','Chargement…').replace(/<p class="muted small"[^>]*>.*?<\/p>/,'')); apiLoadMe().then(render); }
+    else render();
+  } else render();
+  notifyDue();
+  if (lockEnabled()) tryUnlockBio(false);
+}, showBootSkeleton());
 
 // ---------- synchro depuis l'accueil (bouton + tirer pour actualiser) ----------
 let _syncing = false;
@@ -3338,6 +3375,7 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
 (() => {
   const JC = ['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'];
   let hapticLabel = null;
+  let lastBuzz = 0;
   const buzz = ms => {
     try { if (typeof navigator.vibrate === 'function') { navigator.vibrate(ms); return; } } catch (e) {}
     // iOS 17.4+ : un <input switch> cliqué dans le geste déclenche un tap haptique. Sinon, on ignore.
@@ -3358,6 +3396,15 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
       hapticLabel.click();
     } catch (e) {}
   };
+  document.addEventListener('pointerdown', e => {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const hit = e.target.closest && e.target.closest('a, button, summary, [role="tab"]');
+    if (!hit || hit.closest('.spark') || hit.disabled || hit.getAttribute('aria-disabled') === 'true') return;
+    const now = Date.now();
+    if (now - lastBuzz < 70) return;
+    lastBuzz = now;
+    buzz(8);
+  }, { passive: true });
   let st = null, raf = 0;
   const restoreOne = el => {
     if (!el) return;
