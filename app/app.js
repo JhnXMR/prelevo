@@ -195,6 +195,7 @@ const ICONS = {
   send:'<path d="M5 12h14M13 6l6 6-6 6"/>',
   check:'<path d="M5 12.5l4.5 4.5L19 7"/>',
   user:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+  heart:'<path d="M12 20s-7-4.4-7-9a4 4 0 0 1 7-2 4 4 0 0 1 7 2c0 4.6-7 9-7 9z"/>',
   star:'<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/>',
   back:'<path d="M15 5l-7 7 7 7"/>',
   chev:'<path d="M9 6l6 6-6 6"/>',
@@ -1827,6 +1828,7 @@ screens.alertes = (q) => {
     ${tog('dbl','Doublon et double prélèvement', false)}
     ${tog('next','Rappel avant prélèvement', false)}
     ${tog('trial','Fin d’essai gratuit', false)}
+    <a class="acct-row" href="#/prelevements"><span class="acct-lab">Prochains prélèvements</span><span class="acct-go">⟦chev⟧</span></a>
   </div>
 </div>`;
 };
@@ -1923,7 +1925,7 @@ function pickIcon(v){
 }
 const PUSH_KEY = 'prelevo-push';
 const PUSH_KINDS = [
-  ['calendar', 'Prélèvement à venir', 'La veille, pour un prélèvement prévu le lendemain.'],
+  ['calendar', 'Prélèvement à venir', 'J-1, J-3 ou J-7, selon le délai choisi pour chaque prélèvement.'],
   ['trend', 'Hausse de prix', 'Quand le montant d’un abonnement augmente.'],
   ['coin', 'Budget à 80 % et à 100 %', 'Quand vos dépenses du mois atteignent ces seuils.'],
 ];
@@ -1969,6 +1971,7 @@ async function enablePush() {
   Store.writeJSON(PUSH_KEY, rec);
   render();
   toast(key ? 'Notifications activées.' : 'Notifications activées sur cet appareil.');
+  syncPushPlan();
 }
 async function demoPush() {
   if (!pushSupported()) { toast('Les notifications ne sont pas disponibles sur cet appareil.'); return; }
@@ -1989,6 +1992,263 @@ async function demoPush() {
   pushDemo = { title: title, body: body };
   toast('Exemple envoyé : prélèvement demain.');
   render();
+}
+const LOCK_KEY = 'prelevo-lock';
+const LEAD_KEY = 'prelevo-debit-leads';
+const SENT_KEY = 'prelevo-debit-sent';
+const LOCK_IDLE_MS = 5 * 60 * 1000;
+let lockPhase = '';
+let setupBuf = '';
+let setupA = '';
+let lockBuf = '';
+let lockHiddenAt = 0;
+function readLock() {
+  const raw = Store.readJSON(LOCK_KEY, null);
+  return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : null;
+}
+function lockEnabled() {
+  const rec = readLock();
+  return !!(rec && rec.enabled && rec.hash && rec.salt);
+}
+function readLeads() {
+  const raw = Store.readJSON(LEAD_KEY, {});
+  return raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+}
+function euroPlain(n) {
+  return Number(n || 0).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+}
+function reminderSubs() {
+  return active().map(s => ({ id: s.id, name: s.name, day: s.day, price: s.price }));
+}
+async function showLocalNotice(title, body, tag) {
+  const opts = { body: body, tag: tag, icon: 'icons/icon-192.png', data: { url: '#/prelevements', kind: 'prelevement' } };
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    await reg.showNotification(title, opts);
+    return true;
+  } catch (e) {
+    try { new Notification(title, opts); return true; }
+    catch (err) { return false; }
+  }
+}
+async function notifyDue() {
+  if (!window.PrelevoGuard || !pushSupported() || Notification.permission !== 'granted') return;
+  const sent = Store.readJSON(SENT_KEY, {}) || {};
+  const due = PrelevoGuard.dueReminders(reminderSubs(), readLeads(), nowRef(), sent);
+  for (const item of due) {
+    const title = item.lead === 1 ? 'Prélèvement demain' : 'Prélèvement dans ' + item.lead + ' jours';
+    const ok = await showLocalNotice(title, item.name + ' · ' + euroPlain(item.amount), 'prelevement-' + item.id);
+    if (ok) sent[item.key] = 1;
+  }
+  if (due.length) Store.writeJSON(SENT_KEY, sent);
+}
+async function syncPushPlan() {
+  if (!API || !API.pushSubscribe || !API.loggedIn()) return;
+  const pref = readPushPref();
+  if (!pref.subscription || !window.PrelevoGuard) return;
+  const alerts = reminderSubs().map(s => {
+    const debit = PrelevoGuard.nextDebitDate(s.day, nowRef());
+    return {
+      id: s.id,
+      name: s.name,
+      amount: s.price,
+      leadDays: PrelevoGuard.normalizeLead(readLeads()[s.id]),
+      debitOn: debit ? PrelevoGuard.dayKey(debit) : null
+    };
+  });
+  try { await API.pushSubscribe({ subscription: pref.subscription, alerts: alerts }); } catch (e) {}
+}
+function bytesToB64(bytes) {
+  let s = '';
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+}
+function b64ToBytes(b64) {
+  const s = atob(String(b64 || ''));
+  const out = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i);
+  return out;
+}
+async function platformBio() {
+  if (!window.PublicKeyCredential || !navigator.credentials) return false;
+  try { return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); }
+  catch (e) { return false; }
+}
+async function nativeBio() {
+  const cap = window.Capacitor;
+  if (!cap || typeof cap.isNativePlatform !== 'function' || !cap.isNativePlatform()) return null;
+  const plugins = cap.Plugins || {};
+  const Bio = plugins.BiometricAuthNative || plugins.BiometricAuth;
+  if (!Bio || !Bio.authenticate) return null;
+  try {
+    await Bio.authenticate({
+      reason: 'Déverrouillez Prelevo',
+      cancelTitle: 'Annuler',
+      allowDeviceCredential: false,
+      iosFallbackTitle: 'Utiliser le code'
+    });
+    return true;
+  } catch (e) { return false; }
+}
+async function enrollWebAuthn() {
+  const cred = await navigator.credentials.create({ publicKey: {
+    challenge: crypto.getRandomValues(new Uint8Array(32)),
+    rp: { name: 'Prelevo' },
+    user: { id: crypto.getRandomValues(new Uint8Array(16)), name: 'vous', displayName: 'Prelevo' },
+    pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+    authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required' },
+    timeout: 60000
+  }});
+  if (!cred) throw new Error('bio');
+  return bytesToB64(new Uint8Array(cred.rawId));
+}
+async function getWebAuthn(idB64) {
+  const cred = await navigator.credentials.get({ publicKey: {
+    challenge: crypto.getRandomValues(new Uint8Array(32)),
+    allowCredentials: [{ type: 'public-key', id: b64ToBytes(idB64) }],
+    userVerification: 'required',
+    timeout: 60000
+  }});
+  return !!cred;
+}
+function pinDots(buf) {
+  return `<div class="pin-dots" aria-hidden="true">${[0, 1, 2, 3, 4, 5].map(i => `<i class="${i < buf.length ? 'on' : ''}"></i>`).join('')}</div>`;
+}
+function pinPad() {
+  const keys = ['1','2','3','4','5','6','7','8','9','del','0','ok'];
+  return `<div class="pin-pad">${keys.map(k => {
+    const lab = k === 'del' ? 'Effacer' : k === 'ok' ? 'Valider' : k;
+    const text = k === 'del' ? '⌫' : k === 'ok' ? 'OK' : k;
+    return `<button type="button" data-pin="${k}" aria-label="${lab}">${text}</button>`;
+  }).join('')}</div>`;
+}
+function paintLockDots() {
+  const host = document.querySelector('.app-lock .pin-dots');
+  if (host) host.outerHTML = pinDots(lockBuf);
+}
+function setLockError(msg) {
+  const el = document.querySelector('.app-lock .lock-err');
+  if (el) el.textContent = msg || '';
+}
+function unlockApp() {
+  lockBuf = '';
+  document.documentElement.classList.remove('app-locked');
+  const el = document.querySelector('.app-lock');
+  if (el) el.hidden = true;
+}
+function openLock(auto) {
+  if (!lockEnabled()) return;
+  document.documentElement.classList.add('app-locked');
+  let el = document.querySelector('.app-lock');
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'app-lock';
+    el.setAttribute('role', 'dialog');
+    el.setAttribute('aria-modal', 'true');
+    el.setAttribute('aria-labelledby', 'lock-title');
+    document.body.appendChild(el);
+  }
+  el.hidden = false;
+  el.innerHTML = `<h1 id="lock-title">Prelevo est verrouillé</h1><p>Saisissez votre code, ou déverrouillez avec Face ID ou Touch ID.</p><button type="button" class="btn" id="lock-bio">Déverrouiller</button>${pinDots(lockBuf)}<p class="lock-err" role="alert"></p>${pinPad()}`;
+  if (auto) tryUnlockBio(false);
+}
+async function tryUnlockBio(fromTap) {
+  const rec = readLock();
+  if (!rec) return;
+  if (rec.nativeBio) {
+    const native = await nativeBio();
+    if (native === true) { unlockApp(); return; }
+    if (fromTap && native === false) setLockError('Utilisez votre code.');
+    return;
+  }
+  if (rec.credentialId) {
+    try {
+      if (await getWebAuthn(rec.credentialId)) { unlockApp(); return; }
+    } catch (e) {
+      if (fromTap) setLockError('Utilisez votre code.');
+    }
+  } else if (fromTap) setLockError('Aucun déverrouillage biométrique n’est enregistré sur cet appareil.');
+}
+async function submitLockPin() {
+  const rec = readLock();
+  let ok = false;
+  try { ok = await PrelevoGuard.verifyPin(lockBuf, rec); } catch (e) { ok = false; }
+  lockBuf = '';
+  paintLockDots();
+  if (!ok) { setLockError('Ce code ne correspond pas.'); return; }
+  unlockApp();
+}
+function pressPin(key, overlay) {
+  const buf = overlay ? lockBuf : setupBuf;
+  let next = buf;
+  if (key === 'del') next = buf.slice(0, -1);
+  else if (key === 'ok') { if (overlay) submitLockPin(); else submitSetupPin(); return; }
+  else if (buf.length < 6) next = buf + key;
+  if (overlay) { lockBuf = next; paintLockDots(); setLockError(''); }
+  else { setupBuf = next; render(); }
+}
+async function submitSetupPin() {
+  if (!PrelevoGuard.pinOk(setupBuf)) { toast('Choisissez 4 à 6 chiffres.'); return; }
+  if (lockPhase === 'current') {
+    const ok = await PrelevoGuard.verifyPin(setupBuf, readLock());
+    setupBuf = '';
+    if (!ok) { toast('Ce code ne correspond pas.'); render(); return; }
+    if (lockPhaseAfterCurrent === 'off') {
+      Store.remove(LOCK_KEY);
+      lockPhase = '';
+      unlockApp();
+      toast('Verrouillage retiré de cet appareil.');
+      render();
+      return;
+    }
+    lockPhase = lockPhaseAfterCurrent;
+    render();
+    return;
+  }
+  if (lockPhase === 'choose') {
+    setupA = setupBuf;
+    setupBuf = '';
+    lockPhase = 'confirm';
+    render();
+    return;
+  }
+  if (lockPhase === 'confirm') {
+    if (setupBuf !== setupA) { setupBuf = ''; setupA = ''; lockPhase = 'choose'; toast('Les deux codes sont différents. Recommencez.'); render(); return; }
+    const hashed = await PrelevoGuard.hashPin(setupBuf);
+    const prev = readLock() || {};
+    Store.writeJSON(LOCK_KEY, Object.assign({}, prev, hashed, { enabled: true }));
+    setupBuf = '';
+    setupA = '';
+    const bio = await platformBio();
+    const cap = window.Capacitor;
+    const native = cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform();
+    lockPhase = (bio || native) ? 'bio' : '';
+    toast('Prelevo se verrouillera à la prochaine ouverture.');
+    render();
+  }
+}
+let lockPhaseAfterCurrent = 'choose';
+async function enrollBio() {
+  const rec = readLock() || {};
+  const cap = window.Capacitor;
+  if (cap && typeof cap.isNativePlatform === 'function' && cap.isNativePlatform()) {
+    const native = await nativeBio();
+    if (native !== true) { toast('Le déverrouillage biométrique n’a pas été activé.'); return; }
+    Store.writeJSON(LOCK_KEY, Object.assign({}, rec, { nativeBio: true, credentialId: '' }));
+    lockPhase = '';
+    toast('Face ID ou Touch ID est prêt sur cet iPhone.');
+    render();
+    return;
+  }
+  try {
+    const id = await enrollWebAuthn();
+    Store.writeJSON(LOCK_KEY, Object.assign({}, rec, { credentialId: id, nativeBio: false }));
+    lockPhase = '';
+    toast('Vous pourrez déverrouiller avec Face ID ou Touch ID.');
+    render();
+  } catch (e) {
+    toast('Le déverrouillage biométrique n’a pas été activé. Le code reste en place.');
+  }
 }
 screens.compte = () => {
   const P = isP(), unread = alerts().filter(a => !state.readAlerts.includes(a.id)).length;
@@ -2015,6 +2275,8 @@ screens.compte = () => {
     <button type="button" class="acct-row" id="toggle-balance" role="switch" aria-checked="${state.hideBalance ? 'true' : 'false'}"><span class="acct-ic">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</span><span class="acct-lab">Masquer le solde</span><span class="sw ${state.hideBalance ? 'on' : ''}"></span></button>
     ${row('#/apparence','auto','Apparence', themeLabel())}
     ${row('#/notifications','bell','Notifications', (pushSupported() && Notification.permission === 'granted' && readPushPref().opted) ? 'Activées' : 'Désactivées')}
+    ${row('#/verrouillage','lock','Verrouiller Prelevo', lockEnabled() ? 'Activé' : 'Désactivé')}
+    ${row('#/soutiens','heart','Soutiens')}
     ${row('#/premium','star',APP_NAME+' Premium', P ? 'Actif' : 'Gratuit')}
     ${row('#/parrainage','gift','Parrainage','1 mois offert')}
     <button type="button" class="acct-row danger" id="reset"><span class="acct-ic">⟦refresh⟧</span><span class="acct-lab">Réinitialiser les données</span></button>
@@ -2058,6 +2320,76 @@ screens.notifications = () => {
   ${pushDemo ? `<p class="push-note" role="status"><b>${esc(pushDemo.title)}</b><span>${esc(pushDemo.body)}</span></p>` : ''}
 </div>`;
 };
+screens.verrouillage = () => {
+  const rec = readLock();
+  const on = lockEnabled();
+  const back = `<div class="topbar look-bar"><a class="back" href="#/compte" aria-label="Retour">⟦back⟧</a><h1>Verrouiller Prelevo</h1><span></span></div>`;
+  if (lockPhase === 'choose' || lockPhase === 'confirm' || lockPhase === 'current') {
+    const title = lockPhase === 'current' ? 'Saisissez le code actuel' : lockPhase === 'confirm' ? 'Confirmez ce code' : 'Choisissez un code de 4 à 6 chiffres';
+    return `<div class="screen lock-setup">${back}<p class="push-lead">${title}.</p>${pinDots(setupBuf)}${pinPad()}</div>`;
+  }
+  if (lockPhase === 'bio') {
+    return `<div class="screen lock-setup">${back}<p class="push-lead">Vous pouvez aussi déverrouiller avec Face ID ou Touch ID. Si ce n’est pas possible, le code reste le repli.</p><button class="btn" type="button" id="lock-enroll">Utiliser Face ID ou Touch ID</button><button class="btn ghost" type="button" id="lock-skip">Plus tard</button></div>`;
+  }
+  if (!on) {
+    return `<div class="screen lock-setup">${back}<p class="push-lead">Un code de 4 à 6 chiffres reste sur cet appareil, sous forme d’empreinte. Face ID ou Touch ID s’ajoute quand l’appareil le propose. Prelevo se verrouille à l’ouverture, et après 5 minutes en arrière-plan.</p><button class="btn" type="button" id="lock-start">Activer le verrouillage</button></div>`;
+  }
+  const bio = rec && (rec.credentialId || rec.nativeBio) ? '<p class="push-status">Déverrouillage biométrique activé. Le code sert si vous annulez.</p>' : '<button class="btn ghost" type="button" id="lock-enroll">Ajouter Face ID ou Touch ID</button>';
+  return `<div class="screen lock-setup">${back}<p class="push-status">Verrouillage activé sur cet appareil.</p>${bio}<button class="btn ghost" type="button" id="lock-change">Changer le code</button><button class="btn ghost" type="button" id="lock-off">Retirer le verrouillage</button></div>`;
+};
+screens.prelevements = () => {
+  const leads = readLeads();
+  const rows = active().map(s => {
+    const debit = PrelevoGuard.nextDebitDate(s.day, nowRef());
+    return { s: s, debit: debit, lead: PrelevoGuard.normalizeLead(leads[s.id]) };
+  }).filter(r => r.debit).sort((a, b) => a.debit - b.debit);
+  const seg = (s, lead) => [1, 3, 7].map(n => `<button type="button" class="${lead === n ? 'on' : ''}" data-lead="${n}" data-sub="${esc(s.id)}" role="radio" aria-checked="${lead === n}">J-${n}</button>`).join('');
+  return `
+<div class="screen">
+  <div class="topbar look-bar"><a class="back" href="#/alertes" aria-label="Retour">⟦back⟧</a><h1>Prochains prélèvements</h1><span></span></div>
+  <p class="push-lead">Pour chaque abonnement détecté, choisissez d’être prévenu 1, 3 ou 7 jours avant. Le délai par défaut est de 3 jours.</p>
+  ${rows.length ? rows.map(r => `<div class="debit-row"><div class="debit-h"><b>${esc(r.s.name)}</b><span>${esc(dayLabel(r.debit))} · ${euroPlain(r.s.price)}</span></div><div class="seg debit-seg" role="radiogroup" aria-label="Délai pour ${esc(r.s.name)}">${seg(r.s, r.lead)}</div></div>`).join('') : '<p class="push-lead">Aucun prélèvement détecté pour l’instant.</p>'}
+  <p class="push-ios">Le rappel s’affiche sur cet appareil si vous avez activé les notifications. Avec la clé du serveur, le même rappel part aussi en notification push.</p>
+  <a class="btn ghost" href="#/notifications">Notifications</a>
+</div>`;
+};
+function ululeHref() {
+  const raw = String((CFG && CFG.ululeUrl) || '').trim();
+  try {
+    const url = new URL(raw);
+    if (url.protocol === 'https:' || url.protocol === 'http:') return url.href;
+  } catch (e) {}
+  return '';
+}
+screens.soutiens = () => {
+  const href = ululeHref();
+  const action = href
+    ? `<a class="btn" href="${esc(href)}" target="_blank" rel="noopener">Voir la campagne Ulule</a>`
+    : '<button class="btn" type="button" disabled>La campagne Ulule n’est pas encore ouverte</button>';
+  return `
+<div class="screen">
+  <div class="topbar look-bar"><a class="back" href="#/compte" aria-label="Retour">⟦back⟧</a><h1>Soutiens</h1><span></span></div>
+  <p class="push-lead">Merci à celles et ceux qui portent Prelevo. Les noms des contributeurs Ulule apparaîtront ici.</p>
+  <div id="soutien-list" class="menu-card"><p class="soutien-empty">La liste est vide pour l’instant.</p></div>
+  ${action}
+</div>`;
+};
+function loadSupporters() {
+  const gen = _viewGen;
+  fetch('supporters.json', { cache: 'no-store' }).then(r => r.ok ? r.json() : []).then(list => {
+    if (gen !== _viewGen) return;
+    const host = document.getElementById('soutien-list');
+    if (!host) return;
+    if (!Array.isArray(list) || !list.length) {
+      host.innerHTML = '<p class="soutien-empty">La liste est vide pour l’instant.</p>';
+      return;
+    }
+    host.innerHTML = list.map(p => {
+      const badge = p && p.founder ? '<em class="founder-badge">Soutien fondateur</em>' : '';
+      return `<div class="acct-row soutien-row"><span class="acct-lab">${esc(p && p.name || '')}</span>${badge}</div>`;
+    }).join('');
+  }).catch(() => {});
+}
 function refCode(){
   const saved = Store.readRaw('prelevo-ref');
   if (saved) return saved;
@@ -2643,6 +2975,8 @@ function render(){
       on.parentElement.scrollLeft = Math.max(0, on.offsetLeft - (on.parentElement.clientWidth - on.offsetWidth) / 2);
     }
   }
+  if (name !== 'verrouillage') { lockPhase = ''; setupBuf = ''; setupA = ''; }
+  if (name === 'soutiens') loadSupporters();
   if (name==='dashboard') animateHome();
   if (name==='scan') runScan();
   if (name==='pwscan' && PWX && !LIVE) runPwScan();
@@ -2710,9 +3044,38 @@ if ('serviceWorker' in navigator) {
   });
 }
 document.addEventListener('keydown', e => {
+  if (document.documentElement.classList.contains('app-locked')) {
+    if (/^[0-9]$/.test(e.key)) pressPin(e.key, true);
+    else if (e.key === 'Backspace') pressPin('del', true);
+    else if (e.key === 'Enter') pressPin('ok', true);
+    e.preventDefault();
+    return;
+  }
   if (e.key === 'Escape' && document.querySelector('.cat-sheet')) { closeCatSheet(); e.preventDefault(); }
 });
 document.addEventListener('click', e => {
+  const pinKey = e.target.closest && e.target.closest('[data-pin]');
+  if (pinKey) {
+    e.preventDefault();
+    pressPin(pinKey.dataset.pin, !!pinKey.closest('.app-lock'));
+    return;
+  }
+  if (e.target.closest('#lock-bio')) { tryUnlockBio(true); return; }
+  if (e.target.closest('#lock-start')) { lockPhase = 'choose'; setupBuf = ''; render(); return; }
+  if (e.target.closest('#lock-skip')) { lockPhase = ''; render(); return; }
+  if (e.target.closest('#lock-enroll')) { enrollBio(); return; }
+  if (e.target.closest('#lock-change')) { lockPhase = 'current'; lockPhaseAfterCurrent = 'choose'; setupBuf = ''; render(); return; }
+  if (e.target.closest('#lock-off')) { lockPhase = 'current'; lockPhaseAfterCurrent = 'off'; setupBuf = ''; render(); return; }
+  const leadBtn = e.target.closest && e.target.closest('[data-lead]');
+  if (leadBtn) {
+    const all = readLeads();
+    all[leadBtn.dataset.sub] = PrelevoGuard.normalizeLead(leadBtn.dataset.lead);
+    Store.writeJSON(LEAD_KEY, all);
+    render();
+    syncPushPlan();
+    notifyDue();
+    return;
+  }
   if (e.target.closest('#enable-push')) { enablePush(); return; }
   if (e.target.closest('#demo-push')) { demoPush(); return; }
   const catBtn = e.target.closest('[data-cat-edit]');
@@ -2817,6 +3180,10 @@ document.addEventListener('click', e => {
     Store.remove(BUDGET_KEY);
     Store.remove(PUSH_KEY);
     Store.remove(CAT_KEY);
+    Store.remove(LOCK_KEY);
+    Store.remove(LEAD_KEY);
+    Store.remove(SENT_KEY);
+    if (API && API.pushUnsubscribe && API.loggedIn()) API.pushUnsubscribe().catch(() => {});
     const demo = QS.has('demo') || (!API && !LIVE);
     const q = location.search || (demo ? '?demo=1' : '');
     location.replace(location.pathname + q + (demo ? '#/dashboard' : '#/onboarding'));
@@ -2842,6 +3209,12 @@ document.addEventListener('submit', e => {
   onLeave(() => clearTimeout(reply));
 });
 
+document.addEventListener('visibilitychange', () => {
+  if (!lockEnabled()) return;
+  if (document.hidden) { lockHiddenAt = Date.now(); return; }
+  if (lockHiddenAt && Date.now() - lockHiddenAt >= LOCK_IDLE_MS) openLock(true);
+});
+if (lockEnabled()) openLock(false);
 save.pub = true;
 if (PWX && !QS.has('demo')) {
   if (PWX.isReturn()) history.replaceState(null, '', location.pathname + location.search + '#/pwscan');
@@ -2857,6 +3230,8 @@ if (API){
   else if (API.loggedIn()){ $('#app').innerHTML = icons(screens.apiwait().replace('Lecture de vos comptes…','Chargement…').replace(/<p class="muted small"[^>]*>.*?<\/p>/,'')); apiLoadMe().then(render); }
   else render();
 } else render();
+notifyDue();
+if (lockEnabled()) tryUnlockBio(false);
 
 // ---------- synchro depuis l'accueil (bouton + tirer pour actualiser) ----------
 let _syncing = false;

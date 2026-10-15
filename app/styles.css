@@ -955,3 +955,25 @@ body:has(#tabbar[hidden]) .screen{padding-bottom:calc(28px + env(safe-area-inset
 .cat-pick .cat{width:36px;height:36px;border-radius:50%;background:#fff;color:var(--cat-ink,#4E5966);box-shadow:inset 0 0 0 1px var(--line)}
 .cat-pick .cat .i{width:18px;height:18px}
 .cat-pick span:last-child{font-size:16px;font-weight:550;letter-spacing:-.02em}
+html.app-locked #app,html.app-locked #tabbar{visibility:hidden}
+.app-lock{position:fixed;inset:0;z-index:80;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:calc(24px + env(safe-area-inset-top)) 24px calc(24px + env(safe-area-inset-bottom));background:var(--bg);color:var(--ink);text-align:center}
+.app-lock[hidden]{display:none}
+.app-lock h1{font-size:22px;letter-spacing:-.03em;font-weight:650}
+.app-lock p{max-width:280px;color:var(--ink2);font-size:15px;line-height:1.4}
+.app-lock .lock-err{min-height:1.2em;color:var(--down, #C2410C);font-size:14px}
+.app-lock .btn{min-height:52px;width:min(320px,100%)}
+.pin-dots{display:flex;gap:10px;min-height:16px;justify-content:center}
+.pin-dots i{width:10px;height:10px;border-radius:50%;background:var(--line);display:block}
+.pin-dots i.on{background:var(--accent)}
+.pin-pad{display:grid;grid-template-columns:repeat(3,76px);gap:12px;justify-content:center}
+.pin-pad button{min-width:64px;min-height:64px;border-radius:50%;background:var(--soft);color:var(--ink);font-size:22px;font-weight:600}
+.lock-setup .pin-pad{margin-top:8px}
+.debit-row{padding:12px 0;border-top:1px solid var(--line2)}
+.debit-row:first-child{border-top:0}
+.debit-h{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.debit-h b{font-size:16px;letter-spacing:-.02em}
+.debit-h span{color:var(--ink2);font-size:13.5px;text-align:right}
+.debit-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;background:var(--chip);border-radius:12px;padding:3px;margin-top:8px}
+.soutien-row{justify-content:space-between}
+.soutien-empty{margin:0;padding:14px 2px;color:var(--ink2);font-size:14.5px;line-height:1.45}
+.founder-badge{flex:none;font-style:normal;font-size:12px;font-weight:650;letter-spacing:-.01em;color:var(--accent-ink,#fff);background:var(--accent);border-radius:999px;padding:4px 8px}
