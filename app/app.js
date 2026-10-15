@@ -2052,6 +2052,7 @@ async function syncPushPlan() {
       id: s.id,
       name: s.name,
       amount: s.price,
+      day: s.day,
       leadDays: PrelevoGuard.normalizeLead(readLeads()[s.id]),
       debitOn: debit ? PrelevoGuard.dayKey(debit) : null
     };

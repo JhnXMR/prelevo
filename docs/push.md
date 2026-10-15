@@ -35,24 +35,24 @@ L’objet `PushSubscription.toJSON()` est conservé dans le Store de l’apparei
 ```json
 {
   "subscription": { "endpoint": "…", "keys": { "p256dh": "…", "auth": "…" } },
-  "alerts": [{ "id": "fibrebox", "name": "FibreBox Internet", "amount": 39.99, "leadDays": 3, "debitOn": "2026-10-12" }]
+  "alerts": [{ "id": "fibrebox", "name": "FibreBox Internet", "amount": 39.99, "day": 12, "leadDays": 3, "debitOn": "2026-10-12" }]
 }
 ```
 
-`leadDays` vaut 1, 3 ou 7. Sans valeur, le serveur retient 3. `debitOn` est le jour du prélèvement (`AAAA-MM-JJ`).
+`leadDays` vaut 1, 3 ou 7. Sans valeur, le serveur retient 3. `day` est le jour du mois (1 à 31). `debitOn` est la prochaine date de prélèvement (`AAAA-MM-JJ`).
 3. Exposer le retrait, par exemple `DELETE /push/subscribe`, quand la personne désactive les alertes ou quand le service de push répond 404 ou 410.
 4. Envoyer un Web Push (RFC 8030, chiffrement RFC 8291, authentification VAPID RFC 8292) avec une charge utile JSON :
 
 ```json
 {
-  "title": "Prélèvement demain",
+  "title": "Prélèvement dans 3 jours",
   "body": "FibreBox Internet · 39,99 €",
-  "url": "#/alertes",
-  "tag": "prelevement"
+  "url": "#/prelevements",
+  "tag": "prelevement-fibrebox"
 }
 ```
 
-`title` et `body` sont le texte affiché. `url` est une ancre de l’app (`#/…`). `tag` remplace une alerte du même type déjà affichée.
+`title` et `body` sont le texte affiché. Pour J-1, le titre est « Prélèvement demain ». `url` est une ancre de l’app (`#/…`). `tag` remplace une alerte du même prélèvement déjà affichée.
 
 Les quatre types à envoyer :
 
