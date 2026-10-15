@@ -137,7 +137,15 @@
     });
   }
 
+  function pwaLockOwns() {
+    try {
+      var rec = JSON.parse(localStorage.getItem('prelevo-lock') || 'null');
+      return !!(rec && rec.enabled && rec.hash);
+    } catch (e) { return false; }
+  }
+
   function maybeLock(forcePrompt) {
+    if (pwaLockOwns()) { showLock(false); return; }
     if (!locked()) { showLock(false); return; }
     showLock(true);
     if (forcePrompt) promptBio(false);
@@ -191,7 +199,10 @@
   function decorate() {
     var account = document.querySelector('.screen.account');
     var reset = account && account.querySelector('#reset');
-    if (reset && reset.parentElement && !account.querySelector('#native-lock-row')) {
+    if (pwaLockOwns()) {
+      var oldRow = account && account.querySelector('#native-lock-row');
+      if (oldRow) oldRow.remove();
+    } else if (reset && reset.parentElement && !account.querySelector('#native-lock-row')) {
       var card = reset.parentElement;
       var lockRow = document.createElement('button');
       lockRow.type = 'button';

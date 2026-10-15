@@ -155,6 +155,8 @@ Dans Compte → Paramètres, une ligne **Verrouillage Face ID** ou **Verrouillag
 
 Le libellé vient du type d’appareil (`biometryType` 2 pour Face ID, 1 pour Touch ID). Le code de l’iPhone est proposé en secours. Le texte système est : « Prelevo utilise Face ID pour verrouiller l’app sur cet iPhone. »
 
+La PWA a aussi un verrouillage : code de 4 à 6 chiffres haché sur l’appareil, et WebAuthn quand le navigateur a un authenticator de plateforme. À l’ouverture, et après 5 minutes en arrière-plan. Dans la coquille, `app.js` appelle déjà `BiometricAuthNative` (ou `BiometricAuth`) si `Capacitor.isNativePlatform()` est vrai. Le plugin `@aparajita/capacitor-biometric-auth` est celui qu’il faut garder : pas besoin d’en ajouter un autre. Après `npm run sync`, si `prelevo-lock` est activé, la ligne native « Verrouillage Face ID » se retire pour ne pas empiler deux verrous. Le code reste le repli si la biométrie est annulée.
+
 ## Notifications
 
 La ligne **Notifications de l’iPhone** est aussi réservée à l’app, et elle est désactivée au départ. Le système ne demande la permission qu’au moment où vous l’activez. Le jeton est gardé sur l’appareil (`prelevo-apns-token`). Aucun serveur ne le reçoit.
