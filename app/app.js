@@ -220,6 +220,15 @@ function sumEuros(list, pick) {
 function annual(n) { return fromCents(toCents(n) * 12); }
 const eur = n => fromCents(toCents(n)).toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' €';
 const prix = n => n.toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' €';
+// Économie de l'annuel face à 12 mois, en centimes (évite les flottants 1,99 × 12).
+function yearSave(monthEuros, yearEuros){
+  const month = Math.round(Number(monthEuros) * 100);
+  const year = Math.round(Number(yearEuros) * 100);
+  const full = month * 12;
+  if (!(month > 0 && year > 0 && full > year)) return null;
+  const save = full - year;
+  return { save, pct: Math.round(save * 100 / full) };
+}
 const eur0 = n => Math.round(n).toLocaleString('fr-FR') + ' €';
 const $ = s => document.querySelector(s);
 const active = () => SUBS.filter(s => !state.resiliated.includes(s.id));
@@ -2583,11 +2592,12 @@ screens.premium = () => {
     if (P && B) return portalBtn('Changer de formule', true);
     return `<button type="button" class="btn" data-checkout="${kind}">S’abonner</button>`;
   };
-  const acc = (id, name, price, items) => `<section class="pacc${interval === id ? ' is-current' : ''}${id === 'free' ? ' is-free' : ''}">
-    <h2><button type="button" id="pacc-${id}-btn" data-acc="${id}" aria-expanded="false" aria-controls="pacc-${id}"><span class="pacc-name">${name}${interval === id ? '<em>Formule actuelle</em>' : ''}</span><span class="pacc-price">${price}</span></button></h2>
-    <div class="pacc-panel" id="pacc-${id}" role="region" aria-labelledby="pacc-${id}-btn" inert><div class="pacc-clip"><ul>${items.map(t => `<li>${t}</li>`).join('')}</ul>${action(id)}</div></div>
+  const acc = (id, name, price, items, save) => `<section class="pacc${interval === id ? ' is-current' : ''}${id === 'free' ? ' is-free' : ''}">
+    <h2><button type="button" id="pacc-${id}-btn" data-acc="${id}" aria-expanded="false" aria-controls="pacc-${id}"><span class="pacc-name">${name}${interval === id ? '<em>Formule actuelle</em>' : ''}</span><span class="pacc-side">${save ? `<span class="pacc-off">−${save.pct} %</span>` : ''}<span class="pacc-price">${price}</span></span></button></h2>
+    <div class="pacc-panel" id="pacc-${id}" role="region" aria-labelledby="pacc-${id}-btn" inert><div class="pacc-clip">${save ? `<p class="pacc-save">Vous économisez ${prix(save.save / 100)} par an</p>` : ''}<ul>${items.map(t => `<li>${t}</li>`).join('')}</ul>${action(id)}</div></div>
   </section>`;
   const premiumPerks = ['Sans publicité', 'Alertes de hausse de prix', 'Rappel avant chaque prélèvement', 'Résiliation guidée', 'Reste à vivre', 'Banques illimitées'];
+  const yearOff = yearSave(CFG.priceMonth, CFG.priceYear);
   return `
 <div class="screen">
   <div class="topbar"><a class="back" href="#/dashboard">⟦back⟧</a>${demoTag}</div>
@@ -2596,7 +2606,7 @@ screens.premium = () => {
   <div class="paccs">
     ${acc('free', 'Gratuit', '0 €', ['Scan de vos comptes', 'Liste de vos abonnements', 'Une banque', 'Publicités signalées'])}
     ${acc('month', 'Premium mensuel', prix(CFG.priceMonth), premiumPerks)}
-    ${acc('year', 'Premium annuel', prix(CFG.priceYear), premiumPerks.concat(['Facturé ' + prix(CFG.priceYear) + ' une fois par an']))}
+    ${acc('year', 'Premium annuel', prix(CFG.priceYear), premiumPerks.concat(['Facturé ' + prix(CFG.priceYear) + ' une fois par an']), yearOff)}
   </div>
 </div>`;
 };
