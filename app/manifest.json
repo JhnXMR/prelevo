@@ -1,7 +1,7 @@
 {
-  "name": "Prelevo – l'app qui traque vos abonnements",
+  "name": "Prelevo – la nouvelle interface de votre compte bancaire",
   "short_name": "Prelevo",
-  "description": "Repère vos abonnements, détecte les hausses de prix et vous aide à résilier. Maquette avec données d'exemple.",
+  "description": "Tous vos comptes, vos opérations et vos prélèvements dans une belle interface. Prelevo n’est pas une banque : lecture seule, aucun paiement.",
   "lang": "fr",
   "start_url": "./index.html",
   "scope": "./",
