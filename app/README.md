@@ -24,6 +24,7 @@ API Prelevo (alpha) : `apiBase` dans config.js. Vide (valeur publiée) = maquett
 Renseigné (ex. `http://localhost:8795`) = connexion par lien magique (`#/connexion?token=`), banque via `POST /bank/connect` puis
 retour Webview `POST /bank/callback` (state vérifié), écrans depuis `GET /me`, Réglages > Se déconnecter / Supprimer mon compte (`DELETE /me`).
 `?demo=1` reste toujours en données d'exemple. Le service worker ne met jamais en cache les appels API (autre origine, en-tête Authorization, /auth /bank /me).
+`bankProvider: 'enablebanking'` dans config.js (pas un secret) : le bouton « Connecter ma banque » part vers l’API, qui parle à Enable Banking. Le retour est `?code=&state=`. La clé privée reste sur Clever Cloud. Voir server/README.md.
 
 Écrans : #/onboarding, #/connect, #/scan, #/dashboard, #/abonnements (?f=up|small|eco), #/abo/<id>,
 #/resilier/<id>/<1-4> (Premium), #/alertes, #/premium, #/aide, #/chat, #/banques

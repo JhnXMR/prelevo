@@ -90,6 +90,7 @@ const linked = () => LIVE ? [liveBank()] : isP() ? LINKED : LINKED.slice(0,1);
 // Avec une API Prelevo configurée (config.js > apiBase), la banque passe par le serveur : le flux « 100 % navigateur » est désactivé.
 const API = window.PAPI || null;
 const PWX = API ? null : (window.PW || null);
+const bankEb = () => ((window.APP_CONFIG || {}).bankProvider || '') === 'enablebanking';
 let ME = null;               // réponse de GET /me
 if (PWX && QS.has('demo')) PWX.clear();            // ?demo=1 = toujours les données d'exemple
 let LIVE = null;
@@ -129,7 +130,9 @@ function applyServer(me){
     bankLogo: (me.bank && me.bank.logo) || st.bankLogo || null, bankColor: (me.bank && me.bank.color) || st.bankColor || null,
     at: me.lastSyncAt ? Date.parse(me.lastSyncAt) : null, history: { days: st.days, debits: st.debits, total: st.total, limited: st.limited }, savings: st.savings });
   state.connected = true; save();
-  demoTag = '<span class="demo live">Banque de test</span>';
+  demoTag = bankEb()
+    ? '<span class="demo live">Lecture seule</span>'
+    : '<span class="demo live">Banque de test</span>';
 }
 function humanError(e, fallback){
   const msg = String((e && e.message) || '');
@@ -149,7 +152,7 @@ function apiFail(e){
   toast(humanError(e));
 }
 async function apiLoadMe(){ try { applyServer(await API.me()); } catch(e){ apiFail(e); } }
-const sandboxNote = () => window.PW && API ? `<div class="pw-note"><b>Banque de test (sandbox Powens)</b>
+const sandboxNote = () => window.PW && API && !bankEb() ? `<div class="pw-note"><b>Banque de test (sandbox Powens)</b>
   ${window.PW.testCreds.map(c=>`<div><span>${c.bank}</span>${c.fields}</div>`).join('')}
   <p>Pendant la bêta privée, seules les fausses banques de test sont proposées.</p></div>` : '';
 const notBank = (extra='') => `<p class="notbank ${extra}">⟦shield⟧<span><b>${APP_NAME} n’est pas une banque.</b> C’est une télécommande élégante pour celles que vous avez déjà : on s’y branche en lecture seule, via un agrégateur agréé par l’ACPR.</span></p>`;
@@ -435,12 +438,13 @@ screens.onboarding = () => `
   </ul>
   ${notBank('onb-nb')}
   <div class="spacer"></div>
-  ${API ? (API.loggedIn() ? `<button class="btn" id="api-connect">⟦bank⟧ Connecter ma banque</button>
+  ${API ? (API.loggedIn() ? `${bankEb() ? `<p class="muted small" style="margin:0 2px 12px;line-height:1.45">Vous autorisez la lecture de vos comptes Société Générale, pour 180 jours. Vous pouvez révoquer cet accès à tout moment. Aucun virement n’est possible.</p>` : ''}
+  <button class="btn" id="api-connect">⟦bank⟧ Connecter ma banque</button>
   <button class="btn ghost" id="api-logout" style="margin-top:8px">Se déconnecter</button>`
     : `<a class="btn" href="#/connexion">⟦mail⟧ Se connecter avec mon e-mail</a>
   <a class="btn ghost" href="?demo=1#/dashboard" style="margin-top:8px">Voir la démo (données d’exemple)</a>`) : `<a class="btn" href="#/connect">Connecter ma banque</a>
   ${PWX ? `<button class="btn ghost" id="pw-connect" style="margin-top:8px">⟦bank⟧ Connecter une banque de test</button>` : ''}`}
-  <p class="fine">⟦lock⟧ Gratuit pour commencer, Premium à ${prix(CFG.priceMonth)}/mois.<br>Accès en lecture seule via un agrégateur bancaire agréé. ${APP_NAME} ne peut jamais déplacer votre argent.<br>${API ? 'Bêta privée – banques de test uniquement' : 'Maquette – données d’exemple'}</p>
+  <p class="fine">⟦lock⟧ Gratuit pour commencer, Premium à ${prix(CFG.priceMonth)}/mois.<br>Accès en lecture seule via un agrégateur bancaire agréé. ${APP_NAME} ne peut jamais déplacer votre argent.<br>${API ? (bankEb() ? 'Bêta fermée – lecture seule, aucun paiement' : 'Bêta privée – banques de test uniquement') : 'Maquette – données d’exemple'}</p>
 </div>`;
 
 screens.connect = () => `
@@ -2920,7 +2924,7 @@ screens.supprimer = () => !API || !API.loggedIn() ? screens.onboarding() : `
     <div style="font-weight:700;margin-bottom:6px">Ce qui sera effacé, définitivement :</div>
     <ul class="del-list">
       <li>⟦check⟧<span>votre compte${ME ? ` <b class="brk">${esc(ME.email)}</b>` : ''} et vos sessions</span></li>
-      <li>⟦check⟧<span>l’accès à votre banque, aussi chez notre agrégateur (Powens)</span></li>
+      <li>⟦check⟧<span>l’accès à votre banque, aussi chez notre agrégateur (${bankEb() ? 'Enable Banking' : 'Powens'})</span></li>
       <li>⟦check⟧<span>vos opérations, abonnements détectés et alertes</span></li>
     </ul>
     <p class="muted small" style="margin-top:8px">Rien n’est conservé chez ${APP_NAME}. Vous pourrez recréer un compte plus tard, en repartant de zéro.</p>
@@ -3002,7 +3006,7 @@ function render(){
   $('#app').innerHTML = icons(fn(new URLSearchParams(qs||''), ...args));
   flushMounts();
   const sub = $('#app .sub-bar'); if (sub) document.body.appendChild(sub);
-  if (API && ['onboarding','connexion','dashboard','connect','banques'].includes(name)){ const sc = $('#app').firstElementChild; if (sc && !sc.querySelector('.alpha-note')) sc.insertAdjacentHTML('afterbegin', '<div class="alpha-note" role="note"><b>Bêta privée</b> — banques de test uniquement pour l’instant</div>'); }
+  if (API && ['onboarding','connexion','dashboard','connect','banques'].includes(name)){ const sc = $('#app').firstElementChild; if (sc && !sc.querySelector('.alpha-note')) sc.insertAdjacentHTML('afterbegin', bankEb() ? '<div class="alpha-note" role="note"><b>Bêta fermée</b> — lecture seule, aucun paiement</div>' : '<div class="alpha-note" role="note"><b>Bêta privée</b> — banques de test uniquement pour l’instant</div>'); }
   syncNav(name);
   resetScroll();
   if (name === 'graphiques') {
@@ -3261,7 +3265,7 @@ if (PWX && !QS.has('demo')) {
 }
 publishSubs();
 // expiration du jeton de test (30 min) : on rafraîchit l'affichage quand elle survient
-setInterval(() => { if (LIVE && /banques|dashboard|alertes/.test(location.hash)) { const tk = PWX.tokenInfo(); if (tk && tk.expired && !tk._shown) { sessionStorage.setItem('prelevo-pw-token', JSON.stringify({...tk, _shown:1})); render(); toast('Session de test Powens expirée (30 min)'); } } }, 30000);
+setInterval(() => { if (PWX && LIVE && /banques|dashboard|alertes/.test(location.hash)) { const tk = PWX.tokenInfo(); if (tk && tk.expired && !tk._shown) { sessionStorage.setItem('prelevo-pw-token', JSON.stringify({...tk, _shown:1})); render(); toast('Session de test Powens expirée (30 min)'); } } }, 30000);
 window.addEventListener('hashchange', render);
 function showBootSkeleton(){
   if (QS.has('static') || matchMedia('(prefers-reduced-motion: reduce)').matches) return 0;

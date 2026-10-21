@@ -1,4 +1,4 @@
-const CACHE = 'prelevo-app-v91-reset';
+const CACHE = 'prelevo-app-v92-reset';
 const ASSETS = ['./', './index.html', './styles.css', './config.js', './powens.js', './api.js', './store.js', './categories.js', './guard.js', './supporters.json', './app.js', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/icon.svg',
   './icons/favicon.svg', './icons/logo-mark.svg', './icons/logo-mark-white.svg', './icons/favicon-32.png', './icons/apple-touch-icon-180.png'];
@@ -15,7 +15,7 @@ self.addEventListener('fetch', e => {
   if (url.origin !== self.location.origin) return;
   // API Prelevo hébergée sur la même origine (plus tard) ou requête authentifiée : jamais de cache
   if (e.request.headers.has('Authorization') || /^\/(auth|bank|me|webhooks)(\/|$)/.test(url.pathname)) return;
-  // Retour de la webview Powens (?connection_id=…) ou autre URL avec paramètres : réseau, sans mise en cache.
+  // Retour banque (?connection_id= Powens, ou ?code= Enable Banking) : réseau, sans mise en cache.
   if (url.search) {
     e.respondWith(fetch(e.request).catch(() => caches.match('./index.html')));
     return;
