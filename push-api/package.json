@@ -1,0 +1,14 @@
+{
+  "name": "prelevo-push",
+  "private": true,
+  "type": "module",
+  "description": "Envoi des alertes Web Push de Prelevo. À brancher dans prelevo-api. Ne pas déployer depuis cette PR.",
+  "scripts": {
+    "test": "node --test",
+    "dispatch": "node src/dispatch.js",
+    "generate-vapid": "node scripts/generate-vapid.mjs"
+  },
+  "dependencies": {
+    "web-push": "^3.6.7"
+  }
+}
