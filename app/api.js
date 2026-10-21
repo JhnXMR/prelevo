@@ -40,11 +40,17 @@
       try { sessionStorage.setItem(K_STATE, new URL(r.url).searchParams.get('state') || ''); } catch(e){}
       location.assign(r.url);
     },
-    /** Retour de la Webview Powens : ?state=…&connection_id=… (ou ?error=…) */
+    /** Retour banque : Powens (?connection_id=) ou Enable Banking (?code=), toujours avec ?state=. */
     returnParams(){
       const q = new URLSearchParams(location.search);
-      if (!q.has('state') || !(q.has('connection_id') || q.has('connection_ids') || q.has('error'))) return null;
-      return { state: q.get('state'), connection_id: q.get('connection_id') || undefined, error: q.get('error') || undefined };
+      const back = q.has('connection_id') || q.has('connection_ids') || q.has('code') || q.has('error');
+      if (!q.has('state') || !back) return null;
+      return {
+        state: q.get('state'),
+        connection_id: q.get('connection_id') || undefined,
+        code: q.get('code') || undefined,
+        error: q.get('error') || undefined
+      };
     },
     async finishConnect(p){ sessionStorage.removeItem(K_STATE); return call('POST', '/bank/callback', p); },
     sync: () => call('POST', '/bank/sync'),

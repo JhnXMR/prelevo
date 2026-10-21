@@ -10,6 +10,22 @@ En ligne (après publication) : https://jhnxmr.github.io/prelevo/
   Avec `none`, rien n'est envoyé : l'e-mail reste dans le navigateur du visiteur (aperçu uniquement, à ne pas publier tel quel).
 - `publisher`, `contactEmail` : affichés dans Mentions légales et Confidentialité.
 
+## Banque (Clever Cloud, app prelevo-api)
+
+Lecture seule via Enable Banking quand `BANK_PROVIDER=enablebanking`. Le détail est dans [server/README.md](server/README.md). À poser **uniquement** sur Clever Cloud, jamais dans le front GitHub Pages :
+
+- `BANK_PROVIDER` = `enablebanking`
+- `ENABLEBANKING_APP_ID` = `44da9167-d944-40a8-ad58-6c35ce849ff7`
+- `ENABLEBANKING_PRIVATE_KEY` = PEM de l’application (les `\n` échappés sont acceptés ; ne pas la commiter)
+- `ENABLEBANKING_REDIRECT_URL` = `https://jhnxmr.github.io/prelevo/app/`
+- `ENABLEBANKING_ASPSP_NAME` = `Société Générale`
+- `ENABLEBANKING_ASPSP_COUNTRY` = `FR`
+- `ENABLEBANKING_PSU_TYPE` = `personal`
+- `SUPABASE_URL` et `SUPABASE_SERVICE_ROLE_KEY` (clé service uniquement)
+- `PORT` (fourni par Clever Cloud)
+
+Répertoire de déploiement : `server/` (`npm start`). Migration SQL : `server/supabase/migrations/20261021170000_enablebanking.sql`. Pas de paiement. Ne pas activer `ENABLEBANKING_FIXTURE` en production.
+
 ## Divers
 - Aucun cookie, aucun traceur, police Inter auto-hébergée (assets/fonts).
 - Image de partage : assets/og.png (1200×630). Source : prelevo-brand/og-image.html.

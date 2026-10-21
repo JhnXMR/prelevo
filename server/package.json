@@ -1,0 +1,13 @@
+{
+  "name": "prelevo-api",
+  "private": true,
+  "type": "module",
+  "description": "Lecture bancaire Prelevo (Enable Banking). Aucun paiement. Aucune clé dans ce dossier.",
+  "scripts": {
+    "start": "node src/index.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
