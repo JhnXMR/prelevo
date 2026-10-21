@@ -776,7 +776,7 @@ function curveChart(curve, opt = {}){
   if (!curve || curve.length < 2) return '';
   const color = opt.color || '#0066FF';
   const H = opt.h || 92;
-  const W = 340, PADL = 2, PADR = 46, PADT = 12, PADB = 8;
+  const W = 340, PADL = 2, PADR = opt.padR || 46, PADT = 12, PADB = 8;
   let lo = Math.min(...curve.map(p => p.v)), hi = Math.max(...curve.map(p => p.v));
   if (opt.lo != null) lo = opt.lo;
   if (opt.hi != null) hi = opt.hi;
@@ -826,6 +826,11 @@ function curveChart(curve, opt = {}){
     return { lines, labels };
   })() : chartY(W, H, y, lo, hi);
   const ref = opt.ref != null ? `<line class="sp-ref" x1="0" y1="${y(opt.ref).toFixed(1)}" x2="${W}" y2="${y(opt.ref).toFixed(1)}" stroke="${color}" stroke-opacity=".55" stroke-dasharray="3 3" vector-effect="non-scaling-stroke"/>` : '';
+  const zoneBands = opt.zones ? opt.zones.map(z => `<rect x="0" y="${y(z.hi).toFixed(1)}" width="${W}" height="${(y(z.lo) - y(z.hi)).toFixed(1)}" fill="${z.c}" fill-opacity=".07"/>`).join('') + opt.zones.slice(1).map(z => `<line x1="0" y1="${y(z.lo).toFixed(1)}" x2="${W}" y2="${y(z.lo).toFixed(1)}" stroke="currentColor" stroke-opacity=".12" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>`).join('') : '';
+  const zoneLabels = opt.zones ? `<div class="sp-y sp-zones" aria-hidden="true">${opt.zones.map(z => `<span style="top:${(y((z.lo + z.hi) / 2) / H * 100).toFixed(2)}%;color:${z.c}">${z.l}</span>`).join('')}</div>` : '';
+  const sgid = 'sg' + idx;
+  const strokeDef = opt.strokeGrad ? `<linearGradient id="${sgid}" gradientUnits="userSpaceOnUse" x1="0" y1="${y(lo).toFixed(1)}" x2="0" y2="${y(hi).toFixed(1)}">${opt.strokeGrad.map((c, i) => `<stop offset="${(i / (opt.strokeGrad.length - 1)).toFixed(2)}" stop-color="${c}"/>`).join('')}</linearGradient>` : '';
+  const stroke = opt.strokeGrad ? `url(#${sgid})` : color;
   const bands = opt.bands ? (() => {
     const yh = y(70), yl = y(30);
     return `<rect x="0" y="0" width="${W}" height="${yh.toFixed(1)}" fill="#089981" fill-opacity=".10"/>`
@@ -836,13 +841,13 @@ function curveChart(curve, opt = {}){
   const g0 = opt.grad ? opt.grad[0] : .25, g1 = opt.grad ? opt.grad[1] : 0;
   const zero = opt.zero && lo < 0 && hi > 0 ? `<line class="sp-zero" x1="0" y1="${y(0).toFixed(1)}" x2="${W}" y2="${y(0).toFixed(1)}" stroke="currentColor" stroke-opacity=".16" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>` : '';
   const dotCls = (partial ? 'sp-dot is-partial' : 'sp-dot') + (opt.glow ? ' glow' : '');
-  return `<div class="spark lite${opt.tv ? ' tv' : ''}" data-curve="${idx}" ${opt.link ? `data-link="${opt.link}"` : ''} style="--spk:${color}" role="img" aria-label="${opt.label || 'Courbe. Glissez pour le détail.'}"><div class="sp-read"><span>${opt.caption || ''}</span><b>${head}</b></div><div class="spark-plot" style="height:${H}px"><svg viewBox="0 0 ${W} ${H}" style="height:${H}px" preserveAspectRatio="none" aria-hidden="true">
-    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity="${g0}"/><stop offset=".6" stop-color="${color}" stop-opacity="${(g0 * .35).toFixed(3)}"/><stop offset="1" stop-color="${color}" stop-opacity="${g1}"/></linearGradient></defs>
-    ${bands}${grid.lines}${zero}${ref}${opt.noArea ? '' : `<path class="sp-area" d="${area}" fill="url(#${gid})"/>`}
-    <path class="sp-dim" d="" fill="none" stroke="${color}" stroke-width="1.35" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
-    <path class="sp-line" d="${solid}" fill="none" stroke="${color}" stroke-width="${opt.sw || 1.35}" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+  return `<div class="spark lite${opt.tv ? ' tv' : ''}" data-curve="${idx}" ${opt.link ? `data-link="${opt.link}"` : ''} style="--spk:${opt.spk || color}" role="img" aria-label="${opt.label || 'Courbe. Glissez pour le détail.'}"><div class="sp-read"><span>${opt.caption || ''}</span><b>${head}</b></div><div class="spark-plot" style="height:${H}px"><svg viewBox="0 0 ${W} ${H}" style="height:${H}px" preserveAspectRatio="none" aria-hidden="true">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity="${g0}"/><stop offset=".6" stop-color="${color}" stop-opacity="${(g0 * .35).toFixed(3)}"/><stop offset="1" stop-color="${color}" stop-opacity="${g1}"/></linearGradient>${strokeDef}</defs>
+    ${zoneBands}${bands}${grid.lines}${zero}${ref}${opt.noArea ? '' : `<path class="sp-area" d="${area}" fill="url(#${gid})"/>`}
+    <path class="sp-dim" d="" fill="none" stroke="${stroke}" stroke-opacity="${opt.strokeGrad ? .35 : 1}" stroke-width="1.35" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
+    <path class="sp-line" d="${solid}" fill="none" stroke="${stroke}" stroke-width="${opt.sw || 1.35}" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>
     ${dash ? `<path class="sp-dash" d="${dash}" fill="none" stroke="${color}" stroke-width="1.35" stroke-dasharray="2.5 2.5" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/>` : ''}
-  </svg>${grid.labels}<i class="${dotCls}" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%"></i>
+  </svg>${opt.zones ? zoneLabels : grid.labels}<i class="${dotCls}" style="left:${(last[0] / W * 100).toFixed(2)}%;top:${(last[1] / H * 100).toFixed(2)}%"></i>
   <div class="sp-tip" hidden><b></b><span></span></div>
   <div class="sp-hit" aria-hidden="true"></div></div><div class="sp-axis">${axis}</div></div>`;
 }
@@ -1031,9 +1036,9 @@ function prelevoIndex(){
   const b = deskBounds(now, ev);
   const end = day0(now);
   let start = day0(b.from);
-  if ((+end - +start) / DAY_MS < 13) start = new Date(+end - 13 * DAY_MS);
+  if ((+end - +start) / DAY_MS < 29) start = new Date(+end - 29 * DAY_MS);
   const nDays = Math.round((+end - +start) / DAY_MS) + 1;
-  const base = +start - 13 * DAY_MS, tot = nDays + 13;
+  const base = +start - 29 * DAY_MS, tot = nDays + 29;
   const inc = new Array(tot).fill(0), out = new Array(tot).fill(0);
   for (const e of ev) {
     if (e.t > now) continue;
@@ -1044,19 +1049,46 @@ function prelevoIndex(){
   const curve = [];
   for (let d = 0; d < nDays; d++) {
     let a = 0, o = 0;
-    for (let j = d; j < d + 14; j++) { a += inc[j]; o += out[j]; }
+    for (let j = d; j < d + 30; j++) { a += inc[j]; o += out[j]; }
     curve.push({ t: new Date(+start + d * DAY_MS + 12 * 36e5), v: a + o > 0 ? Math.round(1000 * a / (a + o)) / 10 : 50 });
   }
   return curve;
 }
+const IDX_BLUES = ['#1E3A8A', '#2563EB', '#60A5FA', '#DBEAFE', '#FFFFFF'];
+const IDX_ZONES = [
+  { lo: 0, hi: 20, l: 'Très tendu', c: '#1E3A8A' },
+  { lo: 20, hi: 40, l: 'Tendu', c: '#2563EB' },
+  { lo: 40, hi: 60, l: 'Équilibré', c: '#60A5FA' },
+  { lo: 60, hi: 80, l: 'Confortable', c: '#DBEAFE' },
+  { lo: 80, hi: 100.01, l: 'Très confortable', c: '#FFFFFF' },
+];
+const idxZone = v => IDX_ZONES.find(z => v >= z.lo && v < z.hi) || IDX_ZONES[4];
+function idxGauge(v){
+  const cx = 120, cy = 112, r = 92;
+  const pt = (val, rr) => { const a = Math.PI * (1 - val / 100); return [cx + rr * Math.cos(a), cy - rr * Math.sin(a)]; };
+  const [kx, ky] = pt(v, r), z = idxZone(v);
+  const ticks = [20, 40, 60, 80].map(t => { const [x1, y1] = pt(t, r - 12), [x2, y2] = pt(t, r + 12); return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#0B0E14" stroke-width="2.5"/>`; }).join('');
+  return `<div class="pidx-gauge"><svg viewBox="0 0 240 130" aria-hidden="true">
+    <defs><linearGradient id="idxarc" x1="${cx - r}" y1="0" x2="${cx + r}" y2="0" gradientUnits="userSpaceOnUse">${IDX_BLUES.map((c, i) => `<stop offset="${i / 4}" stop-color="${c}"/>`).join('')}</linearGradient>
+    <filter id="idxglow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter></defs>
+    <path d="M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}" fill="none" stroke="#1E222D" stroke-width="20" stroke-linecap="round"/>
+    <path d="M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}" fill="none" stroke="url(#idxarc)" stroke-width="14" stroke-linecap="round"/>
+    ${ticks}
+    <circle cx="${kx.toFixed(1)}" cy="${ky.toFixed(1)}" r="11" fill="${z.c}" opacity=".55" filter="url(#idxglow)"/>
+    <circle cx="${kx.toFixed(1)}" cy="${ky.toFixed(1)}" r="9" fill="#0B0E14" stroke="#FFFFFF" stroke-width="3"/>
+    <circle cx="${kx.toFixed(1)}" cy="${ky.toFixed(1)}" r="4" fill="${z.c}"/>
+  </svg><div class="pidx-center"><b>${Math.round(v)}</b><span>${z.l}</span></div></div>`;
+}
 function indexCard(){
   const curve = prelevoIndex();
   if (curve.length < 2) return '';
-  const v = curve[curve.length - 1].v;
-  const st = v >= 70 ? ['Confortable', '#089981'] : v <= 30 ? ['Dépenses trop rapides', '#F23645'] : ['Équilibré', '#B39DFF'];
-  return `<div class="pidx-head"><b class="pidx-val" style="color:${st[1]}">${Math.round(v)}</b><span class="pidx-st" style="color:${st[1]};background:color-mix(in srgb, ${st[1]} 18%, transparent)">${st[0]}</span></div>
-  <p class="pidx-note">Au-dessus de 70 : vous dépensez moins que ce qui rentre. Sous 30 : vos dépenses vont trop vite.</p>`
-    + curveChart(curve, { color: '#B39DFF', h: 110, fmt: 'day', lo: 0, hi: 100, ticks: [100, 70, 30, 0], bands: true, noArea: true, idx: true, glow: true, tv: true, sw: 1.6, header: '', caption: 'Sur 14 jours glissants', label: 'Indice Prelevo de 0 à 100. Glissez pour le détail.' });
+  const v = curve[curve.length - 1].v, z = idxZone(v);
+  const dark = v < 40;
+  return `${idxGauge(v)}
+  <div class="pidx-row"><span class="pidx-pill" style="background:${z.c};color:${dark ? '#FFFFFF' : '#0B1A3A'}">${z.l}</span><b>${Math.round(v)} <small>/100</small></b></div>
+  <p class="pidx-note">L’indice compare vos rentrées et vos dépenses des 30 derniers jours. Près de 100 : vous dépensez bien moins que ce qui rentre. Près de 0 : vos dépenses vont trop vite.</p>`
+    + curveChart(curve, { color: '#60A5FA', spk: z.c, strokeGrad: IDX_BLUES, padR: 84, zones: IDX_ZONES.map(x => ({ ...x, hi: Math.min(100, x.hi) })), h: 130, fmt: 'day', lo: 0, hi: 100, noArea: true, idx: true, glow: true, tv: true, sw: 1.8, header: '', caption: 'Sur 30 jours glissants', label: 'Indice Prelevo de 0 à 100. Glissez pour le détail.' })
+    + `<div class="pidx-legend">${IDX_ZONES.map(x => `<span><i style="background:${x.c}"></i>${x.l}</span>`).join('')}</div>`;
 }
 function netLine(series){
   const titles = deskTitles();
