@@ -1062,3 +1062,13 @@ h1,.prem-title,.greet h1,.topbar h1,.acct-head h1,.acct-id h1{font-weight:500;le
 .ai-send:disabled{opacity:.4}
 .ai-send svg{width:18px;height:18px}
 .ai-foot{position:fixed;left:0;right:0;bottom:calc(8px + env(safe-area-inset-bottom));text-align:center;font-size:11px;color:var(--muted);z-index:20}
+
+/* Graphiques façon TradingView */
+.tv-card{background:linear-gradient(180deg,#131722,#0B0E14);color:#D1D4DC;border-color:#1E222D}
+.tv-card .sp-read span,.tv-card .sp-axis,.tv-card .sp-y{color:#787B86}
+.tv-card .sp-read b{color:#D1D4DC}
+.spark.lite .sp-dot.glow{width:8px;height:8px;box-shadow:0 0 0 2px #0B0E14,0 0 10px 3px color-mix(in srgb, var(--spk) 70%, transparent),0 0 22px 6px color-mix(in srgb, var(--spk) 35%, transparent)}
+.pidx-head{display:flex;align-items:center;gap:12px;margin:2px 0 4px}
+.pidx-val{font-size:40px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.pidx-st{font-size:13px;font-weight:600;padding:4px 10px;border-radius:999px}
+.pidx-note{margin:6px 0 0;font-size:12.5px;line-height:1.4;color:#9598A1}
