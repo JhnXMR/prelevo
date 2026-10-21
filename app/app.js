@@ -1086,7 +1086,7 @@ function indexCard(){
   const dark = v < 40;
   return `${idxGauge(v)}
   <div class="pidx-row"><span class="pidx-pill" style="background:${z.c};color:${dark ? '#FFFFFF' : '#0B1A3A'}">${z.l}</span><b>${Math.round(v)} <small>/100</small></b></div>
-  <p class="pidx-note">L’indice compare vos rentrées et vos dépenses des 30 derniers jours. Près de 100 : vous dépensez bien moins que ce qui rentre. Près de 0 : vos dépenses vont trop vite.</p>`
+`
     + curveChart(curve, { color: '#60A5FA', spk: z.c, strokeGrad: IDX_BLUES, padR: 84, zones: IDX_ZONES.map(x => ({ ...x, hi: Math.min(100, x.hi) })), h: 130, fmt: 'day', lo: 0, hi: 100, noArea: true, idx: true, glow: true, tv: true, sw: 1.8, header: '', caption: 'Sur 30 jours glissants', label: 'Indice Prelevo de 0 à 100. Glissez pour le détail.' })
     + `<div class="pidx-legend">${IDX_ZONES.map(x => `<span><i style="background:${x.c}"></i>${x.l}</span>`).join('')}</div>`;
 }
@@ -1142,7 +1142,14 @@ screens.graphiques = () => {
   <div class="panel spend-card tv-card">${spendTV(series)}</div>
   <p class="acct-k">Reste disponible</p>
   <div class="panel spend-card tv-card">${resteLine(series)}</div>
-  <p class="acct-k">Indice Prelevo</p>
+  <p class="acct-k pidx-title">Indice Prelevo <button type="button" class="pidx-i" data-pidx-info aria-expanded="false" aria-controls="pidx-info" aria-label="Qu’est-ce que l’Indice Prelevo ?">i</button></p>
+  <div class="pidx-info" id="pidx-info" role="region" aria-label="Qu’est-ce que l’Indice Prelevo ?" hidden>
+    <button type="button" class="pidx-x" data-pidx-info aria-label="Fermer">×</button>
+    <b>Qu’est-ce que l’Indice Prelevo ?</b>
+    <p>L’Indice Prelevo mesure l’équilibre de votre budget sur les 30 derniers jours. Il compare l’argent qui entre (salaire, remboursements…) à l’argent qui sort (dépenses, prélèvements).</p>
+    <p><strong>Près de 100 :</strong> vous dépensez bien moins que ce qui rentre, votre budget respire.<br><strong>Autour de 50 :</strong> vos dépenses et vos rentrées s’équilibrent.<br><strong>Près de 0 :</strong> vos dépenses vont plus vite que vos rentrées, il est temps de lever le pied.</p>
+    <p class="pidx-disc">C’est un repère, pas un conseil financier.</p>
+  </div>
   <div class="panel spend-card tv-card">${indexCard()}</div>
   <p class="acct-k">${titles.net}</p>
   <div class="panel spend-card">${netLine(series)}</div>
@@ -3813,3 +3820,12 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
   };
 })();
 if (QS.has('demo') && QS.get('scrub')) setTimeout(() => window.__scrubTo(+QS.get('scrub')), 600);  // captures
+
+document.addEventListener('click', e => {
+  const b = e.target.closest && e.target.closest('[data-pidx-info]'); if (!b) return;
+  const box = document.getElementById('pidx-info'), btn = document.querySelector('.pidx-i');
+  if (!box || !btn) return;
+  const open = box.hidden;
+  box.hidden = !open; btn.setAttribute('aria-expanded', String(open));
+  if (!open) btn.focus();
+});
