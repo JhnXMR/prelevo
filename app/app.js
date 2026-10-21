@@ -192,6 +192,7 @@ const ICONS = {
   globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
   download:'<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>',
   plus:'<path d="M12 5v14M5 12h14"/>',
+  spark:'<path d="M12 3.5l1.9 5.2a2 2 0 0 0 1.2 1.2l5.2 1.9-5.2 1.9a2 2 0 0 0-1.2 1.2L12 20.1l-1.9-5.2a2 2 0 0 0-1.2-1.2L3.7 11.8l5.2-1.9a2 2 0 0 0 1.2-1.2z"/>',
   chat:'<path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/>',
   bank:'<path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/>',
   shield:'<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/>',
@@ -1203,7 +1204,7 @@ screens.dashboard = () => {
   const prenom = USER.prenom ? ' ' + USER.prenom : '';
   return `
 <div class="screen home ${_homeAnimated ? 'static' : ''}">
-  ${brandBar(`<a class="gear" href="#/compte" aria-label="Mon compte">⟦user⟧</a>`)}
+  ${brandBar(`<div class="top-acts"><a class="gear ai-entry" href="#/assistant" aria-label="Assistant Prelevo">⟦spark⟧</a><a class="gear" href="#/compte" aria-label="Mon compte">⟦user⟧</a></div>`)}
   <div class="home-body">
   <div class="greet rise" style="--d:0"><div class="g-row"><p class="g-day">${cap(JOURS[nowRef().getDay()])} ${nowRef().getDate()} ${MOIS[nowRef().getMonth()]}</p>
     <div class="g-tags"><span class="plan-pill ${P ? 'p' : ''}">${P ? 'Premium' : 'Gratuit'}</span>${demoTag}</div></div><h1>Bonjour${esc(prenom)}</h1></div>
@@ -2560,6 +2561,37 @@ const CHAT = [
   { me:true,  t:'FibreBox me dit que je dois envoyer un recommandé, c’est obligatoire ?', h:'14:03' },
   { me:false, t:'Pas forcément ! Si vous avez souscrit en ligne, ils doivent vous proposer la résiliation en ligne. Sinon, la lettre préparée dans l’app suffit : je peux la relire avec vous.', h:'14:05' },
 ];
+/* ---------- Assistant Prelevo (IA, lecture seule) ---------- */
+const AI = { msgs: [], busy: false };
+const AI_SUGG = ['Combien je dépense en abonnements par mois ?', 'Quelles sont mes plus grosses dépenses récentes ?', 'Ai-je des prélèvements à venir cette semaine ?'];
+const aiFmt = t => esc(t).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').split('\n').map(l => /^[-•] /.test(l) ? '<span class="ai-li">' + l.slice(2) + '</span>' : l + '<br>').join('').replace(/(<br>)+$/, '');
+const aiDemoReply = q => /abonnement/i.test(q)
+  ? 'Vous payez actuellement **6 abonnements**, pour un total de **64,93 € par mois** :\n- Flixo Streaming : 13,49 €\n- Musico : 11,12 €\n- Forme+ : 29,90 €\n- 3 autres : 10,42 €\n\nFlixo a augmenté de 2,50 € ce mois-ci. Voulez-vous que je vous montre comment le résilier ?'
+  : 'Voici ce que je vois sur vos comptes. Pour rappel, je suis en lecture seule : je ne peux faire ni paiement ni virement.';
+screens.assistant = () => `
+<div class="screen ai-screen">
+  <div class="topbar ai-top"><a class="back" href="#/dashboard">⟦back⟧</a><div class="ai-who"><span class="ai-orb">⟦spark⟧</span><div><h1>Assistant</h1><div class="muted small">Lecture seule · aucun paiement</div></div></div><span style="width:40px"></span></div>
+  <div class="ai-thread" id="ai-thread">
+    <div class="ai-msg bot"><div class="ai-bubble">Bonjour, je suis l’assistant de ${APP_NAME}. Posez-moi vos questions sur vos comptes, vos dépenses et vos abonnements. Je ne fais ni paiement ni virement : je vous aide à y voir clair.</div></div>
+    ${AI.msgs.length ? '' : `<div class="ai-sugg">${AI_SUGG.map(q => `<button type="button" class="ai-chip" data-ai-q="${esc(q)}">${esc(q)}</button>`).join('')}</div>`}
+    ${AI.msgs.map(m => `<div class="ai-msg ${m.role === 'user' ? 'me' : 'bot'}${m.err ? ' err' : ''}"><div class="ai-bubble">${aiFmt(m.content)}</div></div>`).join('')}
+    ${AI.busy ? '<div class="ai-msg bot"><div class="ai-bubble ai-typing" aria-label="L’assistant écrit"><i></i><i></i><i></i></div></div>' : ''}
+  </div>
+  <form class="ai-input" id="ai-form"><input id="ai-text" placeholder="Posez votre question…" aria-label="Votre question" autocomplete="off" maxlength="1000" ${AI.busy ? 'disabled' : ''}><button class="ai-send" aria-label="Envoyer" ${AI.busy ? 'disabled' : ''}>⟦send⟧</button></form>
+  <p class="ai-foot">Les réponses peuvent contenir des erreurs. Vérifiez auprès de votre banque.</p>
+</div>`;
+function aiAsk(q){
+  q = String(q || '').trim(); if (!q || AI.busy) return;
+  AI.msgs.push({ role: 'user', content: q }); AI.busy = true; render(); aiScroll();
+  const hist = AI.msgs.filter(m => !m.err).slice(-10).map(m => ({ role: m.role, content: m.content }));
+  const done = (content, err) => { AI.busy = false; AI.msgs.push({ role: 'assistant', content, err }); if (location.hash.startsWith('#/assistant')) { render(); aiScroll(); } };
+  if (API && API.chat) API.chat(hist).then(r => done(r.reply)).catch(e => done(e.message || 'Assistant indisponible, réessayez dans un moment', true));
+  else setTimeout(() => done(aiDemoReply(q)), 1400);
+}
+function aiScroll(){ requestAnimationFrame(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })); }
+document.addEventListener('click', e => { const c = e.target.closest('[data-ai-q]'); if (c) aiAsk(c.dataset.aiQ); });
+document.addEventListener('submit', e => { if (e.target.id !== 'ai-form') return; e.preventDefault(); const v = $('#ai-text').value; $('#ai-text').value = ''; aiAsk(v); });
+
 screens.chat = () => `
 <div class="screen chat-screen">
   <div class="topbar"><a class="back" href="#/aide">⟦back⟧</a><div class="chat-who"><span class="av avc a">S</span><div><h1>Sarah</h1><div class="muted small">Équipe support · humaine · en ligne</div></div></div>${demoTag}</div>

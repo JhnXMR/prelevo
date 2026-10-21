@@ -54,6 +54,7 @@
     },
     async finishConnect(p){ sessionStorage.removeItem(K_STATE); return call('POST', '/bank/callback', p); },
     sync: () => call('POST', '/bank/sync'),
+    chat: messages => call('POST', '/chat', { messages }),
     checkout: interval => call('POST', '/billing/checkout', { interval }),
     portal: () => call('POST', '/billing/portal'),
     pushSubscribe: body => call('POST', '/push/subscribe', body),

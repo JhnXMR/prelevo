@@ -1019,3 +1019,46 @@ h1,.prem-title,.greet h1,.topbar h1,.acct-head h1,.acct-id h1{font-weight:500;le
 @media (prefers-reduced-motion: reduce){
   .screen,.cascade-item,.sk-home i,.tf-pill,.fold>.fold-body,.fold>summary:after,.pacc-panel{animation:none!important;transition:none!important}
 }
+
+/* ---------- Assistant Prelevo (IA) ---------- */
+.top-acts{display:flex;gap:8px}
+.ai-entry{color:var(--accent);position:relative}
+.ai-entry svg{filter:drop-shadow(0 0 6px color-mix(in srgb, var(--accent) 45%, transparent))}
+.ai-screen{min-height:100dvh;display:flex;flex-direction:column;padding-bottom:calc(120px + env(safe-area-inset-bottom));
+  background:radial-gradient(120% 60% at 50% -10%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 60%), var(--bg)}
+.ai-top{position:sticky;top:0;z-index:5;margin:0 -22px 14px;padding:calc(10px + env(safe-area-inset-top)) 22px 10px;
+  background:color-mix(in srgb, var(--bg) 72%, transparent);-webkit-backdrop-filter:blur(20px) saturate(1.8);backdrop-filter:blur(20px) saturate(1.8)}
+.ai-who{display:flex;align-items:center;gap:10px;flex:1;margin-left:4px}
+.ai-who h1{font-size:18px}
+.ai-orb{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;color:#fff;
+  background:conic-gradient(from 200deg, #0066FF, #4D94FF, #9CC2FF, #0066FF);box-shadow:0 6px 18px rgba(0,102,255,.35), inset 0 1px 0 rgba(255,255,255,.5)}
+.ai-orb svg{width:20px;height:20px;fill:#fff;stroke:#fff}
+.ai-thread{display:flex;flex-direction:column;gap:12px;flex:1}
+.ai-msg{display:flex;animation:aiIn .35s var(--spring)}
+.ai-msg.me{justify-content:flex-end}
+@keyframes aiIn{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
+.ai-bubble{max-width:84%;padding:12px 15px;border-radius:20px;font-size:15px;line-height:1.45;letter-spacing:-.005em}
+.ai-msg.bot .ai-bubble{border-top-left-radius:6px;color:var(--ink);
+  background:color-mix(in srgb, var(--soft) 78%, transparent);border:1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  -webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);box-shadow:var(--halo)}
+.ai-msg.me .ai-bubble{border-top-right-radius:6px;color:#fff;background:linear-gradient(135deg, #0066FF, #2F7DFF);box-shadow:0 8px 22px rgba(0,102,255,.28)}
+.ai-msg.err .ai-bubble{color:var(--err)}
+.ai-li{display:block;padding-left:14px;position:relative}
+.ai-li::before{content:"";position:absolute;left:2px;top:.6em;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+.ai-sugg{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin:4px 0 6px}
+.ai-chip{font:inherit;font-size:14px;text-align:left;color:var(--accent-on-tint);padding:10px 14px;border-radius:16px;cursor:pointer;
+  background:color-mix(in srgb, var(--tint) 70%, transparent);border:1px solid color-mix(in srgb, var(--accent) 22%, transparent);transition:transform .2s var(--spring)}
+.ai-chip:active{transform:scale(.97)}
+.ai-typing{display:flex;gap:5px;align-items:center;padding:15px 16px}
+.ai-typing i{width:7px;height:7px;border-radius:50%;background:var(--accent);opacity:.35;animation:aiDot 1.2s infinite ease-in-out}
+.ai-typing i:nth-child(2){animation-delay:.15s}.ai-typing i:nth-child(3){animation-delay:.3s}
+@keyframes aiDot{0%,80%,100%{opacity:.3;transform:translateY(0)}40%{opacity:1;transform:translateY(-4px)}}
+.ai-input{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(30px + env(safe-area-inset-bottom));width:min(calc(100% - 28px), 560px);z-index:20;
+  display:flex;align-items:center;gap:8px;padding:6px 6px 6px 16px;border-radius:26px;
+  background:color-mix(in srgb, var(--bg) 70%, transparent);border:1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  -webkit-backdrop-filter:blur(22px) saturate(1.8);backdrop-filter:blur(22px) saturate(1.8);box-shadow:0 10px 30px rgba(10,11,13,.12), inset 0 1px 0 rgba(255,255,255,.5)}
+.ai-input input{flex:1;border:0;outline:0;background:none;font:inherit;font-size:16px;color:var(--ink);min-height:40px}
+.ai-send{width:40px;height:40px;border-radius:50%;border:0;display:grid;place-items:center;color:#fff;background:var(--accent);cursor:pointer}
+.ai-send:disabled{opacity:.4}
+.ai-send svg{width:18px;height:18px}
+.ai-foot{position:fixed;left:0;right:0;bottom:calc(8px + env(safe-area-inset-bottom));text-align:center;font-size:11px;color:var(--muted);z-index:20}
