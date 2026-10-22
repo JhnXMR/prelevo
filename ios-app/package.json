@@ -1,0 +1,28 @@
+{
+  "name": "prelevo-ios",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Emballage iOS de Prelevo (Capacitor). La PWA dans /app n'est pas modifiée.",
+  "scripts": {
+    "sync:web": "node scripts/sync-www.js",
+    "sync": "npm run sync:web && cap sync ios",
+    "icons": "node scripts/make-icons.js",
+    "test": "node --test native/*.test.js",
+    "open": "cap open ios"
+  },
+  "dependencies": {
+    "@aparajita/capacitor-biometric-auth": "^10.0.0",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/filesystem": "^8.1.4",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.5.3",
+    "@capacitor/push-notifications": "^8.1.3",
+    "@capacitor/share": "^8.0.3",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.5.3"
+  }
+}
