@@ -5,7 +5,7 @@
 Maquette statique, sans build. Toutes les données sont FICTIVES (« Données d'exemple »).
 Aucune banque n'est contactée : connexion, scan, paiement, chat et e-mail sont simulés.
 
-En ligne : https://jhnxmr.github.io/prelevo/app/  (démo : https://jhnxmr.github.io/prelevo/app/?demo=1). Page de lancement : https://jhnxmr.github.io/prelevo/
+En ligne : https://jhndlt.github.io/prelevo/app/  (démo : https://jhndlt.github.io/prelevo/app/?demo=1). Page de lancement : https://jhndlt.github.io/prelevo/
 Les icônes PNG (et les logos) sont envoyés en un paquet base64, décodé et enregistré par .github/workflows/pages.yml (à adapter au dossier app/icons).
 GitHub Pages sert directement la branche main (racine).
 

@@ -2609,7 +2609,7 @@ function refCode(){
   return code;
 }
 function refShareText(){
-  return `${USER.prenom} vous invite sur ${APP_NAME}. Code ${refCode()} : 1 mois de Premium offert pour vous deux, dès qu’une banque est connectée. https://jhnxmr.github.io/prelevo/app/?demo=1`;
+  return `${USER.prenom} vous invite sur ${APP_NAME}. Code ${refCode()} : 1 mois de Premium offert pour vous deux, dès qu’une banque est connectée. https://jhndlt.github.io/prelevo/app/?demo=1`;
 }
 const REF_SEED = [
   { name:'Léa M.', date:'12 sept.', status:'offert', detail:'1 mois Premium crédité' },

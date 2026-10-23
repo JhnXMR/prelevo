@@ -42,7 +42,7 @@ function bearer(req) {
   return m ? m[1].trim() : '';
 }
 
-const ALLOWED_ORIGIN = 'https://jhnxmr.github.io';
+const ALLOWED_ORIGIN = 'https://jhndlt.github.io';
 
 function allowOrigin(req) {
   const origin = req.headers.origin || '';

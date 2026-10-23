@@ -50,7 +50,7 @@ test('POST /auth est en lecture seule vers Société Générale', async () => {
   });
   const res = await client.startAuth({
     state: '11111111-1111-4111-8111-111111111111',
-    redirectUrl: 'https://jhnxmr.github.io/prelevo/app/',
+    redirectUrl: 'https://jhndlt.github.io/prelevo/app/',
     aspspName: 'Société Générale',
     aspspCountry: 'FR',
     psuType: 'personal'
@@ -61,7 +61,7 @@ test('POST /auth est en lecture seule vers Société Générale', async () => {
   const body = JSON.parse(seen.opts.body);
   assert.deepEqual(body.aspsp, { name: 'Société Générale', country: 'FR' });
   assert.equal(body.psu_type, 'personal');
-  assert.equal(body.redirect_url, 'https://jhnxmr.github.io/prelevo/app/');
+  assert.equal(body.redirect_url, 'https://jhndlt.github.io/prelevo/app/');
   assert.equal(body.access.balances, true);
   assert.equal(body.access.transactions, true);
   assert.equal(Object.hasOwn(body, 'credentials'), false);

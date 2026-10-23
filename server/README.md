@@ -13,7 +13,7 @@ Module Node (sans dépendance) pour l’app Clever Cloud **prelevo-api**. Lectur
 | `BANK_PROVIDER` | `enablebanking` |
 | `ENABLEBANKING_APP_ID` | `44da9167-d944-40a8-ad58-6c35ce849ff7` |
 | `ENABLEBANKING_PRIVATE_KEY` | PEM PKCS#8 de l’application. Les `\n` échappés sont acceptés. Ne jamais la commiter. |
-| `ENABLEBANKING_REDIRECT_URL` | `https://jhnxmr.github.io/prelevo/app/` |
+| `ENABLEBANKING_REDIRECT_URL` | `https://jhndlt.github.io/prelevo/app/` |
 | `ENABLEBANKING_ASPSP_NAME` | `Société Générale` |
 | `ENABLEBANKING_ASPSP_COUNTRY` | `FR` |
 | `ENABLEBANKING_PSU_TYPE` | `personal` |

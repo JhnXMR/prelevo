@@ -7,7 +7,7 @@
     domain: 'prelevo-sandbox.biapi.pro',
     clientId: '80438676',
     webview: 'https://webview.powens.com/fr/connect',
-    canonicalRedirect: 'https://jhnxmr.github.io/prelevo/app/'
+    canonicalRedirect: 'https://jhndlt.github.io/prelevo/app/'
   }, window.POWENS_CONFIG || {});
   const API = `https://${PW_CFG.domain}/2.0`;
   const K_TOKEN = 'prelevo-pw-token', K_RESULT = 'prelevo-pw-result';
@@ -19,7 +19,7 @@
     del(k){ sessionStorage.removeItem(k); }
   };
   // Le redirect_uri doit être déclaré dans la console Powens : on n'utilise que l'URL publiée.
-  const redirectUri = () => /(^|\.)jhnxmr\.github\.io$/.test(location.hostname)
+  const redirectUri = () => /(^|\.)jhndlt\.github\.io$/.test(location.hostname)
     ? location.origin + location.pathname.replace(/index\.html$/, '')
     : PW_CFG.canonicalRedirect;
 
