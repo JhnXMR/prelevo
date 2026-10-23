@@ -18,7 +18,7 @@ export function readEnv(raw = process.env) {
     fixture,
     appId: String(raw.ENABLEBANKING_APP_ID || '').trim(),
     privateKey: raw.ENABLEBANKING_PRIVATE_KEY ? String(raw.ENABLEBANKING_PRIVATE_KEY) : '',
-    redirectUrl: String(raw.ENABLEBANKING_REDIRECT_URL || 'https://jhnxmr.github.io/prelevo/app/').trim(),
+    redirectUrl: String(raw.ENABLEBANKING_REDIRECT_URL || 'https://jhndlt.github.io/prelevo/app/').trim(),
     aspspName: String(raw.ENABLEBANKING_ASPSP_NAME || SG.name).trim() || SG.name,
     aspspCountry: String(raw.ENABLEBANKING_ASPSP_COUNTRY || SG.country).trim().toUpperCase() || SG.country,
     psuType: String(raw.ENABLEBANKING_PSU_TYPE || 'personal').trim() || 'personal',

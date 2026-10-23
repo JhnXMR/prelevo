@@ -1,8 +1,8 @@
 # Prelevo – site de lancement + démo
 
-En ligne (après publication) : https://jhnxmr.github.io/prelevo/
+En ligne (après publication) : https://jhndlt.github.io/prelevo/
 - `/` : page de lancement / liste d'attente (index.html, landing.css, landing.js, config.js)
-- `/app/` : maquette cliquable de l'app (PWA). Démo : https://jhnxmr.github.io/prelevo/app/?demo=1
+- `/app/` : maquette cliquable de l'app (PWA). Démo : https://jhndlt.github.io/prelevo/app/?demo=1
 
 ## Réglages (config.js à la racine)
 - `incentive` : texte de l'offre de lancement (« Les 500 premiers inscrits : 3 mois de Premium offerts »), `enabled:false` pour la masquer.
@@ -17,7 +17,7 @@ Lecture seule via Enable Banking quand `BANK_PROVIDER=enablebanking`. Le détail
 - `BANK_PROVIDER` = `enablebanking`
 - `ENABLEBANKING_APP_ID` = `44da9167-d944-40a8-ad58-6c35ce849ff7`
 - `ENABLEBANKING_PRIVATE_KEY` = PEM de l’application (les `\n` échappés sont acceptés ; ne pas la commiter)
-- `ENABLEBANKING_REDIRECT_URL` = `https://jhnxmr.github.io/prelevo/app/`
+- `ENABLEBANKING_REDIRECT_URL` = `https://jhndlt.github.io/prelevo/app/`
 - `ENABLEBANKING_ASPSP_NAME` = `Société Générale`
 - `ENABLEBANKING_ASPSP_COUNTRY` = `FR`
 - `ENABLEBANKING_PSU_TYPE` = `personal`
