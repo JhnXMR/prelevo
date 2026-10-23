@@ -204,6 +204,18 @@ const ICONS = {
   back:'<path d="M15 5l-7 7 7 7"/>',
   chev:'<path d="M9 6l6 6-6 6"/>',
   eye:'<path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  help:'<circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.6 2.6 0 1 1 3.6 2.4c-.8.4-1.2 1-1.2 1.8"/><path d="M12 17v.01"/>',
+  close:'<path d="M6 6l12 12M18 6L6 18"/>',
+  receipt:'<path d="M7 3.5h10a1 1 0 0 1 1 1V21l-3-1.8-3 1.8-3-1.8L6 21V4.5a1 1 0 0 1 1-1z"/><path d="M9.5 8.5h5M9.5 12h5"/>',
+  bot:'<rect x="5" y="8" width="14" height="11" rx="3"/><path d="M12 8V5M10 4h4"/><path d="M9.5 13v.01M14.5 13v.01"/><path d="M9.5 16.2c1.4.8 3.6.8 5 0"/>',
+  pie:'<path d="M12 3.5a8.5 8.5 0 1 0 8.5 8.5H12z"/><path d="M15 3.8A8.5 8.5 0 0 1 20.2 9H15z"/>',
+  doc:'<path d="M7 3.5h7l4 4V20a.5.5 0 0 1-.5.5h-10A.5.5 0 0 1 7 20z"/><path d="M14 3.5v4h4"/><path d="M9.5 12h5M9.5 15.5h5"/>',
+  userplus:'<circle cx="10" cy="8" r="4"/><path d="M2.8 20.5a7.2 7.2 0 0 1 12.6-4.6"/><path d="M19 14v6M16 17h6"/>',
+  usercircle:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="10" r="3"/><path d="M6.2 18.2a6.4 6.4 0 0 1 11.6 0"/>',
+  card:'<rect x="3" y="5.5" width="18" height="13" rx="2.5"/><path d="M3 10h18M7 15h3"/>',
+  ext:'<path d="M14 4h6v6"/><path d="M20 4l-9 9"/><path d="M18 14v4.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 4 18.5v-11A1.5 1.5 0 0 1 5.5 6H10"/>',
+  logout:'<path d="M9 4.5H6a1.5 1.5 0 0 0-1.5 1.5v12A1.5 1.5 0 0 0 6 19.5h3"/><path d="M16 8l4 4-4 4M20 12H9"/>',
+  trash:'<path d="M4 7h16M10 11v6M14 11v6"/><path d="M6 7l1 12.5a1 1 0 0 0 1 .9h8a1 1 0 0 0 1-.9L18 7"/><path d="M9 7V4.5h6V7"/>',
   eyeoff:'<path d="M3 3l18 18"/><path d="M10.6 6.2A10 10 0 0 1 12 6c6.5 0 10 6 10 6a18 18 0 0 1-3.2 3.8"/><path d="M6.1 6.7C3.6 8.4 2 12 2 12s3.5 6 10 6c1.5 0 2.8-.3 4-.8"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/>',
 };
 const icons = html => html.replace(/⟦(\w+)⟧/g, (_, n) => ICONS[n] ? SVG(ICONS[n]) : '').replace(/<a class="back"(?![^>]*aria-label)/g, '<a class="back" aria-label="Retour"');
@@ -2389,45 +2401,103 @@ async function enrollBio() {
     toast('Le déverrouillage biométrique n’a pas été activé. Le code reste en place.');
   }
 }
+/* ---------- Menu façon « fiche plein écran » : ✕ / ? en haut, profil, carte Premium, liste épurée ---------- */
+const sheetBar = (href, right = '') => `<div class="sheet-bar"><a class="rbtn" href="${href}" aria-label="Retour">⟦back⟧</a>${right}</div>`;
+const sheetHead = (title, href, right = '') => `${sheetBar(href, right)}<h1 class="sheet-title">${title}</h1>`;
+const acctName = () => USER.prenom || (ME && ME.email ? String(ME.email).split('@')[0] : '') || 'Mon compte';
+const acctInitial = () => { const n = (USER.prenom || (ME && ME.email) || '').trim(); return n ? n[0].toUpperCase() : ''; };
+const cbRow = (href, ic, lab, aside, tone) => `<a class="cb-row" href="${href}"><span class="cb-ic">⟦${ic}⟧</span><span class="cb-lab">${lab}</span>${aside ? `<span class="cb-aside ${tone || ''}">${aside}</span>` : ''}<span class="cb-go">⟦chev⟧</span></a>`;
+const cbStatic = (ic, lab, aside) => `<div class="cb-row static"><span class="cb-ic">⟦${ic}⟧</span><span class="cb-lab">${lab}</span><span class="cb-aside">${aside}</span><span class="cb-go"></span></div>`;
+const cbExt = (href, ic, lab) => `<a class="cb-row" href="${href}" target="_blank" rel="noopener"><span class="cb-ic">⟦${ic}⟧</span><span class="cb-lab">${lab}</span><span class="cb-go ext">⟦ext⟧</span></a>`;
+const PROMO_ART = `<svg class="cb-art" viewBox="0 0 132 120" aria-hidden="true" focusable="false"><circle cx="86" cy="60" r="60" fill="#4D94FF"/><circle cx="86" cy="60" r="46" fill="#0066FF"/><circle cx="86" cy="60" r="31" fill="#fff"/><image href="icons/logo-mark.svg" x="67" y="40" width="38" height="47"/></svg>`;
 screens.compte = () => {
   const P = isP(), unread = alerts().filter(a => !state.readAlerts.includes(a.id)).length;
-  const row = (href, ic, lab, aside='') => `<a class="acct-row" href="${href}"><span class="acct-ic">⟦${ic}⟧</span><span class="acct-lab">${lab}</span>${aside ? `<span class="acct-aside">${aside}</span>` : ''}<span class="acct-go">⟦chev⟧</span></a>`;
+  const ini = acctInitial();
   return `
-<div class="screen account">
-  <div class="acct-top"><a class="back" href="#/dashboard" aria-label="Fermer">⟦back⟧</a></div>
-  <div class="acct-id">
-    ${logoMark()}
-    <div><h1>${esc(USER.prenom)}</h1><p>Compte et paramètres</p></div>
-  </div>
-  <a class="one-card" href="#/premium">
-    <div><b>${APP_NAME} Premium</b><span>${P ? 'Actif. Zéro pub, alertes et banques illimitées.' : '1 mois offert. Zéro pub, alertes et banques illimitées.'}</span></div>
-    ${logoMark()}
+<div class="screen cb">
+  ${`<div class="sheet-bar"><a class="rbtn" href="#/dashboard" aria-label="Fermer">⟦close⟧</a><a class="rbtn" href="#/aide" aria-label="Aide">⟦help⟧</a></div>`}
+  <a class="cb-id" href="#/reglages" aria-label="Compte et paramètres">
+    <span class="cb-avatar" aria-hidden="true">${ini ? esc(ini) : '<img src="icons/logo-mark-white.svg" alt="">'}</span>
+    <span class="cb-who"><h1>${esc(acctName())}</h1><span>Compte et paramètres</span></span>
+    <span class="cb-go">⟦chev⟧</span>
   </a>
-  <p class="acct-k">Services</p>
-  <div class="menu-card">
-    ${row('#/banques','bank','Mes banques')}
-    ${row('#/abonnements','scissors','Transactions')}
-    ${row('#/alertes','bell','Alertes', unread ? String(unread) : '')}
+  <a class="cb-promo" href="#/premium">
+    <div><b>${APP_NAME} Premium</b><span>${P ? 'Actif. Merci !' : '1 mois offert. Zéro pub, alertes et banques illimitées.'}</span></div>
+    ${PROMO_ART}
+  </a>
+  <p class="cb-k">Encore plus d’options</p>
+  <div class="cb-list">
+    <button type="button" class="cb-row" id="toggle-balance" role="switch" aria-checked="${state.hideBalance ? 'true' : 'false'}" aria-label="Masquer le solde"><span class="cb-ic">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</span><span class="cb-lab">Masquer le solde</span><span class="sw ${state.hideBalance ? 'on' : ''}" aria-hidden="true"></span></button>
+    ${cbRow('#/banques','bank','Mes banques')}
+    ${cbRow('#/abonnements','receipt','Transactions')}
+    ${cbRow('#/alertes','bell','Alertes', unread ? `<span class="cb-pill">${unread}</span>` : '')}
+    ${cbRow('#/assistant','bot','Assistant ' + APP_NAME)}
+    ${cbRow('#/prelevements','calendar','Prochains prélèvements')}
+    ${cbRow('#/budget','pie','Budget')}
+    ${cbRow('#/export','download','Export CSV')}
+    ${cbRow('#/premium','star',APP_NAME + ' Premium', P ? 'Actif' : '1 mois offert', P ? '' : 'up')}
+    ${cbRow('#/parrainage','userplus','Parrainage','Gagnez 1 mois','up')}
+    ${cbRow('#/soutiens','heart','Soutiens')}
+    ${cbRow('#/apropos','info','À propos')}
+    ${cbRow('#/aide','help','Aide')}
   </div>
-  <p class="acct-k">Paramètres</p>
-  <div class="menu-card">
-    <button type="button" class="acct-row" id="toggle-balance" role="switch" aria-checked="${state.hideBalance ? 'true' : 'false'}"><span class="acct-ic">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</span><span class="acct-lab">Masquer le solde</span><span class="sw ${state.hideBalance ? 'on' : ''}"></span></button>
-    ${row('#/apparence','auto','Apparence', themeLabel())}
-    ${row('#/notifications','bell','Notifications', (pushSupported() && Notification.permission === 'granted' && readPushPref().opted) ? 'Activées' : 'Désactivées')}
-    ${row('#/verrouillage','lock','Verrouiller Prelevo', lockEnabled() ? 'Activé' : 'Désactivé')}
-    ${row('#/soutiens','heart','Soutiens')}
-    ${row('#/premium','star',APP_NAME+' Premium', P ? 'Actif' : 'Gratuit')}
-    ${row('#/parrainage','gift','Parrainage','1 mois offert')}
-    <button type="button" class="acct-row danger" id="reset"><span class="acct-ic">⟦refresh⟧</span><span class="acct-lab">Réinitialiser les données</span></button>
+  <p class="cb-legal"><i class="brand-mark" aria-hidden="true"></i>${APP_NAME} n’est pas une banque. Lecture seule, aucun virement.<br>${demoTag}</p>
+</div>`;
+};
+screens.reglages = () => {
+  const P = isP();
+  const push = pushSupported() && Notification.permission === 'granted' && readPushPref().opted;
+  return `
+<div class="screen cb">
+  ${sheetHead('Compte et paramètres', '#/compte')}
+  <div class="cb-list big">
+    ${cbRow('#/infos','usercircle','Informations personnelles')}
+    ${cbRow('#/verrouillage','shield','Sécurité', lockEnabled() ? 'Verrouillé' : '')}
+    ${cbRow('#/premium','card','Abonnement et facturation', P ? 'Premium' : 'Gratuit')}
+    ${cbRow('#/notifications','bell','Notifications', push ? 'Activées' : 'Désactivées')}
+    ${cbRow('#/export','doc','Relevés')}
+    ${cbStatic('globe','Langue','Français')}
+    ${cbStatic('coin','Devise','Euro (EUR)')}
+    ${cbRow('#/apparence','sun','Apparence', themeLabel())}
+    ${cbRow('#/confidentialite','lock','Confidentialité')}
   </div>
-  <p class="acct-foot">Sur cet appareil seulement. Le thème et l’icône restent.</p>
-  <a class="help-card" href="#/aide"><div><b>Obtenir de l’aide</b><span>Questions fréquentes, ou un humain au chat.</span></div><span class="help-ic">⟦chat⟧</span></a>
-  <p class="acct-legal"><i class="brand-mark" aria-hidden="true"></i>${APP_NAME} n’est pas une banque. Lecture seule, aucun virement.<br><a href="#/apropos">À propos</a> · ${demoTag}</p>
+</div>`;
+};
+screens.infos = () => {
+  const kv = (k, v) => `<div class="cb-kv"><span>${k}</span><b>${v}</b></div>`;
+  const live = !!(API && API.loggedIn() && ME);
+  return `
+<div class="screen cb">
+  ${sheetHead('Informations personnelles', '#/reglages')}
+  <div class="cb-list kvs">
+    ${kv('Prénom', USER.prenom ? esc(USER.prenom) : '<em>Non renseigné</em>')}
+    ${kv('E-mail du compte', live && ME.email ? `<span class="brk">${esc(ME.email)}</span>` : '<em>Aucun compte connecté (démonstration)</em>')}
+    ${kv('Formule', isP() ? 'Premium' : 'Gratuit')}
+    ${kv('Banque connectée', LIVE ? esc(LIVE.bank) : '<em>Aucune</em>')}
+    ${kv('Accès à vos comptes', 'Lecture seule')}
+  </div>
+  <p class="cb-note">Ces informations sont en lecture seule. ${APP_NAME} ne demande ni votre identifiant bancaire ni votre mot de passe, et ne peut jamais déplacer votre argent.</p>
+  ${live ? '<button class="btn ghost" id="api-logout" type="button">Se déconnecter</button>' : ''}
+</div>`;
+};
+screens.confidentialite = () => {
+  const live = !!(API && API.loggedIn());
+  return `
+<div class="screen cb">
+  ${sheetHead('Confidentialité', '#/reglages')}
+  <p class="cb-note lead">${APP_NAME} lit vos comptes en lecture seule : aucun virement, aucune carte. Vos données ne sont jamais revendues, et vous pouvez retirer l’accès à votre banque à tout moment.</p>
+  <div class="cb-list big">
+    ${cbExt('../confidentialite.html','shield','Politique de confidentialité')}
+    ${cbExt('../conditions.html','doc','Conditions d’utilisation')}
+    ${live ? `<a class="cb-row danger" href="#/supprimer"><span class="cb-ic">⟦trash⟧</span><span class="cb-lab">Supprimer mon compte</span><span class="cb-go">⟦chev⟧</span></a>` : ''}
+    <button type="button" class="cb-row danger" id="reset"><span class="cb-ic">⟦refresh⟧</span><span class="cb-lab">Réinitialiser les données</span></button>
+  </div>
+  <p class="cb-note">Réinitialiser efface les données enregistrées sur cet appareil seulement. Le thème et l’icône restent.</p>
 </div>`;
 };
 screens.apropos = () => `
 <div class="screen">
-  <div class="topbar look-bar"><a class="back" href="#/compte" aria-label="Retour">⟦back⟧</a><h1>À propos</h1><span></span></div>
+  ${sheetHead('À propos', '#/compte')}
   <div style="display:flex;justify-content:center;margin:8px 0 18px">${logoMark('l')}</div>
   <div class="card about">
     <p>${APP_NAME} n’est pas une banque. C’est une lecture de vos comptes : prélèvements, hausses de prix, reste à vivre. Aucun virement, aucune carte, aucun conseil sponsorisé.</p>
@@ -2437,7 +2507,6 @@ screens.apropos = () => `
     <div class="kv"><span>Version</span><span class="muted">Bêta privée</span></div>
     <div class="kv"><span>Formule</span><span class="muted">${isP() ? 'Premium' : 'Gratuit'}</span></div>
   </div>
-  <button class="btn ghost" id="reset" type="button">Réinitialiser les données</button>
 </div>`;
 screens.notifications = () => {
   const pref = readPushPref();
@@ -2447,7 +2516,7 @@ screens.notifications = () => {
   const kinds = PUSH_KINDS.map(([ic, title, text]) => `<div class="push-kind"><span class="acct-ic">⟦${ic}⟧</span><span><b>${title}</b><small>${text}</small></span></div>`).join('');
   return `
 <div class="screen">
-  <div class="topbar look-bar"><a class="back" href="#/compte" aria-label="Retour">⟦back⟧</a><h1>Notifications</h1><span></span></div>
+  ${sheetHead('Notifications', '#/reglages')}
   <p class="push-lead">Vous activez les alertes ici, sur cet appareil. Quatre cas : un prélèvement prévu pour le lendemain, une hausse de prix, le budget à 80 % et le budget à 100 %.</p>
   <div class="menu-card">${kinds}</div>
   <p class="push-ios">Sur iPhone, ajoutez Prelevo à l’écran d’accueil. Les alertes arrivent à partir d’iOS 16.4, une fois l’app installée.</p>
@@ -2462,7 +2531,8 @@ screens.notifications = () => {
 screens.verrouillage = () => {
   const rec = readLock();
   const on = lockEnabled();
-  const back = `<div class="topbar look-bar"><a class="back" href="#/compte" aria-label="Retour">⟦back⟧</a><h1>Verrouiller Prelevo</h1><span></span></div>`;
+  const back = sheetHead('Sécurité', '#/reglages');
+  const out = API && API.loggedIn() ? '<button class="btn ghost" type="button" id="api-logout">Se déconnecter</button>' : '';
   if (lockPhase === 'choose' || lockPhase === 'confirm' || lockPhase === 'current') {
     const title = lockPhase === 'current' ? 'Saisissez le code actuel' : lockPhase === 'confirm' ? 'Confirmez ce code' : 'Choisissez un code de 4 à 6 chiffres';
     return `<div class="screen lock-setup">${back}<p class="push-lead">${title}.</p>${pinDots(setupBuf)}${pinPad()}</div>`;
@@ -2471,10 +2541,10 @@ screens.verrouillage = () => {
     return `<div class="screen lock-setup">${back}<p class="push-lead">Vous pouvez aussi déverrouiller avec Face ID ou Touch ID. Si ce n’est pas possible, le code reste le repli.</p><button class="btn" type="button" id="lock-enroll">Utiliser Face ID ou Touch ID</button><button class="btn ghost" type="button" id="lock-skip">Plus tard</button></div>`;
   }
   if (!on) {
-    return `<div class="screen lock-setup">${back}<p class="push-lead">Un code de 4 à 6 chiffres reste sur cet appareil, sous forme d’empreinte. Face ID ou Touch ID s’ajoute quand l’appareil le propose. Prelevo se verrouille à l’ouverture, et après 5 minutes en arrière-plan.</p><button class="btn" type="button" id="lock-start">Activer le verrouillage</button></div>`;
+    return `<div class="screen lock-setup">${back}<p class="push-lead">Un code de 4 à 6 chiffres reste sur cet appareil, sous forme d’empreinte. Face ID ou Touch ID s’ajoute quand l’appareil le propose. Prelevo se verrouille à l’ouverture, et après 5 minutes en arrière-plan.</p><button class="btn" type="button" id="lock-start">Activer le verrouillage</button>${out}</div>`;
   }
   const bio = rec && (rec.credentialId || rec.nativeBio) ? '<p class="push-status">Déverrouillage biométrique activé. Le code sert si vous annulez.</p>' : '<button class="btn ghost" type="button" id="lock-enroll">Ajouter Face ID ou Touch ID</button>';
-  return `<div class="screen lock-setup">${back}<p class="push-status">Verrouillage activé sur cet appareil.</p>${bio}<button class="btn ghost" type="button" id="lock-change">Changer le code</button><button class="btn ghost" type="button" id="lock-off">Retirer le verrouillage</button></div>`;
+  return `<div class="screen lock-setup">${back}<p class="push-status">Verrouillage activé sur cet appareil.</p>${bio}<button class="btn ghost" type="button" id="lock-change">Changer le code</button><button class="btn ghost" type="button" id="lock-off">Retirer le verrouillage</button>${out}</div>`;
 };
 screens.prelevements = () => {
   const leads = readLeads();
@@ -2485,7 +2555,7 @@ screens.prelevements = () => {
   const seg = (s, lead) => [1, 3, 7].map(n => `<button type="button" class="${lead === n ? 'on' : ''}" data-lead="${n}" data-sub="${esc(s.id)}" role="radio" aria-checked="${lead === n}">J-${n}</button>`).join('');
   return `
 <div class="screen">
-  <div class="topbar look-bar"><a class="back" href="#/alertes" aria-label="Retour">⟦back⟧</a><h1>Prochains prélèvements</h1><span></span></div>
+  ${sheetHead('Prochains prélèvements', '#/alertes')}
   <p class="push-lead">Pour chaque abonnement détecté, choisissez d’être prévenu 1, 3 ou 7 jours avant. Le délai par défaut est de 3 jours.</p>
   ${rows.length ? rows.map(r => `<div class="debit-row"><div class="debit-h"><b>${esc(r.s.name)}</b><span>${esc(dayLabel(r.debit))} · ${euroPlain(r.s.price)}</span></div><div class="seg debit-seg" role="radiogroup" aria-label="Délai pour ${esc(r.s.name)}">${seg(r.s, r.lead)}</div></div>`).join('') : '<p class="push-lead">Aucun prélèvement détecté pour l’instant.</p>'}
   <p class="push-ios">Le rappel s’affiche sur cet appareil si vous avez activé les notifications. Avec la clé du serveur, le même rappel part aussi en notification push.</p>
@@ -2507,7 +2577,7 @@ screens.soutiens = () => {
     : '<button class="btn" type="button" disabled>La campagne Ulule n’est pas encore ouverte</button>';
   return `
 <div class="screen">
-  <div class="topbar look-bar"><a class="back" href="#/compte" aria-label="Retour">⟦back⟧</a><h1>Soutiens</h1><span></span></div>
+  ${sheetHead('Soutiens', '#/compte')}
   <p class="push-lead">Merci à celles et ceux qui portent Prelevo. Les noms des contributeurs Ulule apparaîtront ici.</p>
   <div id="soutien-list" class="menu-card"><p class="soutien-empty">La liste est vide pour l’instant.</p></div>
   ${action}
@@ -2552,7 +2622,7 @@ function myRefs(){
 }
 const REF_LABEL = { offert:'Offert', inscrit:'Inscrit', envoye:'Envoyé' };
 screens.parrainage = (qs, sub) => {
-  const back = `<div class="topbar look-bar"><a class="back" href="${sub ? '#/parrainage' : '#/compte'}" aria-label="Retour">⟦back⟧</a><h1>${sub === 'inviter' ? 'Parrainer' : sub === 'suivi' ? 'Vos parrainages' : sub === 'comment' ? 'Le parrainage' : 'Parrainage'}</h1><span></span></div>`;
+  const back = sheetHead(sub === 'inviter' ? 'Parrainer' : sub === 'suivi' ? 'Vos parrainages' : sub === 'comment' ? 'Le parrainage' : 'Parrainage', sub ? '#/parrainage' : '#/compte');
   if (sub === 'inviter') return `
 <div class="screen parrain">
   ${back}
@@ -2610,7 +2680,7 @@ screens.apparence = () => {
   const tiles = [['bleu','Défaut'],['noir','Noir'],['defaut','Blanc']];
   return `
 <div class="screen look-page">
-  <div class="topbar look-bar"><a class="back" href="#/compte" aria-label="Retour">⟦back⟧</a><h1>Apparence</h1><span></span></div>
+  ${sheetHead('Apparence', '#/reglages')}
   <p class="acct-k">Thème</p>
   <div class="menu-card th-card">
     <div role="radiogroup" aria-label="Thème">
@@ -2631,7 +2701,7 @@ screens.apparence = () => {
 };
 screens.aide = () => `
 <div class="screen">
-  <div class="topbar"><a class="back" href="#/compte">⟦back⟧</a><h1>Aide et réglages</h1>${demoTag}</div>
+  ${sheetHead('Aide', '#/compte')}
   <div class="card support">
     <div class="sup-head"><div class="avatars"><span class="avc a">S</span><span class="avc b">K</span><span class="avc c">M</span></div>
       <div><b>Support humain</b><div class="muted small">De vraies personnes vous répondent, pas un robot.</div></div></div>
@@ -3130,7 +3200,7 @@ function resetScroll() {
   document.body.scrollTop = 0;
 }
 function syncNav(name) {
-  const tabbed = ['dashboard','graphiques','operations','abonnements','alertes','premium','abo','aide','apropos','banques','banque','compte','apparence','parrainage','budget','export'].includes(name) || (!screens[name]);
+  const tabbed = ['dashboard','graphiques','operations','abonnements','alertes','premium','abo','banques','banque','budget','export'].includes(name) || (!screens[name]);
   const bar = $('#tabbar');
   const tabName = name==='abo' || name==='operations' || name==='export' ? 'abonnements' : name==='budget' ? 'alertes' : !screens[name] ? 'dashboard' : name;
   if (tabbed) { bar.hidden = false; bar.removeAttribute('aria-hidden'); }
@@ -3315,7 +3385,12 @@ document.addEventListener('click', e => {
     save(); render();
   }
   else if (el.id==='api-connect'){ e.preventDefault(); toast('Ouverture de la connexion bancaire…'); API.connectBank().catch(apiFail); }
-  else if (el.id==='toggle-balance'){ state.hideBalance = !state.hideBalance; save(); render(); }
+  else if (el.id==='toggle-balance'){
+    state.hideBalance = !state.hideBalance; save();
+    const sw = el.querySelector('.cb-ic') && el.querySelector('.sw');
+    if (sw) { el.setAttribute('aria-checked', state.hideBalance ? 'true' : 'false'); sw.classList.toggle('on', state.hideBalance); el.querySelector('.cb-ic').innerHTML = icons(state.hideBalance ? '⟦eyeoff⟧' : '⟦eye⟧'); }
+    else render();
+  }
   else if (el.id==='copy-letter'){ const l = $('.letter'); navigator.clipboard && l ? navigator.clipboard.writeText(l.innerText).then(()=>toast('Lettre copiée'), ()=>toast('Copie impossible')) : toast('Copie impossible'); }
   else if (el.id==='copy-ref'){ const t = refShareText(); navigator.clipboard ? navigator.clipboard.writeText(t).then(()=>toast('Code copié'), ()=>toast(refCode())) : toast(refCode()); }
   else if (el.id==='share-ref'){
@@ -3359,7 +3434,7 @@ document.addEventListener('click', e => {
   else if (el.id==='reset'){
     if (!el.dataset.arm) {
       el.dataset.arm = '1';
-      const lab = el.querySelector('.acct-lab');
+      const lab = el.querySelector('.acct-lab, .cb-lab');
       if (lab) lab.textContent = 'Touchez encore pour confirmer'; else el.textContent = 'Touchez encore pour confirmer';
       const armTimer = setTimeout(() => { if (!el.isConnected) return; delete el.dataset.arm; if (lab) lab.textContent = 'Réinitialiser les données'; else el.textContent = 'Réinitialiser les données'; }, 4000);
       onLeave(() => clearTimeout(armTimer));
