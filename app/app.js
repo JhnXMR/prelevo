@@ -1043,14 +1043,14 @@ function resteLine(series){
   const end = curve[curve.length - 1].v;
   return curveChart(curve, { color: '#089981', h: 120, fmt: hourly ? 'hour' : 'day', signed: true, zero: true, header: sgnEUR(end), grad: [.40, 0], glow: true, tv: true, sw: 1.6, caption: 'Depuis le début de la période', link: 'desk', slot: 'income', label: 'Reste disponible : vos rentrées moins vos dépenses, cumulées. Glissez pour le détail.' });
 }
+// Indice Prelevo : toujours calculé sur 1 an, puis découpé selon la période (1M…1A).
+// Rentrées lissées sur 61 jours (ramenées à 30) : un salaire qui sort de la
+// fenêtre un jour avant l'arrivée du suivant ne fait plus plonger l'indice.
 function prelevoIndex(){
   const ev = deskEvents(), now = nowRef();
-  const b = deskBounds(now, ev);
-  const end = day0(now);
-  let start = day0(b.from);
-  if ((+end - +start) / DAY_MS < 29) start = new Date(+end - 29 * DAY_MS);
-  const nDays = Math.round((+end - +start) / DAY_MS) + 1;
-  const base = +start - 29 * DAY_MS, tot = nDays + 29;
+  const end = day0(now), nDays = 365, W = 61;
+  const start = new Date(+end - (nDays - 1) * DAY_MS);
+  const base = +start - (W - 1) * DAY_MS, tot = nDays + W - 1;
   const inc = new Array(tot).fill(0), out = new Array(tot).fill(0);
   for (const e of ev) {
     if (e.t > now) continue;
@@ -1058,14 +1058,28 @@ function prelevoIndex(){
     if (k < 0 || k >= tot) continue;
     if (e.inc) inc[k] += Math.abs(e.amt); else if (e.amt < 0) out[k] += -e.amt;
   }
+  const raw = [];
+  for (let d = 0; d < nDays; d++) {
+    const j = d + W - 1;
+    let a = 0, o = 0;
+    for (let k = j - W + 1; k <= j; k++) a += inc[k];
+    for (let k = j - 29; k <= j; k++) o += out[k];
+    a = a * 30 / W;
+    raw.push(a + o > 0 ? 100 * a / (a + o) : 50);
+  }
   const curve = [];
   for (let d = 0; d < nDays; d++) {
-    let a = 0, o = 0;
-    for (let j = d; j < d + 30; j++) { a += inc[j]; o += out[j]; }
-    curve.push({ t: new Date(+start + d * DAY_MS + 12 * 36e5), v: a + o > 0 ? Math.round(1000 * a / (a + o)) / 10 : 50 });
+    let s = 0, n = 0;
+    for (let k = Math.max(0, d - 6); k <= d; k++) { s += raw[k]; n++; }
+    curve.push({ t: new Date(+start + d * DAY_MS + 12 * 36e5), v: Math.round(10 * s / n) / 10 });
   }
-  return curve;
+  // on ne garde que les jours où il y a de l'historique
+  const first = ev.reduce((m, e) => e.t < m ? e.t : m, now);
+  const from = Math.max(0, Math.floor((+day0(first) + 29 * DAY_MS - +start) / DAY_MS));
+  return curve.slice(Math.min(from, nDays - 30));
 }
+const IDX_RANGES = { '1m': ['1M', 30], '3m': ['3M', 91], '6m': ['6M', 182], '1a': ['1A', 365] };
+let idxRange = '1a';
 const IDX_BLUES = ['#1E3A8A', '#2563EB', '#60A5FA', '#DBEAFE', '#FFFFFF'];
 const IDX_ZONES = [
   { lo: 0, hi: 20, l: 'Très tendu', c: '#1E3A8A' },
@@ -1076,31 +1090,44 @@ const IDX_ZONES = [
 ];
 const idxZone = v => IDX_ZONES.find(z => v >= z.lo && v < z.hi) || IDX_ZONES[4];
 function idxGauge(v){
-  const cx = 120, cy = 112, r = 92;
+  const cx = 120, cy = 112, r = 92, z = idxZone(v);
   const pt = (val, rr) => { const a = Math.PI * (1 - val / 100); return [cx + rr * Math.cos(a), cy - rr * Math.sin(a)]; };
-  const [kx, ky] = pt(v, r), z = idxZone(v);
-  const ticks = [20, 40, 60, 80].map(t => { const [x1, y1] = pt(t, r - 12), [x2, y2] = pt(t, r + 12); return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#0B0E14" stroke-width="2.5"/>`; }).join('');
-  return `<div class="pidx-gauge"><svg viewBox="0 0 240 130" aria-hidden="true">
-    <defs><linearGradient id="idxarc" x1="${cx - r}" y1="0" x2="${cx + r}" y2="0" gradientUnits="userSpaceOnUse">${IDX_BLUES.map((c, i) => `<stop offset="${i / 4}" stop-color="${c}"/>`).join('')}</linearGradient>
-    <filter id="idxglow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3"/></filter></defs>
-    <path d="M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}" fill="none" stroke="#1E222D" stroke-width="20" stroke-linecap="round"/>
-    <path d="M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}" fill="none" stroke="url(#idxarc)" stroke-width="14" stroke-linecap="round"/>
+  const [kx, ky] = pt(v, r);
+  const ticks = [20, 40, 60, 80].map(t => { const [x1, y1] = pt(t, r - 9), [x2, y2] = pt(t, r + 9); return `<line class="pidx-tick" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`; }).join('');
+  return `<div class="pidx-gauge" data-v="${v}"><svg viewBox="0 0 240 124" aria-hidden="true">
+    <defs><linearGradient id="idxarc" x1="${cx - r}" y1="0" x2="${cx + r}" y2="0" gradientUnits="userSpaceOnUse">${IDX_BLUES.map((c, i) => `<stop offset="${i / 4}" stop-color="${c}"/>`).join('')}</linearGradient></defs>
+    <path class="pidx-track" d="M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}" fill="none" stroke-width="18" stroke-linecap="round"/>
+    <path d="M${cx - r},${cy} A${r},${r} 0 0 1 ${cx + r},${cy}" fill="none" stroke="url(#idxarc)" stroke-width="13" stroke-linecap="round"/>
     ${ticks}
-    <circle cx="${kx.toFixed(1)}" cy="${ky.toFixed(1)}" r="11" fill="${z.c}" opacity=".55" filter="url(#idxglow)"/>
-    <circle cx="${kx.toFixed(1)}" cy="${ky.toFixed(1)}" r="9" fill="#0B0E14" stroke="#FFFFFF" stroke-width="3"/>
-    <circle cx="${kx.toFixed(1)}" cy="${ky.toFixed(1)}" r="4" fill="${z.c}"/>
-  </svg><div class="pidx-center"><b>${Math.round(v)}</b><span>${z.l}</span></div></div>`;
+    <g class="pidx-knob" style="transform:translate(${kx.toFixed(1)}px,${ky.toFixed(1)}px)">
+      <circle r="12" class="pidx-halo"/><circle r="8.5" class="pidx-ring"/><circle r="4" class="pidx-core" fill="${z.c}"/>
+    </g>
+  </svg><div class="pidx-center"><b><span class="pidx-num">${Math.round(v)}</span><small>/100</small></b><em class="pidx-lvl">${z.l}</em></div></div>`;
 }
+// Aiguille et score suivent le doigt sur la courbe, reviennent à aujourd'hui au relâché.
+window.__pidxScrub = (v, t) => {
+  const g = document.querySelector('.pidx-gauge'); if (!g) return;
+  const live = v == null;
+  if (live) v = +g.dataset.v;
+  const a = Math.PI * (1 - v / 100), z = idxZone(v);
+  const k = g.querySelector('.pidx-knob'); if (k) k.style.transform = `translate(${(120 + 92 * Math.cos(a)).toFixed(1)}px,${(112 - 92 * Math.sin(a)).toFixed(1)}px)`;
+  const c = g.querySelector('.pidx-core'); if (c) c.setAttribute('fill', z.c);
+  g.querySelector('.pidx-num').textContent = Math.round(v);
+  g.querySelector('.pidx-lvl').textContent = z.l;
+  const w = document.querySelector('.pidx-when');
+  if (w) w.textContent = live ? 'Aujourd’hui · sur 30 jours glissants' : t.getDate() + ' ' + MOIS[t.getMonth()] + ' ' + t.getFullYear();
+  g.classList.toggle('past', !live);
+};
 function indexCard(){
-  const curve = prelevoIndex();
-  if (curve.length < 2) return '';
-  const v = curve[curve.length - 1].v, z = idxZone(v);
-  const dark = v < 40;
+  const all = prelevoIndex();
+  if (all.length < 2) return '';
+  const curve = all.slice(-IDX_RANGES[idxRange][1]);
+  const v = curve[curve.length - 1].v;
   return `${idxGauge(v)}
-  <div class="pidx-row"><span class="pidx-pill" style="background:${z.c};color:${dark ? '#FFFFFF' : '#0B1A3A'}">${z.l}</span><b>${Math.round(v)} <small>/100</small></b></div>
-`
-    + curveChart(curve, { color: '#60A5FA', spk: z.c, strokeGrad: IDX_BLUES, padR: 84, zones: IDX_ZONES.map(x => ({ ...x, hi: Math.min(100, x.hi) })), h: 130, fmt: 'day', lo: 0, hi: 100, noArea: true, idx: true, glow: true, tv: true, sw: 1.8, header: '', caption: 'Sur 30 jours glissants', label: 'Indice Prelevo de 0 à 100. Glissez pour le détail.' })
-    + `<div class="pidx-legend">${IDX_ZONES.map(x => `<span><i style="background:${x.c}"></i>${x.l}</span>`).join('')}</div>`;
+  <p class="pidx-when">Aujourd’hui · sur 30 jours glissants</p>
+  <div class="tf pidx-tf" role="tablist" aria-label="Période de l’indice" style="--tf-i:${Object.keys(IDX_RANGES).indexOf(idxRange)}"><i class="tf-pill" aria-hidden="true"></i>${Object.entries(IDX_RANGES).map(([k, [l, n]]) => `<button type="button" role="tab" data-pidx-range="${k}" aria-selected="${idxRange === k}" class="${idxRange === k ? 'on' : ''}"${all.length < Math.min(n, 60) && k !== '1m' ? ' disabled' : ''}>${l}</button>`).join('')}</div>`
+    + curveChart(curve, { color: '#2563EB', spk: '#2563EB', padR: 78, zones: IDX_ZONES.map(x => ({ ...x, hi: Math.min(100, x.hi) })), h: 140, fmt: 'day', lo: 0, hi: 100, grad: [.38, 0], idx: true, glow: true, tv: true, sw: 2, header: '', caption: 'Glissez sur la courbe', label: 'Indice Prelevo de 0 à 100. Glissez pour voir le score de chaque jour.' })
+    + `<div class="pidx-legend">${IDX_ZONES.map(x => `<span><i style="background:${x.c}"></i>${x.l} <small>${x.lo}–${Math.min(100, x.hi) | 0}</small></span>`).join('')}</div>`;
 }
 function netLine(series){
   const titles = deskTitles();
@@ -3098,6 +3125,8 @@ document.addEventListener('click', e => {
     }
     return;
   }
+  const pr = e.target.closest && e.target.closest('[data-pidx-range]');
+  if (pr) { if (pr.dataset.pidxRange !== idxRange) { idxRange = pr.dataset.pidxRange; const box = pr.closest('.panel'); if (box) box.innerHTML = indexCard(); } return; }
   const dk = e.target.closest && e.target.closest('[data-desk]');
   if (dk && dk.dataset.desk !== deskRange) { deskRange = dk.dataset.desk; render(); return; }
   const b = e.target.closest && e.target.closest('[data-period]'); if (!b) return;
@@ -3693,6 +3722,7 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     const tip = el.querySelector('.sp-tip'); if (tip) tip.hidden = true;
     const read = el.querySelector('.sp-read'); if (read && o.r != null) read.innerHTML = o.r;
     const S = el._data;
+    if (S && S.idx && window.__pidxScrub) window.__pidxScrub(null);
     if (S) {
       const line = el.querySelector('.sp-line'), dim = el.querySelector('.sp-dim'), area = el.querySelector('.sp-area');
       if (line) line.setAttribute('d', S.line);
@@ -3817,9 +3847,10 @@ else if (QS.get('billing') === 'cancel'){ toast('Paiement annulé : rien n’a �
     } else {
       const read = st.el.querySelector('.sp-read');
       const when = S.fmt === 'hour' ? String(t.getHours()).padStart(2, '0') + ' h' : S.fmt === 'month' ? MOIS[t.getMonth()] + ' ' + t.getFullYear() : t.getDate() + ' ' + MOIS[t.getMonth()];
-      const num = S.idx ? String(Math.round(v)) : S.signed ? sgnEUR(v) : (S.fmt === 'month' ? kEUR(v) : v.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €');
-      if (read && !state.hideBalance) read.innerHTML = `<span>${when}</span><b>${num}</b>`;
+      const num = S.idx ? Math.round(v) + ' /100 · ' + idxZone(v).l : S.signed ? sgnEUR(v) : (S.fmt === 'month' ? kEUR(v) : v.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €');
+      if (read && !state.hideBalance) read.innerHTML = `<span>${when}</span><b>${S.idx ? '' : num}</b>`;
       showTip(st.el, f, num, tipWhen(t, S.fmt || 'day', false));
+      if (S.idx && window.__pidxScrub) window.__pidxScrub(v, t);
     }
   };
   const frame = () => { raf = 0; paint(); };
