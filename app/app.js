@@ -2413,33 +2413,40 @@ const PROMO_ART = `<svg class="cb-art" viewBox="0 0 132 120" aria-hidden="true" 
 screens.compte = () => {
   const P = isP(), unread = alerts().filter(a => !state.readAlerts.includes(a.id)).length;
   const ini = acctInitial();
+  const mail = ME && ME.email ? esc(ME.email) : 'Compte de démonstration';
   return `
 <div class="screen cb">
   ${`<div class="sheet-bar"><a class="rbtn" href="#/dashboard" aria-label="Fermer">⟦close⟧</a><a class="rbtn" href="#/aide" aria-label="Aide">⟦help⟧</a></div>`}
   <a class="cb-id" href="#/reglages" aria-label="Compte et paramètres">
     <span class="cb-avatar" aria-hidden="true">${ini ? esc(ini) : '<img src="icons/logo-mark-white.svg" alt="">'}</span>
-    <span class="cb-who"><h1>${esc(acctName())}</h1><span>Compte et paramètres</span></span>
+    <span class="cb-who"><h1>${esc(acctName())}</h1><span class="cb-mail">${mail}</span><span>Compte et paramètres</span></span>
     <span class="cb-go">⟦chev⟧</span>
   </a>
   <a class="cb-promo" href="#/premium">
-    <div><b>${APP_NAME} Premium</b><span>${P ? 'Actif. Merci !' : '1 mois offert. Zéro pub, alertes et banques illimitées.'}</span></div>
+    <div><b>${APP_NAME} Premium</b>${P ? '<span>Actif. Merci pour votre soutien !</span>' : '<span>Zéro pub, alertes et banques illimitées.</span><span class="cb-price"><i><strong>3,99 €</strong>/mois</i> ou <i><strong>29,99 €</strong>/an</i></span><span class="cb-offer">1 mois offert</span>'}</div>
     ${PROMO_ART}
   </a>
   <p class="cb-k">Encore plus d’options</p>
   <div class="cb-list">
     <button type="button" class="cb-row" id="toggle-balance" role="switch" aria-checked="${state.hideBalance ? 'true' : 'false'}" aria-label="Masquer le solde"><span class="cb-ic">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</span><span class="cb-lab">Masquer le solde</span><span class="sw ${state.hideBalance ? 'on' : ''}" aria-hidden="true"></span></button>
-    ${cbRow('#/banques','bank','Mes banques')}
-    ${cbRow('#/abonnements','receipt','Transactions')}
+    ${cbRow('#/abonnements','receipt','Abonnements')}
+    ${cbRow('#/operations','doc','Transactions')}
     ${cbRow('#/alertes','bell','Alertes', unread ? `<span class="cb-pill">${unread}</span>` : '')}
-    ${cbRow('#/assistant','bot','Assistant ' + APP_NAME)}
     ${cbRow('#/prelevements','calendar','Prochains prélèvements')}
+    ${cbRow('#/graphiques','trend','Graphiques')}
     ${cbRow('#/budget','pie','Budget')}
+    ${cbRow('#/banques','bank','Mes banques')}
+    ${cbRow('#/assistant','bot','Assistant ' + APP_NAME)}
+    ${cbRow('#/chat','chat','Support humain','En ligne','up')}
     ${cbRow('#/export','download','Export CSV')}
     ${cbRow('#/premium','star',APP_NAME + ' Premium', P ? 'Actif' : '1 mois offert', P ? '' : 'up')}
-    ${cbRow('#/parrainage','userplus','Parrainage','Gagnez 1 mois','up')}
+    ${cbRow('#/parrainage','userplus','Inviter des ami(e)s','Gagnez 1 mois','up')}
     ${cbRow('#/soutiens','heart','Soutiens')}
-    ${cbRow('#/apropos','info','À propos')}
     ${cbRow('#/aide','help','Aide')}
+    ${cbRow('#/apropos','info','À propos')}
+  </div>
+  <div class="cb-list cb-sep">
+    ${cbRow('#/reglages','settings','Compte et paramètres')}
   </div>
   <p class="cb-legal"><i class="brand-mark" aria-hidden="true"></i>${APP_NAME} n’est pas une banque. Lecture seule, aucun virement.<br>${demoTag}</p>
 </div>`;
@@ -2447,19 +2454,33 @@ screens.compte = () => {
 screens.reglages = () => {
   const P = isP();
   const push = pushSupported() && Notification.permission === 'granted' && readPushPref().opted;
+  const live = !!(API && API.loggedIn());
+  const out = live
+    ? '<button type="button" class="cb-row danger" id="api-logout"><span class="cb-ic">⟦logout⟧</span><span class="cb-lab">Se déconnecter</span></button>'
+    : '<button type="button" class="cb-row danger" data-toast="Vous êtes en démonstration : aucun compte n’est connecté."><span class="cb-ic">⟦logout⟧</span><span class="cb-lab">Se déconnecter</span></button>';
   return `
 <div class="screen cb">
   ${sheetHead('Compte et paramètres', '#/compte')}
+  <p class="cb-k first">Compte</p>
   <div class="cb-list big">
     ${cbRow('#/infos','usercircle','Informations personnelles')}
     ${cbRow('#/verrouillage','shield','Sécurité', lockEnabled() ? 'Verrouillé' : '')}
+    ${cbRow('#/banques','bank','Banques connectées', LIVE ? esc(LIVE.bank) : '')}
     ${cbRow('#/premium','card','Abonnement et facturation', P ? 'Premium' : 'Gratuit')}
-    ${cbRow('#/notifications','bell','Notifications', push ? 'Activées' : 'Désactivées')}
     ${cbRow('#/export','doc','Relevés')}
+  </div>
+  <p class="cb-k">Préférences</p>
+  <div class="cb-list big">
+    ${cbRow('#/apparence','sun','Apparence', themeLabel())}
+    ${cbRow('#/notifications','bell','Notifications', push ? 'Activées' : 'Désactivées')}
     ${cbStatic('globe','Langue','Français')}
     ${cbStatic('coin','Devise','Euro (EUR)')}
-    ${cbRow('#/apparence','sun','Apparence', themeLabel())}
+  </div>
+  <p class="cb-k">Confidentialité et légal</p>
+  <div class="cb-list big">
     ${cbRow('#/confidentialite','lock','Confidentialité')}
+    ${cbExt('../conditions.html','doc','Conditions d’utilisation')}
+    ${out}
   </div>
 </div>`;
 };
