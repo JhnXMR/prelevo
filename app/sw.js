@@ -1,4 +1,4 @@
-const CACHE = 'prelevo-app-v96-menu-coinbase';
+const CACHE = 'prelevo-app-v97-notifications';
 const ASSETS = ['./', './index.html', './styles.css', './config.js', './powens.js', './api.js', './store.js', './categories.js', './guard.js', './supporters.json', './app.js', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/icon.svg',
   './icons/favicon.svg', './icons/logo-mark.svg', './icons/logo-mark-white.svg', './icons/favicon-32.png', './icons/apple-touch-icon-180.png'];
@@ -34,14 +34,14 @@ self.addEventListener('fetch', e => {
   }).catch(() => caches.match('./index.html'))));
 });
 
-/* Alertes envoyées par le serveur (repo séparé) : prelevement (J-1), hausse, budget-80, budget-100.
+/* Notifications envoyées par le serveur (repo séparé) : prelevement (J-1), hausse, budget-80, budget-100.
    Charge utile JSON : { title, body, url, tag }. Aucune clé privée ici. */
 self.addEventListener('push', event => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; }
   catch (err) { data = { body: event.data ? event.data.text() : '' }; }
   const title = data.title || 'Prelevo';
-  const target = typeof data.url === 'string' && data.url.charAt(0) === '#' ? data.url : '#/alertes';
+  const target = typeof data.url === 'string' && data.url.charAt(0) === '#' ? data.url : '#/notifications';
   event.waitUntil(self.registration.showNotification(title, {
     body: data.body || '',
     tag: data.tag || 'prelevo',
@@ -54,7 +54,7 @@ self.addEventListener('push', event => {
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   const raw = event.notification.data && event.notification.data.url;
-  const hash = typeof raw === 'string' && raw.charAt(0) === '#' ? raw : '#/alertes';
+  const hash = typeof raw === 'string' && raw.charAt(0) === '#' ? raw : '#/notifications';
   event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(list => {
     const client = list.find(c => c.url.indexOf(self.location.origin) === 0);
     if (client) {

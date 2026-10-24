@@ -321,7 +321,7 @@ const increase = s => {
 const pct = s => Math.round(increase(s) / s.prev * 100);
 let demoTag = '<span class="demo">Données d’exemple</span>';
 const lockBadge = (t='Premium') => `<span class="badge b-lock">⟦lock⟧ ${t}</span>`;
-const neutral = `<div class="neutral"><span class="nic">⟦ban⟧</span><div><b>Zéro pub en Premium · conseils toujours neutres</b>La version gratuite affiche quelques pubs, toujours signalées « Sponsorisé ». Les sponsors n’influencent jamais vos alertes, vos résultats ni nos conseils, et on ne touche aucune commission sur vos résiliations.</div></div>`;
+const neutral = `<div class="neutral"><span class="nic">⟦ban⟧</span><div><b>Zéro pub en Premium · conseils toujours neutres</b>La version gratuite affiche quelques pubs, toujours signalées « Sponsorisé ». Les sponsors n’influencent jamais vos notifications, vos résultats ni nos conseils, et on ne touche aucune commission sur vos résiliations.</div></div>`;
 // Pubs de la version gratuite (annonceurs FICTIFS, publicité contextuelle, sans ciblage)
 const ADS = {
   dash: { ini:'VC', color:'#0A0B0D', brand:'Vélo Clair', tag:'Marque fictive', title:'Le vélo électrique en location, sans engagement', text:'Premier mois à 19 € au lieu de 39 €. Livraison en 48 h.', cta:'Découvrir' },
@@ -409,8 +409,8 @@ function subsSig() {
 }
 function paintAlertBadge() {
   const unreadN = alerts().filter(a => !state.readAlerts.includes(a.id)).length;
-  const alertTab = document.querySelector('#tabbar a[data-tab="alertes"]');
-  if (alertTab) alertTab.setAttribute('aria-label', unreadN ? `Alertes, ${unreadN} non lue${unreadN > 1 ? 's' : ''}` : 'Alertes');
+  const alertTab = document.querySelector('#tabbar a[data-tab="notifications"]');
+  if (alertTab) alertTab.setAttribute('aria-label', unreadN ? `Notifications, ${unreadN} non lue${unreadN > 1 ? 's' : ''}` : 'Notifications');
   const dot = document.getElementById('alert-dot');
   if (dot) dot.classList.toggle('show', unreadN > 0);
 }
@@ -1751,7 +1751,7 @@ function budgetCard() {
   let st;
   try { st = budgetStatus(); } catch (e) { return ''; }
   const cats = Object.keys(st.cats);
-  if (!st.global && !cats.length) return `<a class="budget-card budget-empty" href="#/budget"><b>Budget mensuel</b><span>Fixez un plafond global et, si vous le souhaitez, un plafond par catégorie. Une alerte vous prévient à 80 % et à 100 %.</span></a>`;
+  if (!st.global && !cats.length) return `<a class="budget-card budget-empty" href="#/budget"><b>Budget mensuel</b><span>Fixez un plafond global et, si vous le souhaitez, un plafond par catégorie. Une notification vous prévient à 80 % et à 100 %.</span></a>`;
   if (st.global) return `<a class="budget-card" href="#/budget">${budgetTrack('Budget · ' + st.monthLabel, st.spent, st.global)}</a>`;
   let worst = cats[0];
   cats.forEach(k => { if (pctOf(st.byCat[k] || 0, st.cats[k]) > pctOf(st.byCat[worst] || 0, st.cats[worst])) worst = k; });
@@ -1773,8 +1773,8 @@ screens.budget = () => {
   ].filter(Boolean).join('');
   return `
 <div class="screen">
-  <div class="topbar"><a class="back" href="#/alertes">⟦back⟧</a><h1>Budget</h1>${demoTag}</div>
-  <p class="bud-lead">Fixez le plafond du mois. Les dépenses déjà passées en ${esc(st.monthLabel.toLowerCase())} sont comparées à ce plafond. Une alerte apparaît à 80 % et à 100 %.</p>
+  <div class="topbar"><a class="back" href="#/notif-reglages">⟦back⟧</a><h1>Budget</h1>${demoTag}</div>
+  <p class="bud-lead">Fixez le plafond du mois. Les dépenses déjà passées en ${esc(st.monthLabel.toLowerCase())} sont comparées à ce plafond. Une notification apparaît à 80 % et à 100 %.</p>
   ${bars}
   <form id="budget-form">
     <label class="bud-global"><span>Budget global</span><span class="bud-field"><input id="bud-global" name="global" inputmode="decimal" enterkeyhint="done" autocomplete="off" placeholder="0,00" aria-label="Budget global en euros" value="${esc(centsToField(st.global))}"><i>€</i></span></label>
@@ -1917,7 +1917,7 @@ screens.export = () => {
 </div>`;
 };
 
-screens.alertes = (q) => {
+screens.notifications = (q) => {
   const al = alerts(); const P = isP();
   const f = (q && q.get('f')) || 'all';
   const match = a => f === 'all' || a.kind === f || (f === 'dup' && a.kind === 'dbl') || (f === 'next' && (a.kind === 'trial' || a.kind === 'low'));
@@ -1928,7 +1928,7 @@ screens.alertes = (q) => {
   const alertRowEl = a => {
     const row = document.createElement('a');
     row.className = 'tx pp al-row' + (state.readAlerts.includes(a.id) ? '' : ' unread');
-    row.href = a.link || '#/alertes';
+    row.href = a.link || '#/notifications';
     if (a.id) row.dataset.alert = a.id;
     const cat = document.createElement('span');
     cat.className = 'cat';
@@ -1963,22 +1963,38 @@ screens.alertes = (q) => {
   const chip = (k, l) => `<button type="button" role="tab" aria-selected="${f === k}" class="${f === k ? 'on' : ''}" data-af="${k}">${l}</button>`;
   const tog = (k, lab, open) => { const locked = !open && !P; const on = alertOn(k); return `<button type="button" class="acct-row" data-alert-set="${k}" ${locked ? `aria-label="${lab}, réservé à Premium"` : `role="switch" aria-checked="${on}"`}><span class="acct-lab">${lab}</span>${locked ? '<span class="acct-aside">Premium</span><span class="acct-go">⟦lock⟧</span>' : `<span class="sw ${on ? 'on' : ''}"></span>`}</button>`; };
   return `
-<div class="screen act">
-  <div class="topbar"><h1>Alertes</h1>${demoTag}</div>
-  ${budgetCard()}
-  <p class="al-lead">${unread ? unread + ' non lue' + (unread > 1 ? 's' : '') : 'Tout est lu'} · hausses, doublons, budget, rappels</p>
-  <div class="seg ops-seg four" role="tablist" aria-label="Filtrer les alertes">${chip('all','Toutes')}${chip('up','Hausses')}${chip('dup','Doublons')}${chip('next','Rappels')}</div>
-  ${unread ? '<div class="al-tools"><button type="button" id="read-all">Tout marquer comme lu</button></div>' : ''}
-  ${visible.length ? listSlot('act-list', frag => appendAlertGroups(frag, visible)) : (!prem.length ? `<div class="act-list">${emptyState('bell', 'Tout est calme', 'Rien dans ce filtre. On vous prévient ici dès qu’un prix bouge ou qu’une banque demande votre attention.')}</div>` : '')}
-  ${P || !prem.length ? '' : `<a class="one-card" href="#/premium"><div><b>${prem.length} alertes d’économies</b><span>Hausses, doublons et rappels. ${CFG.trial}.</span></div>${logoMark()}</a>`}
-  <p class="acct-k">Réglages</p>
+<div class="screen act nt-screen">
+  <div class="topbar"><h1>Notifications</h1><div class="top-acts">${demoTag}<a class="gear" href="#/notif-reglages" aria-label="Réglages des notifications">⟦settings⟧</a></div></div>
+  <div class="nt-meta"><span>${unread ? unread + ' non lue' + (unread > 1 ? 's' : '') : 'Tout est lu'}</span>${unread ? '<button type="button" id="read-all">Tout marquer comme lu</button>' : ''}</div>
+  <div class="nt-chips" role="tablist" aria-label="Filtrer les notifications">${chip('all','Toutes')}${chip('up','Hausses')}${chip('dup','Doublons')}${chip('next','Rappels')}</div>
+  ${visible.length ? listSlot('act-list nt-list', frag => appendAlertGroups(frag, visible)) : `<div class="act-list">${emptyState('bell', 'Aucune notification', P || !prem.length ? 'Rien dans ce filtre. Nous vous prévenons ici dès qu’un prix bouge ou qu’une banque demande votre attention.' : 'Les hausses, doublons et rappels sont réservés à Premium.')}</div>`}
+  ${P || !prem.length ? '' : `<a class="nt-prem" href="#/premium">⟦lock⟧<span>${prem.length} notification${prem.length > 1 ? 's' : ''} Premium masquée${prem.length > 1 ? 's' : ''}</span><b>Voir</b></a>`}
+  <a class="nt-set" href="#/notif-reglages"><span class="acct-lab">⟦settings⟧ Réglages des notifications</span><span class="acct-go">⟦chev⟧</span></a>
+</div>`;
+};
+
+screens['notif-reglages'] = () => {
+  const P = isP();
+  const push = readPushPref();
+  const tog = (k, lab, open) => { const locked = !open && !P; const on = alertOn(k); return `<button type="button" class="acct-row" data-alert-set="${k}" ${locked ? `aria-label="${lab}, réservé à Premium"` : `role="switch" aria-checked="${on}"`}><span class="acct-lab">${lab}</span>${locked ? '<span class="acct-aside">Premium</span><span class="acct-go">⟦lock⟧</span>' : `<span class="sw ${on ? 'on' : ''}"></span>`}</button>`; };
+  return `
+<div class="screen">
+  <div class="topbar"><a class="back" href="#/notifications" aria-label="Retour">⟦back⟧</a><h1>Réglages des notifications</h1>${demoTag}</div>
+  <p class="acct-k">Me prévenir pour</p>
   <div class="menu-card">
     ${tog('bank','Accès bancaire bientôt expiré', true)}
     ${tog('up','Hausse de prix', false)}
     ${tog('dbl','Doublon et double prélèvement', false)}
     ${tog('next','Rappel avant prélèvement', false)}
     ${tog('trial','Fin d’essai gratuit', false)}
+  </div>
+  ${P ? '' : `<a class="nt-prem" href="#/premium">⟦star⟧<span>Débloquez tous les réglages avec Premium · ${CFG.trial}</span><b>Voir</b></a>`}
+  <p class="acct-k">Budget mensuel</p>
+  ${budgetCard()}
+  <p class="acct-k">Plus</p>
+  <div class="menu-card">
     <a class="acct-row" href="#/prelevements"><span class="acct-lab">Prochains prélèvements</span><span class="acct-go">⟦chev⟧</span></a>
+    <a class="acct-row" href="#/notif-push"><span class="acct-lab">Sur cet appareil</span><span class="acct-aside">${push && push.opted ? 'Activées' : 'Désactivées'}</span><span class="acct-go">⟦chev⟧</span></a>
   </div>
 </div>`;
 };
@@ -2131,7 +2147,7 @@ async function demoPush() {
   }
   const title = 'Prélèvement demain';
   const body = 'FibreBox Internet · 39,99 €';
-  const opts = { body: body, tag: 'prelevo-demo-prelevement', icon: 'icons/icon-192.png', data: { url: '#/alertes', kind: 'prelevement' } };
+  const opts = { body: body, tag: 'prelevo-demo-prelevement', icon: 'icons/icon-192.png', data: { url: '#/notifications', kind: 'prelevement' } };
   try {
     const reg = await navigator.serviceWorker.ready;
     await reg.showNotification(title, opts);
@@ -2423,7 +2439,7 @@ screens.compte = () => {
     <span class="cb-go">⟦chev⟧</span>
   </a>
   <a class="cb-promo" href="#/premium">
-    <div><b>${APP_NAME} Premium</b>${P ? '<span>Actif. Merci pour votre soutien !</span>' : '<span>Zéro pub, alertes et banques illimitées.</span><span class="cb-price"><i><strong>3,99 €</strong>/mois</i> ou <i><strong>29,99 €</strong>/an</i></span><span class="cb-offer">1 mois offert</span>'}</div>
+    <div><b>${APP_NAME} Premium</b>${P ? '<span>Actif. Merci pour votre soutien !</span>' : '<span>Zéro pub, notifications et banques illimitées.</span><span class="cb-price"><i><strong>3,99 €</strong>/mois</i> ou <i><strong>29,99 €</strong>/an</i></span><span class="cb-offer">1 mois offert</span>'}</div>
     ${PROMO_ART}
   </a>
   <p class="cb-k">Encore plus d’options</p>
@@ -2431,7 +2447,7 @@ screens.compte = () => {
     <button type="button" class="cb-row" id="toggle-balance" role="switch" aria-checked="${state.hideBalance ? 'true' : 'false'}" aria-label="Masquer le solde"><span class="cb-ic">⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧</span><span class="cb-lab">Masquer le solde</span><span class="sw ${state.hideBalance ? 'on' : ''}" aria-hidden="true"></span></button>
     ${cbRow('#/abonnements','receipt','Abonnements')}
     ${cbRow('#/operations','doc','Transactions')}
-    ${cbRow('#/alertes','bell','Alertes', unread ? `<span class="cb-pill">${unread}</span>` : '')}
+    ${cbRow('#/notifications','bell','Notifications', unread ? `<span class="cb-pill">${unread}</span>` : '')}
     ${cbRow('#/prelevements','calendar','Prochains prélèvements')}
     ${cbRow('#/graphiques','trend','Graphiques')}
     ${cbRow('#/budget','pie','Budget')}
@@ -2472,7 +2488,7 @@ screens.reglages = () => {
   <p class="cb-k">Préférences</p>
   <div class="cb-list big">
     ${cbRow('#/apparence','sun','Apparence', themeLabel())}
-    ${cbRow('#/notifications','bell','Notifications', push ? 'Activées' : 'Désactivées')}
+    ${cbRow('#/notif-push','bell','Notifications sur cet appareil', push ? 'Activées' : 'Désactivées')}
     ${cbStatic('globe','Langue','Français')}
     ${cbStatic('coin','Devise','Euro (EUR)')}
   </div>
@@ -2529,7 +2545,7 @@ screens.apropos = () => `
     <div class="kv"><span>Formule</span><span class="muted">${isP() ? 'Premium' : 'Gratuit'}</span></div>
   </div>
 </div>`;
-screens.notifications = () => {
+screens['notif-push'] = () => {
   const pref = readPushPref();
   const perm = pushSupported() ? Notification.permission : 'unsupported';
   const on = perm === 'granted' && pref.opted;
@@ -2537,10 +2553,10 @@ screens.notifications = () => {
   const kinds = PUSH_KINDS.map(([ic, title, text]) => `<div class="push-kind"><span class="acct-ic">⟦${ic}⟧</span><span><b>${title}</b><small>${text}</small></span></div>`).join('');
   return `
 <div class="screen">
-  ${sheetHead('Notifications', '#/reglages')}
-  <p class="push-lead">Vous activez les alertes ici, sur cet appareil. Quatre cas : un prélèvement prévu pour le lendemain, une hausse de prix, le budget à 80 % et le budget à 100 %.</p>
+  ${sheetHead('Notifications sur cet appareil', '#/reglages')}
+  <p class="push-lead">Vous activez les notifications ici, sur cet appareil. Quatre cas : un prélèvement prévu pour le lendemain, une hausse de prix, le budget à 80 % et le budget à 100 %.</p>
   <div class="menu-card">${kinds}</div>
-  <p class="push-ios">Sur iPhone, ajoutez Prelevo à l’écran d’accueil. Les alertes arrivent à partir d’iOS 16.4, une fois l’app installée.</p>
+  <p class="push-ios">Sur iPhone, ajoutez Prelevo à l’écran d’accueil. Les notifications arrivent à partir d’iOS 16.4, une fois l’app installée.</p>
   ${perm === 'denied' ? '<p class="push-status">Les notifications sont bloquées dans les réglages de cet appareil. Autorisez-les pour Prelevo, puis revenez ici.</p>' : ''}
   ${perm === 'unsupported' ? '<p class="push-status">Cet appareil ne propose pas les notifications.</p>' : ''}
   ${on ? `<p class="push-status">Notifications activées sur cet appareil.${key ? '' : ' La clé publique du serveur est vide : l’exemple reste local.'}</p>` : ''}
@@ -2576,11 +2592,11 @@ screens.prelevements = () => {
   const seg = (s, lead) => [1, 3, 7].map(n => `<button type="button" class="${lead === n ? 'on' : ''}" data-lead="${n}" data-sub="${esc(s.id)}" role="radio" aria-checked="${lead === n}">J-${n}</button>`).join('');
   return `
 <div class="screen">
-  ${sheetHead('Prochains prélèvements', '#/alertes')}
+  ${sheetHead('Prochains prélèvements', '#/notif-reglages')}
   <p class="push-lead">Pour chaque abonnement détecté, choisissez d’être prévenu 1, 3 ou 7 jours avant. Le délai par défaut est de 3 jours.</p>
   ${rows.length ? rows.map(r => `<div class="debit-row"><div class="debit-h"><b>${esc(r.s.name)}</b><span>${esc(dayLabel(r.debit))} · ${euroPlain(r.s.price)}</span></div><div class="seg debit-seg" role="radiogroup" aria-label="Délai pour ${esc(r.s.name)}">${seg(r.s, r.lead)}</div></div>`).join('') : '<p class="push-lead">Aucun prélèvement détecté pour l’instant.</p>'}
   <p class="push-ios">Le rappel s’affiche sur cet appareil si vous avez activé les notifications. Avec la clé du serveur, le même rappel part aussi en notification push.</p>
-  <a class="btn ghost" href="#/notifications">Notifications</a>
+  <a class="btn ghost" href="#/notif-push">Notifications sur cet appareil</a>
 </div>`;
 };
 function ululeHref() {
@@ -2734,7 +2750,7 @@ screens.aide = () => `
   </div>
   <div class="card" style="padding:4px 16px">
     <button type="button" class="kv lnk" id="toggle-balance" role="switch" aria-checked="${state.hideBalance ? 'true' : 'false'}"><span>⟦${state.hideBalance ? 'eyeoff' : 'eye'}⟧ ${state.hideBalance ? 'Afficher le solde' : 'Masquer le solde'}</span><span>${state.hideBalance ? 'Masqué' : 'Visible'} ›</span></button>
-    <a class="kv lnk" href="#/alertes"><span>⟦bell⟧ Alertes</span><span>›</span></a>
+    <a class="kv lnk" href="#/notifications"><span>⟦bell⟧ Notifications</span><span>›</span></a>
     <a class="kv lnk" href="#/premium"><span>⟦star⟧ Mon abonnement</span><span>${isP()?'Premium':'Gratuit'} ›</span></a>
     <div class="kv"><span>⟦shield⟧ Mes données</span><span class="muted">Jamais revendues</span></div>
   </div>
@@ -3144,7 +3160,7 @@ screens.connexion = (q) => {
     <input id="login-email" type="email" inputmode="email" autocomplete="email" required placeholder="nom@exemple.fr" enterkeyhint="send">
     <button class="btn" type="submit" id="login-submit">Recevoir mon lien</button>
   </form>
-  <p class="fine" style="margin-top:14px">⟦lock⟧ Votre e-mail sert uniquement à vous connecter et à vous envoyer vos alertes. Aucune publicité par e-mail.</p>`}
+  <p class="fine" style="margin-top:14px">⟦lock⟧ Votre e-mail sert uniquement à vous connecter et à vous envoyer vos notifications. Aucune publicité par e-mail.</p>`}
 </div>`;
 };
 screens.apiwait = () => `
@@ -3163,7 +3179,7 @@ screens.supprimer = () => !API || !API.loggedIn() ? screens.onboarding() : `
     <ul class="del-list">
       <li>⟦check⟧<span>votre compte${ME ? ` <b class="brk">${esc(ME.email)}</b>` : ''} et vos sessions</span></li>
       <li>⟦check⟧<span>l’accès à votre banque, aussi chez notre agrégateur (${bankEb() ? 'Enable Banking' : 'Powens'})</span></li>
-      <li>⟦check⟧<span>vos opérations, abonnements détectés et alertes</span></li>
+      <li>⟦check⟧<span>vos opérations, abonnements détectés et notifications</span></li>
     </ul>
     <p class="muted small" style="margin-top:8px">Rien n’est conservé chez ${APP_NAME}. Vous pourrez recréer un compte plus tard, en repartant de zéro.</p>
   </div>
@@ -3221,9 +3237,9 @@ function resetScroll() {
   document.body.scrollTop = 0;
 }
 function syncNav(name) {
-  const tabbed = ['dashboard','graphiques','operations','abonnements','alertes','premium','abo','banques','banque','budget','export'].includes(name) || (!screens[name]);
+  const tabbed = ['dashboard','graphiques','operations','abonnements','notifications','notif-reglages','premium','abo','banques','banque','budget','export'].includes(name) || (!screens[name]);
   const bar = $('#tabbar');
-  const tabName = name==='abo' || name==='operations' || name==='export' ? 'abonnements' : name==='budget' ? 'alertes' : !screens[name] ? 'dashboard' : name;
+  const tabName = name==='abo' || name==='operations' || name==='export' ? 'abonnements' : name==='budget' || name==='notif-reglages' ? 'notifications' : !screens[name] ? 'dashboard' : name;
   if (tabbed) { bar.hidden = false; bar.removeAttribute('aria-hidden'); }
   else { bar.hidden = true; bar.setAttribute('aria-hidden', 'true'); }
   document.querySelectorAll('#tabbar a').forEach(a => {
@@ -3239,6 +3255,7 @@ function render(){
   leaveView();
   const raw = location.hash.replace(/^#\/?/, '') || (API ? (API.loggedIn() && LIVE ? 'dashboard' : 'onboarding') : state.connected ? 'dashboard' : 'onboarding');
   const [path, qs] = raw.split('?');
+  if (path === 'alertes' || path.startsWith('alertes/')) { location.replace('#/notifications' + (qs ? '?' + qs : '')); return; }
   const [name, ...args] = path.split('/');
   const fn = screens[name] || screens.dashboard;
   $('#app').innerHTML = icons(fn(new URLSearchParams(qs||''), ...args));
@@ -3259,7 +3276,7 @@ function render(){
   if (name==='scan') runScan();
   if (name==='pwscan' && PWX && !LIVE) runPwScan();
   if (name==='connexion' && API){ const tk = new URLSearchParams(qs||'').get('token'); if (tk) apiVerify(tk); }
-  if (API && !API.loggedIn() && ['dashboard','abonnements','alertes','banques','abo','supprimer','budget','export'].includes(name)){ location.replace('#/onboarding'); }
+  if (API && !API.loggedIn() && ['dashboard','abonnements','notifications','notif-reglages','banques','abo','supprimer','budget','export'].includes(name)){ location.replace('#/onboarding'); }
   if (name==='resilier' && !isP()) toast('La résiliation guidée fait partie de Premium');
 }
 
@@ -3396,8 +3413,8 @@ document.addEventListener('click', e => {
   else if (el.dataset.billing){ billing = el.dataset.billing; render(); }
   else if (el.dataset.plan){ state.premium = el.dataset.plan==='premium'; save(); toast('Mode démo : ' + (state.premium?'Premium':'Gratuit')); render(); }
   else if (el.dataset.alert){ if(!state.readAlerts.includes(el.dataset.alert)){ state.readAlerts.push(el.dataset.alert); save(); } }
-  else if (el.dataset.af){ location.hash = '#/alertes' + (el.dataset.af === 'all' ? '' : '?f=' + el.dataset.af); }
-  else if (el.id === 'read-all'){ alerts().forEach(a => { if (!state.readAlerts.includes(a.id)) state.readAlerts.push(a.id); }); save(); toast('Alertes marquées comme lues'); render(); }
+  else if (el.dataset.af){ location.replace('#/notifications' + (el.dataset.af === 'all' ? '' : '?f=' + el.dataset.af)); }
+  else if (el.id === 'read-all'){ alerts().forEach(a => { if (!state.readAlerts.includes(a.id)) state.readAlerts.push(a.id); }); save(); toast('Notifications marquées comme lues'); render(); }
   else if (el.dataset.alertSet){
     const k = el.dataset.alertSet;
     if (!isP() && k !== 'bank'){ location.hash = '#/premium'; return; }
@@ -3508,7 +3525,7 @@ if (PWX && !QS.has('demo')) {
 }
 publishSubs();
 // expiration du jeton de test (30 min) : on rafraîchit l'affichage quand elle survient
-setInterval(() => { if (PWX && LIVE && /banques|dashboard|alertes/.test(location.hash)) { const tk = PWX.tokenInfo(); if (tk && tk.expired && !tk._shown) { sessionStorage.setItem('prelevo-pw-token', JSON.stringify({...tk, _shown:1})); render(); toast('Session de test Powens expirée (30 min)'); } } }, 30000);
+setInterval(() => { if (PWX && LIVE && /banques|dashboard|notifications/.test(location.hash)) { const tk = PWX.tokenInfo(); if (tk && tk.expired && !tk._shown) { sessionStorage.setItem('prelevo-pw-token', JSON.stringify({...tk, _shown:1})); render(); toast('Session de test Powens expirée (30 min)'); } } }, 30000);
 window.addEventListener('hashchange', render);
 function showBootSkeleton(){
   if (QS.has('static') || matchMedia('(prefers-reduced-motion: reduce)').matches) return 0;
