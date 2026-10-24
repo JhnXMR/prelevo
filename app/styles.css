@@ -1156,3 +1156,16 @@ h1,.prem-title,.greet h1,.topbar h1,.acct-head h1,.acct-id h1{font-weight:500;le
 }
 @keyframes cb-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion: reduce){ .cb-art{animation:none} }
+
+/* Peaufinage (tour complet) */
+button.kv{font-size:14px}
+.card button.kv{min-height:44px;align-items:center}
+.total .lbl{min-height:44px;display:flex;align-items:center;padding-right:132px;margin-top:-6px}
+.chat-who .av{flex:none}
+.chat-who .muted.small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chat-who>div{min-width:0}
+.theme-card .seg button{gap:4px;padding:0 2px;font-size:13px;overflow:hidden}
+.pidx-i{position:relative}
+.pidx-i::after{content:"";position:absolute;inset:-13px}
+html:not([data-theme="dark"]) .tv-card .sp-read b{color:var(--ink)}
+.topbar .back{flex:none}
