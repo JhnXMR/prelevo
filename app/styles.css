@@ -1169,3 +1169,13 @@ button.kv{font-size:14px}
 .pidx-i::after{content:"";position:absolute;inset:-13px}
 html:not([data-theme="dark"]) .tv-card .sp-read b{color:var(--ink)}
 .topbar .back{flex:none}
+
+/* Menu façon Coinbase : e-mail, prix Premium, sections */
+.cb-who .cb-mail{font-size:14px;color:var(--ink2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cb-promo .cb-price{margin-top:8px;font-size:14px;color:var(--ink2)}
+.cb-promo .cb-price strong{color:var(--ink);font-weight:600}
+.cb-promo .cb-offer{display:inline-block;margin-top:10px;padding:4px 10px;border-radius:99px;background:#0066FF;color:#fff;font-size:13px;font-weight:600}
+.cb-k.first{margin-top:14px}
+.cb-sep{margin-top:14px;padding-top:10px;border-top:1px solid var(--line)}
+.cb-row{min-height:max(58px,44px)}
+.cb-promo .cb-price i{font-style:normal;white-space:nowrap}
