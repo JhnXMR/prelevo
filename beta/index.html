@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Bêta fermée – Prelevo</title>
+<meta name="description" content="Vous êtes invité(e) à la bêta fermée de Prelevo, la nouvelle interface de votre compte bancaire. Lecture seule, sans engagement.">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#1652F0">
+<link rel="icon" href="../app/icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../app/icons/apple-touch-icon-180.png">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:site_name" content="Prelevo">
+<meta property="og:url" content="https://jhndlt.github.io/prelevo/beta/">
+<meta property="og:title" content="Vous êtes invité(e) à la bêta fermée de Prelevo">
+<meta property="og:description" content="Prelevo n'est pas une banque, c'est une télécommande qui se branche sur vos banques pour une belle interface.">
+<meta property="og:image" content="https://jhndlt.github.io/prelevo/assets/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+:root{--b:#1652F0;--bg:#fff;--fg:#0A0B0D;--mut:#5B616E;--card:#F5F7FA;--line:#E6E8EC;--soft:#EEF3FF}
+@media (prefers-color-scheme:dark){:root{--bg:#0A0B0D;--fg:#fff;--mut:#9BA1AC;--card:#16181C;--line:#25282E;--soft:#0F1D45}}
+*{box-sizing:border-box}html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Inter","Segoe UI",Roboto,sans-serif}
+.w{max-width:560px;margin:0 auto;padding:0 20px}
+header{display:flex;align-items:center;justify-content:space-between;padding:16px 0}
+header img{height:28px}.dark-logo{display:none}
+@media (prefers-color-scheme:dark){.light-logo{display:none}.dark-logo{display:inline}}
+.pill{font-size:12px;font-weight:600;color:var(--b);background:var(--soft);padding:4px 10px;border-radius:99px}
+.hero{padding:28px 0 8px;text-align:center}
+.mark{width:72px;height:72px;border-radius:20px;margin-bottom:16px}
+h1{font-size:32px;line-height:1.15;margin:0 0 12px;letter-spacing:-.02em}
+h2{font-size:22px;margin:0 0 14px;letter-spacing:-.01em}
+.sub{color:var(--mut);margin:0 0 22px}
+.inv{display:none;margin:0 auto 14px;font-size:14px;color:var(--mut)}
+.btn{display:block;width:100%;text-align:center;background:var(--b);color:#fff;text-decoration:none;font-weight:600;font-size:17px;padding:16px;border-radius:99px}
+.btn:active{opacity:.85}
+.note{font-size:13px;color:var(--mut);text-align:center;margin:10px 0 0}
+.key{margin:28px 0;padding:20px;border-radius:20px;background:var(--b);color:#fff;font-size:19px;font-weight:600;line-height:1.35}
+.key small{display:block;font-weight:400;font-size:14px;opacity:.85;margin-top:8px}
+section{padding:22px 0}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.c{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px}
+.c b{display:block;margin:8px 0 2px}.c span{font-size:14px;color:var(--mut)}
+.ic{width:36px;height:36px;border-radius:10px;background:var(--soft);display:grid;place-items:center;font-size:18px}
+ul.chk{list-style:none;padding:0;margin:0}
+ul.chk li{display:flex;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+ul.chk li:last-child{border:0}
+.dot{flex:none;width:24px;height:24px;border-radius:50%;background:var(--b);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:700}
+ul.chk p{margin:0;font-size:14px;color:var(--mut)}
+.perk{background:var(--soft);border-radius:20px;padding:20px}
+.perk p{margin:6px 0;font-size:15px}
+details{border-bottom:1px solid var(--line);padding:14px 0}
+summary{font-weight:600;cursor:pointer;list-style:none;display:flex;justify-content:space-between}
+summary::after{content:"+";color:var(--b);font-size:20px;line-height:1}
+details[open] summary::after{content:"–"}
+details p{margin:8px 0 0;color:var(--mut);font-size:15px}
+footer{padding:30px 0 40px;text-align:center;font-size:13px;color:var(--mut)}
+footer a{color:var(--mut);margin:0 8px}
+a{color:var(--b)}
+</style>
+</head>
+<body>
+<div class="w">
+<header>
+  <img class="light-logo" src="../app/icons/logo-horizontal.svg" alt="Prelevo">
+  <img class="dark-logo" src="../app/icons/logo-horizontal-white.svg" alt="Prelevo">
+  <span class="pill">Bêta fermée</span>
+</header>
+
+<div class="hero">
+  <img class="mark" src="../app/icons/icon-192.png" alt="">
+  <p class="inv" id="inv"></p>
+  <h1>Vous êtes invité(e) à la bêta fermée</h1>
+  <p class="sub">Prelevo – la nouvelle interface de votre compte bancaire.</p>
+  <a class="btn" href="../app/">Rejoindre la bêta</a>
+  <p class="note">Gratuit · Sans engagement · Aucun paiement demandé</p>
+</div>
+
+<div class="key">Prelevo n'est pas une banque, c'est une télécommande qui se branche sur vos banques pour une belle interface.
+<small>Vous gardez votre banque. Prelevo affiche vos comptes, en lecture seule.</small></div>
+
+<section>
+  <h2>Ce que vous obtenez</h2>
+  <div class="grid">
+    <div class="c"><div class="ic">💶</div><b>Tous vos soldes</b><span>Tous vos comptes réunis en un coup d'œil.</span></div>
+    <div class="c"><div class="ic">📅</div><b>Opérations du jour</b><span>Ce qui est passé aujourd'hui, clairement.</span></div>
+    <div class="c"><div class="ic">⏳</div><b>Ce qui part cette semaine</b><span>Prélèvements à venir, sans surprise.</span></div>
+    <div class="c"><div class="ic">🔁</div><b>Vos abonnements</b><span>Repérés automatiquement, au même endroit.</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>Votre sécurité d'abord</h2>
+  <ul class="chk">
+    <li><span class="dot">✓</span><div><b>Lecture seule</b><p>Prelevo ne peut faire aucun virement ni aucun paiement.</p></div></li>
+    <li><span class="dot">✓</span><div><b>Agrégateur agréé</b><p>La connexion à votre banque passe par Enable Banking, prestataire agréé.</p></div></li>
+    <li><span class="dot">✓</span><div><b>Aucun mot de passe bancaire stocké</b><p>Vous vous identifiez directement auprès de votre banque.</p></div></li>
+  </ul>
+</section>
+
+<section>
+  <h2>Comment ça marche</h2>
+  <ul class="chk">
+    <li><span class="dot">1</span><div><b>Entrez votre e-mail</b><p>Pas de mot de passe à créer.</p></div></li>
+    <li><span class="dot">2</span><div><b>Recevez votre lien</b><p>Un lien de connexion arrive dans votre boîte mail.</p></div></li>
+    <li><span class="dot">3</span><div><b>Connectez votre banque</b><p>En quelques secondes, vos comptes s'affichent.</p></div></li>
+  </ul>
+</section>
+
+<section>
+  <div class="perk">
+    <h2>Vos avantages de testeur</h2>
+    <p>🎁 <b>Premium offert pendant toute la bêta</b>, pour vous remercier de vos retours.</p>
+    <p>💬 <b>Un support humain</b> : une vraie personne vous répond.</p>
+    <p>🗳️ <b>Votre avis compte</b> : vous influencez les prochaines fonctionnalités.</p>
+    <p class="note" style="text-align:left">Après la bêta : version gratuite avec publicités, ou Premium à 3,99 €/mois ou 29,99 €/an, avec 1 mois offert. Rien n'est prélevé sans votre accord.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Questions fréquentes</h2>
+  <details><summary>Prelevo est-il une banque ?</summary><p>Non. Prelevo se branche sur vos banques existantes et affiche vos comptes dans une interface plus claire. Vous ne changez rien.</p></details>
+  <details><summary>Prelevo peut-il déplacer mon argent ?</summary><p>Non. L'accès est en lecture seule : aucun virement, aucun paiement n'est possible.</p></details>
+  <details><summary>Dois-je payer pendant la bêta ?</summary><p>Non. Aucun moyen de paiement n'est demandé et Premium vous est offert pendant la bêta.</p></details>
+  <details><summary>Faut-il installer une application ?</summary><p>Non. Prelevo s'ouvre dans votre navigateur et peut s'ajouter à l'écran d'accueil de votre téléphone.</p></details>
+  <details><summary>Comment arrêter ?</summary><p>Vous pouvez déconnecter votre banque à tout moment depuis l'application.</p></details>
+</section>
+
+<a class="btn" href="../app/">Rejoindre la bêta</a>
+
+<footer>
+  <a href="../confidentialite.html">Confidentialité</a>·<a href="../conditions.html">Conditions</a>·<a href="../">Prelevo</a>
+  <p>© 2026 Prelevo</p>
+</footer>
+</div>
+<script>
+(function(){var p=new URLSearchParams(location.search),d=(p.get("de")||"").trim().slice(0,40);
+if(d){var e=document.getElementById("inv");e.textContent="Invitation de "+d;e.style.display="block";}})();
+</script>
+</body>
+</html>
