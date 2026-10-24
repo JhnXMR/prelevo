@@ -1,6 +1,6 @@
 /* Prelevo – maquette cliquable. TOUTES LES DONNÉES SONT DES EXEMPLES FICTIFS. */
 'use strict';
-const CFG = window.APP_CONFIG || { name:'Prelevo', tagline:'l’app qui traque vos abonnements', priceMonth:1.99, priceYear:14.99, trial:'1 mois offert pour essayer', supportEmail:'support@exemple.fr' };
+const CFG = window.APP_CONFIG || { name:'Prelevo', tagline:'l’app qui traque vos abonnements', priceMonth:3.99, priceYear:29.99, trial:'1 mois offert pour essayer', supportEmail:'support@exemple.fr' };
 const APP_NAME = CFG.name;
 document.title = `${APP_NAME} – ${CFG.tagline}`;
 
@@ -236,7 +236,7 @@ function sumEuros(list, pick) {
 function annual(n) { return fromCents(toCents(n) * 12); }
 const eur = n => fromCents(toCents(n)).toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' €';
 const prix = n => n.toLocaleString('fr-FR', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' €';
-// Économie de l'annuel face à 12 mois, en centimes (évite les flottants 1,99 × 12).
+// Économie de l'annuel face à 12 mois, en centimes (évite les flottants 3,99 × 12).
 function yearSave(monthEuros, yearEuros){
   const month = Math.round(Number(monthEuros) * 100);
   const year = Math.round(Number(yearEuros) * 100);
