@@ -1,4 +1,4 @@
-const CACHE = 'prelevo-app-v94-prix';
+const CACHE = 'prelevo-app-v95-polish';
 const ASSETS = ['./', './index.html', './styles.css', './config.js', './powens.js', './api.js', './store.js', './categories.js', './guard.js', './supporters.json', './app.js', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/icon-maskable-512.png', './icons/icon.svg',
   './icons/favicon.svg', './icons/logo-mark.svg', './icons/logo-mark-white.svg', './icons/favicon-32.png', './icons/apple-touch-icon-180.png'];

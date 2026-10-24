@@ -2779,7 +2779,7 @@ document.addEventListener('submit', e => { if (e.target.id !== 'ai-form') return
 
 screens.chat = () => `
 <div class="screen chat-screen">
-  <div class="topbar"><a class="back" href="#/aide">⟦back⟧</a><div class="chat-who"><span class="av avc a">S</span><div><h1>Sarah</h1><div class="muted small">Équipe support · humaine · en ligne</div></div></div>${demoTag}</div>
+  <div class="topbar"><a class="back" href="#/aide">⟦back⟧</a><div class="chat-who"><span class="av avc a">S</span><div><h1>Sarah</h1><div class="muted small">Support humain · en ligne</div></div></div>${demoTag}</div>
   <div class="chat">${CHAT.map(m=>`<div class="msg ${m.me?'me':''}"><div class="bubble">${esc(m.t)}</div><div class="h">${esc(m.h)}</div></div>`).join('')}</div>
   <form class="chat-input" id="chat-form"><input id="chat-text" placeholder="Écrivez votre message…" aria-label="Votre message" autocomplete="off"><button class="send" aria-label="Envoyer">⟦send⟧</button></form>
   <p class="muted small center" style="margin-top:8px">Conversation simulée – aucun message n’est envoyé.</p>
